@@ -195,7 +195,7 @@ releaseEditor.edits = {
                     newNoPosition.to_edit = medium.id;
                     edits.push(MB.edit.mediumEdit(newNoPosition, oldNoPosition));
                 }
-            } else if (medium.hasTracks()) {
+            } else {
                 // With regards to the medium position, make sure that:
                 //
                 //  (1) The position doesn't conflict with an existing

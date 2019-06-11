@@ -321,6 +321,7 @@ sub load_related_info {
     $self->c->model('Track')->load_for_mediums(@mediums);
 
     my @tracks = map { $_->all_tracks } @mediums;
+
     $self->c->model('ArtistCredit')->load(@tracks);
 
     my @recordings = $self->c->model('Recording')->load(@tracks);
