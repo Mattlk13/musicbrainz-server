@@ -6,7 +6,7 @@
 
     [% IF release.mediums.size == 0 %]
       <p>
-        [% l('The tracklist for this release is currently unknown.') %]
+        [% l('We have no information about this release’s media and tracklist.') %]
       </p>
     [% ELSE %]
       <button type="button" id="toggle-credits" class="btn-link"></button>
