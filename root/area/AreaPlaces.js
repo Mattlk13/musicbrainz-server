@@ -7,22 +7,23 @@
  * later version: http://www.gnu.org/licenses/gpl-2.0.txt
  */
 
-import React from 'react';
+import * as React from 'react';
 
-import {withCatalystContext} from '../context';
 import PlaceList from '../components/list/PlaceList';
 import PaginatedResults from '../components/PaginatedResults';
 import * as manifest from '../static/manifest';
+import DBDefs from '../static/scripts/common/DBDefs-client';
+import {returnToCurrentPage} from '../utility/returnUri';
 
 import AreaLayout from './AreaLayout';
 
-type Props = {|
+type Props = {
   +$c: CatalystContextT,
   +area: AreaT,
   +mapDataArgs: {places: $ReadOnlyArray<PlaceT>},
   +pager: PagerT,
-  +places: $ReadOnlyArray<PlaceT>,
-|};
+  +places: ?$ReadOnlyArray<PlaceT>,
+};
 
 const AreaPlaces = ({
   $c,
@@ -30,22 +31,37 @@ const AreaPlaces = ({
   mapDataArgs,
   pager,
   places,
-}: Props) => (
+}: Props): React.Element<typeof AreaLayout> => (
   <AreaLayout entity={area} page="places" title={l('Places')}>
     <h2>{l('Places')}</h2>
 
-    {places && places.length > 0 ? (
+    {places?.length ? (
       <>
-        <div id="largemap" />
-        {manifest.js('area/places-map.js', {'data-args': mapDataArgs})}
-        <form action="/place/merge_queue" method="post">
+        {DBDefs.MAPBOX_ACCESS_TOKEN ? (
+          <>
+            <div id="largemap" />
+            {manifest.js('area/places-map.js', {'data-args': mapDataArgs})}
+          </>
+        ) : (
+          <p>
+            {l(
+              `A map cannot be shown because no maps service access token has
+               been set for this server.`,
+            )}
+          </p>
+        )}
+        <form
+          action={'/place/merge_queue?' + returnToCurrentPage($c)}
+          method="post"
+        >
           <PaginatedResults pager={pager}>
             <PlaceList
               checkboxes="add-to-merge"
               places={places}
+              showRatings
             />
           </PaginatedResults>
-          {$c.user_exists ? (
+          {$c.user ? (
             <div className="row">
               <span className="buttons">
                 <button type="submit">
@@ -64,4 +80,4 @@ const AreaPlaces = ({
   </AreaLayout>
 );
 
-export default withCatalystContext(AreaPlaces);
+export default AreaPlaces;

@@ -24,7 +24,7 @@ with 'MusicBrainz::Server::Controller::Role::Load' => {
 };
 
 __PACKAGE__->config(
-    paging_limit => 25,
+    paging_limit => 50,
 );
 
 =head1 NAME
@@ -55,7 +55,7 @@ sub _load
     return $c->model('Edit')->get_by_id($edit_id);
 }
 
-sub show : Chained('load') PathPart('') RequireAuth
+sub show : Chained('load') PathPart('')
 {
     my ($self, $c) = @_;
     my $edit = $c->stash->{edit};
@@ -98,11 +98,14 @@ sub enter_votes : Local RequireAuth DenyWhenReadonly
     my ($self, $c) = @_;
 
     my $form = $c->form(vote_form => 'Vote');
-    if ($c->form_posted && $form->submitted_and_valid($c->req->params)) {
+    if ($c->form_posted_and_valid($form)) {
         my @submissions = @{ $form->field('vote')->value };
         my @votes = grep { defined($_->{vote}) } @submissions;
         unless ($c->user->is_editing_enabled || scalar @votes == 0) {
-            $c->stash( template => 'edit/cannot_vote.tt' );
+            $c->stash(
+                current_view => 'Node',
+                component_path => 'edit/CannotVote',
+            );
             return;
         }
         $c->model('Edit')->insert_votes_and_notes(
@@ -126,7 +129,11 @@ sub approve : Chained('load') RequireAuth(auto_editor) RequireAuth(editing_enabl
         $c->model('Vote')->load_for_edits($edit);
 
         if (!$edit->editor_may_approve($c->user)) {
-            $c->stash( template => 'edit/cannot_approve.tt' );
+            $c->stash(
+                current_view => 'Node',
+                component_path => 'edit/CannotApproveEdit',
+                component_props => {edit => $edit->TO_JSON},
+            );
             return;
         }
         else {
@@ -140,14 +147,20 @@ sub approve : Chained('load') RequireAuth(auto_editor) RequireAuth(editing_enabl
                 }
 
                 unless ($left_note) {
-                    $c->stash( template => 'edit/require_note.tt' );
+                    $c->stash(
+                        current_view => 'Node',
+                        component_path => 'edit/NoteIsRequired',
+                        component_props => {edit => $edit->TO_JSON},
+                    );
                     return;
                 };
             }
 
             $c->model('Edit')->approve($edit, $c->user);
-            $c->response->redirect(
-                $c->req->query_params->{returnto} || $c->uri_for_action('/edit/show', [ $edit->id ]));
+
+            $c->redirect_back(
+                fallback => $c->uri_for_action('/edit/show', [ $edit->id ]),
+            );
         }
     });
 }
@@ -157,14 +170,18 @@ sub cancel : Chained('load') RequireAuth DenyWhenReadonly
     my ($self, $c) = @_;
     my $edit = $c->stash->{edit};
     if (!$edit->editor_may_cancel($c->user)) {
-        $c->stash( template => 'edit/cannot_cancel.tt' );
+        $c->stash(
+            current_view => 'Node',
+            component_path => 'edit/CannotCancelEdit',
+            component_props => {edit => $edit->TO_JSON},
+        );
         $c->detach;
     }
 
     $c->model('Edit')->load_all($edit);
 
     my $form = $c->form(form => 'Confirm');
-    if ($c->form_posted && $form->submitted_and_valid($c->req->params)) {
+    if ($c->form_posted_and_valid($form)) {
         $c->model('MB')->with_transaction(sub {
             $c->model('Edit')->cancel($edit);
 
@@ -190,12 +207,16 @@ Show a list of open moderations
 
 =cut
 
-sub open : Local RequireAuth
+sub open : Local
 {
     my ($self, $c) = @_;
 
     my $edits = $self->_load_paged($c, sub {
-         $c->model('Edit')->find_open_for_editor($c->user->id, shift, shift);
+        if ($c->user_exists) {
+            $c->model('Edit')->find_open_for_editor($c->user->id, shift, shift);
+        } else {
+            $c->model('Edit')->find_all_open(shift, shift);
+        }
     });
 
     $c->stash( edits => $edits ); # stash early in case an ISE occurs
@@ -204,7 +225,7 @@ sub open : Local RequireAuth
     $c->form(add_edit_note => 'EditNote');
 }
 
-sub search : Path('/search/edits') RequireAuth
+sub search : Path('/search/edits')
 {
     my ($self, $c) = @_;
     my $coll = $c->get_collator();
@@ -212,7 +233,7 @@ sub search : Path('/search/edits') RequireAuth
     $c->stash(
         edit_types => [
             map [
-                join(',', map { $_->edit_type } @{ $grouped{$_} }) => $_
+                join(',', sort { $a <=> $b } map { $_->edit_type } @{ $grouped{$_} }) => $_
             ], sort_by { $coll->getSortKey($_) } keys %grouped
         ],
         status => status_names(),
@@ -259,7 +280,7 @@ sub subscribed : Local RequireAuth {
     my ($self, $c) = @_;
 
     my $only_open = 0;
-    if ($c->req->query_params->{open} eq '1') {
+    if (($c->req->query_params->{open} // '') eq '1') {
         $only_open = 1;
     }
 
@@ -279,7 +300,7 @@ sub subscribed_editors : Local RequireAuth {
     my ($self, $c) = @_;
 
     my $only_open = 0;
-    if ($c->req->query_params->{open} eq '1') {
+    if (($c->req->query_params->{open} // '') eq '1') {
         $only_open = 1;
     }
 

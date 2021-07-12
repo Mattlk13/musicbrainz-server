@@ -1,5 +1,5 @@
 /*
- * @flow
+ * @flow strict-local
  * Copyright (C) 2018 MetaBrainz Foundation
  *
  * This file is part of MusicBrainz, the open internet music database,
@@ -9,10 +9,19 @@
 
 import * as wrapGettext from './wrapGettext';
 
-export const l_attributes = wrapGettext.dgettext('attributes');
-export const ln_attributes = wrapGettext.dngettext('attributes');
-export const lp_attributes = wrapGettext.dpgettext('attributes');
+export const l_attributes: (string) => string =
+  wrapGettext.dgettext('attributes');
 
-export const N_lp_attributes = (key: string, context: string) => (
+export const ln_attributes: (string, string, number) => string =
+  wrapGettext.dngettext('attributes');
+
+export const lp_attributes: (string, string) => string =
+  wrapGettext.dpgettext('attributes');
+
+export const N_lp_attributes = (
+  key: string,
+  context: string,
+// eslint-disable-next-line function-paren-newline -- likely eslint bug
+): (() => string) => (
   () => lp_attributes(key, context)
 );

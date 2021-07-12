@@ -2,21 +2,30 @@
     [%- DEFAULT no_icons = homepage -%]
     [%- React.embed(c, 'layout/components/Head', {
             homepage => homepage,
-            no_icons => no_icons,
-            pager => pager,
+            noIcons => boolean_to_json(no_icons),
+            pager => React.serialize_pager(pager),
             title => title,
-            gettext_domains => gettext_domains,
         })
     -%]
     <body>
         [%- React.embed(c, 'layout/components/Header') -%]
 
-        [%- IF c.user.is_editing_disabled -%]
+        [%- IF c.user.is_editing_disabled || c.user.is_adding_notes_disabled -%]
             <div class="banner editing-disabled">
                 <p>
-                    [% l('You’re currently not allowed to edit or vote because an admin has revoked your privileges.
-                          If you haven’t already been contacted about why, please {uri|send us a message}.',
-                        { uri => { href => 'https://metabrainz.org/contact', target => '_blank' } }) %]
+                    [%- IF c.user.is_editing_disabled && c.user.is_adding_notes_disabled -%]
+                        [% l('You’re currently not allowed to edit, vote or leave edit notes because an admin has revoked your privileges.
+                            If you haven’t already been contacted about why, please {uri|send us a message}.',
+                            { uri => { href => 'https://metabrainz.org/contact', target => '_blank' } }) %]
+                    [%- ELSIF c.user.is_editing_disabled -%]
+                        [% l('You’re currently not allowed to edit or vote because an admin has revoked your privileges.
+                            If you haven’t already been contacted about why, please {uri|send us a message}.',
+                            { uri => { href => 'https://metabrainz.org/contact', target => '_blank' } }) %]
+                    [%- ELSE -%]
+                        [% l('You’re currently not allowed to leave edit notes because an admin has revoked your privileges.
+                            If you haven’t already been contacted about why, please {uri|send us a message}.',
+                            { uri => { href => 'https://metabrainz.org/contact', target => '_blank' } }) %]
+                    [%- END -%]
                 </p>
             </div>
         [%- END -%]
@@ -92,7 +101,6 @@
 
         <div id="page"[% IF full_width %] class="fullwidth"[% END %][% IF homepage %] class="homepage"[% END %]>
             [%- content -%]
-            <div style="clear: both"></div>
         </div>
 
         [%- INCLUDE 'layout/merge-helper.tt'
@@ -103,11 +111,12 @@
                 <a href="https://metabrainz.org/donate" class="internal">[% l('Donate') %]</a> |
                 <a href="//wiki.musicbrainz.org/" class="internal">[% l('Wiki') %]</a> |
                 <a href="https://community.metabrainz.org/" class="internal">[% l('Forums') %]</a> |
+                <a href="/doc/Communication/IRC" class="internal">[% l('IRC') %]</a> |
                 <a href="http://tickets.metabrainz.org/" class="internal">[% l('Bug Tracker') %]</a> |
                 <a href="https://blog.metabrainz.org/" class="internal">[% l('Blog') %]</a> |
                 <a href="https://twitter.com/MusicBrainz" class="internal">[% l('Twitter') %]</a>
                 [%- IF server_details.beta_redirect %] |
-                <a href="[% c.uri_for('/set-beta-preference') %]" class="internal">[% server_details.is_beta ? l('Stop using beta site') : l('Use beta site') %]</a>
+                <a href="[% c.uri_for('/set-beta-preference', {returnto => c.relative_uri}) %]" class="internal">[% server_details.is_beta ? l('Stop using beta site') : l('Use beta site') %]</a>
                 [%- END -%]
                 [% IF server_details.git.branch ~%]
                 <br/>

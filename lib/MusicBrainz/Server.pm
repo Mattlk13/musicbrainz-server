@@ -5,17 +5,27 @@ BEGIN { extends 'Catalyst' }
 
 use Class::Load qw( load_class );
 use DBDefs;
+use Digest::SHA qw( sha256 );
 use Encode;
 use JSON;
+use MIME::Base64 qw( encode_base64 );
 use Moose::Util qw( does_role );
-use MusicBrainz::Sentry qw( sentry_enabled );
-use MusicBrainz::Server::Data::Utils qw( boolean_to_json datetime_to_iso8601 );
+use MusicBrainz::Server::Data::Utils qw(
+    boolean_to_json
+    datetime_to_iso8601
+    generate_token
+);
+use MusicBrainz::Server::Entity::Util::JSON qw( to_json_array to_json_object );
 use MusicBrainz::Server::Log qw( logger );
+use MusicBrainz::Server::Validation qw( is_positive_integer );
 use POSIX qw(SIGALRM);
+use Scalar::Util qw( refaddr );
 use Sys::Hostname;
+use Time::HiRes qw( clock_gettime CLOCK_REALTIME CLOCK_MONOTONIC );
 use Try::Tiny;
 use URI;
 use aliased 'MusicBrainz::Server::Translation';
+use feature 'state';
 
 # Set flags and add plugins for the application
 #
@@ -48,14 +58,15 @@ __PACKAGE__->config(
     encoding => 'UTF-8',
     "View::Default" => {
         expose_methods => [qw(
+            boolean_to_json
             comma_list
             comma_only_list
+            form_to_json
         )],
         FILTERS => {
             'format_length' => \&MusicBrainz::Server::Filters::format_length,
             'format_wikitext' => \&MusicBrainz::Server::Filters::format_wikitext,
             'format_editnote' => \&MusicBrainz::Server::Filters::format_editnote,
-            'format_setlist' => \&MusicBrainz::Server::Filters::format_setlist,
             'locale' => \&MusicBrainz::Server::Filters::locale,
             'gravatar' => \&MusicBrainz::Server::Filters::gravatar,
             'coverart_https' => \&MusicBrainz::Server::Filters::coverart_https
@@ -86,8 +97,9 @@ if ($ENV{'MUSICBRAINZ_USE_PROXY'})
     __PACKAGE__->config( using_frontend_proxy => 1 );
 }
 
-if (sentry_enabled) {
-    push @args, 'Sentry';
+unless (DBDefs->CATALYST_DEBUG) {
+    # $c->debug provides its own error pages
+    push @args, 'ErrorInfo';
 }
 
 __PACKAGE__->config->{'Plugin::Cache'}{backend} = DBDefs->PLUGIN_CACHE_OPTIONS;
@@ -221,13 +233,55 @@ sub form
     return $form;
 }
 
-sub relative_uri
-{
-    my ($self) = @_;
-    my $uri = URI->new($self->req->uri->path);
-    $uri->path_query($self->req->uri->path_query);
+has relative_uri => (
+    is => 'ro',
+    lazy => 1,
+    isa => 'URI',
+    default => sub {
+        my ($self) = @_;
+        my $uri = URI->new($self->req->uri->path);
+        $uri->path_query($self->req->uri->path_query);
+        return $uri;
+    },
+);
 
-    return $uri;
+sub redirect_back {
+    my ($c, %opts) = @_;
+
+    my $returnto_param = $c->req->query_params->{returnto};
+    my $fallback_opt = $opts{fallback};
+
+    if (!defined $returnto_param && defined $fallback_opt) {
+        $returnto_param = $c->get_relative_uri($fallback_opt);
+    }
+
+    my $returnto = URI->new($returnto_param);
+
+    if (
+        $returnto eq '' ||
+        # Check that we weren't given an external URL. Only URLs relative to
+        # the current domain are allowed.
+        (
+            $returnto->authority &&
+            $returnto->authority ne $c->req->uri->authority
+        )
+    ) {
+        $returnto->path_query('/');
+        $returnto->fragment(undef);
+    }
+
+    if (my $callback = $opts{callback}) {
+        $callback->($returnto);
+    }
+
+    $c->res->redirect($returnto);
+}
+
+# XXX temporary hack for remove_from_merge in common-macros.tt, and
+# merge-helper.tt.
+use WWW::Form::UrlEncoded qw( build_urlencoded );
+sub returnto_relative_uri {
+    build_urlencoded(returnto => shift->relative_uri);
 }
 
 sub get_relative_uri {
@@ -256,7 +310,15 @@ sub get_collator
 
 sub set_language_cookie {
     my ($c, $lang) = @_;
-    $c->res->cookies->{lang} = { 'value' => $lang, 'path' => '/', 'expires' => time()+31536000 };
+    $c->res->cookies->{lang} = {
+        'value' => $lang,
+        'path' => '/',
+        'expires' => time()+31536000,
+        $c->req->secure ? (
+            'samesite' => 'None',
+            'secure' => '1',
+        ) : (),
+    };
 }
 
 sub handle_unicode_encoding_exception {
@@ -306,7 +368,15 @@ around dispatch => sub {
                       $c->req->cookies->{beta}->value eq 'on' &&
                       !DBDefs->IS_BETA);
     if ( $unset_beta ) {
-        $c->res->cookies->{beta} = { 'value' => '', 'path' => '/', 'expires' => time()-86400 };
+        $c->res->cookies->{beta} = {
+            'value' => '',
+            'path' => '/',
+            'expires' => time()-86400,
+            $c->req->secure ? (
+                'samesite' => 'None',
+                'secure' => '1',
+            ) : (),
+        };
     }
 
     if (DBDefs->BETA_REDIRECT_HOSTNAME &&
@@ -335,7 +405,6 @@ around dispatch => sub {
     $c->$orig(@args);
 };
 
-my $ORIG_SEARCH_SERVER = DBDefs->can('SEARCH_SERVER');
 my $ORIG_ENTITY_CACHE_TTL = DBDefs->can('ENTITY_CACHE_TTL');
 my $ORIG_CACHE_NAMESPACE = DBDefs->can('CACHE_NAMESPACE');
 
@@ -359,12 +428,16 @@ before dispatch => sub {
         my $cache_namespace = DBDefs->CACHE_NAMESPACE;
         *DBDefs::CACHE_NAMESPACE = sub { $cache_namespace . $database . ':' };
         *DBDefs::ENTITY_CACHE_TTL = sub { 1 };
-        *DBDefs::SEARCH_SERVER = sub { '' };
     } else {
         # Use a fresh database connection for every request, and
         # remember to disconnect at the end.
         $ctx->connector->refresh;
     }
+
+    # Any time `TO_JSON` is called on an Entity, it may add other
+    # entity data it references into the `$linked_entities` hash. This
+    # must be reset per-request.
+    $MusicBrainz::Server::Entity::Util::JSON::linked_entities = {};
 };
 
 
@@ -386,8 +459,9 @@ after dispatch => sub {
         $ctx->clear_database;
         *DBDefs::CACHE_NAMESPACE = $ORIG_CACHE_NAMESPACE;
         *DBDefs::ENTITY_CACHE_TTL = $ORIG_ENTITY_CACHE_TTL;
-        *DBDefs::SEARCH_SERVER = $ORIG_SEARCH_SERVER;
     }
+
+    $MusicBrainz::Server::Entity::Util::JSON::linked_entities = undef;
 };
 
 # Timeout long running requests
@@ -432,26 +506,42 @@ around 'finalize_error' => sub {
                 && does_role($errors->[0], 'MusicBrainz::Server::Exceptions::Role::Timeout');
 
         # don't send timeouts to Sentry (log instead)
-        local $Catalyst::Plugin::Sentry::suppress = 1
+        local $Catalyst::Plugin::ErrorInfo::suppress_sentry = 1
             if $timed_out;
 
         $c->$orig(@args);
 
         if (!$c->debug && scalar @{ $c->error }) {
-            $c->stash->{errors} = $errors;
-            $c->stash->{template} = $timed_out ?
-                'main/timeout.tt' : 'main/500.tt';
             try { $c->stash->{hostname} = hostname; } catch {};
+            $c->stash(
+                component_path => $timed_out
+                    ? 'main/error/TimeoutError'
+                    : 'main/error/Error500',
+                component_props => {
+                    $c->stash->{edit} ? (edits => [ $c->stash->{edit}->TO_JSON ]) : (),
+                    formattedErrors => $c->stash->{formatted_errors},
+                    hostname => $c->stash->{hostname},
+                    useLanguages => boolean_to_json($c->stash->{use_languages}),
+                },
+                current_view => 'Node',
+            );
             $c->clear_errors;
             if ($c->stash->{error_body_in_stash}) {
                 $c->res->{body} = $c->stash->{body};
                 $c->res->{status} = $c->stash->{status};
             } else {
-                $c->res->{body} = 'clear';
-                $c->view('Default')->process($c);
-                $c->res->{body} = encode('utf-8', $c->res->{body});
-                $c->res->{status} = 503
-                    if $timed_out;
+                $c->view->process($c);
+                # Catalyst::Engine::finalize_error unsets $c->encoding. [1]
+                # We're rendering our own error page here, not using theirs,
+                # so set it back to UTF-8.
+                #
+                # (This issue doesn't manifest when the `ErrorInfo` plugin is
+                # active, because that implements a new `finalize_error`.)
+                #
+                # [1] https://github.com/perl-catalyst/catalyst-runtime/
+                #     blob/5757858/lib/Catalyst/Engine.pm#L253-L259
+                $c->encoding('UTF-8');
+                $c->res->{status} = $timed_out ? 503 : 500;
             }
         }
     });
@@ -462,10 +552,26 @@ sub try_get_session {
     return $c->sessionid ? $c->session->{$key} : undef;
 }
 
+around make_session_cookie => sub {
+    my ($orig, $self, $sid, %attrs) = @_;
+
+    my $cookie = $self->$orig($sid, %attrs);
+    $cookie->{samesite} = 'Lax';
+    $cookie->{secure} = 1 if $self->req->secure;
+    return $cookie;
+};
+
 has json => (
     is => 'ro',
     default => sub {
         return JSON->new->allow_blessed->convert_blessed;
+    }
+);
+
+has json_canonical => (
+    is => 'ro',
+    default => sub {
+        return JSON->new->allow_blessed->canonical->convert_blessed;
     }
 );
 
@@ -483,28 +589,194 @@ has json_utf8 => (
     }
 );
 
+sub form_posted_and_valid {
+    my ($self, $form, $params) = @_;
+
+    return 0 unless $self->form_posted;
+    return $self->form_submitted_and_valid($form, $params);
+}
+
+sub form_submitted_and_valid {
+    my ($self, $form, $params) = @_;
+
+    $params = $self->req->params
+        unless defined $params;
+
+    return 0 unless
+        %{$params} &&
+        $form->process(params => $params) &&
+        $form->has_params;
+
+    return 1;
+}
+
+sub generate_nonce {
+    my ($self) = @_;
+
+    state $counter = 0;
+    encode_base64(
+        sha256(
+            join q(.),
+                DBDefs->NONCE_SECRET,
+                refaddr($self->req),
+                refaddr($self->res),
+                clock_gettime(CLOCK_REALTIME),
+                clock_gettime(CLOCK_MONOTONIC),
+                ($counter++)),
+        '',
+    );
+}
+
+sub get_csrf_token {
+    my ($self, $session_key) = @_;
+
+    my $existing_token;
+    if (defined $session_key) {
+        $existing_token = delete $self->session->{$session_key};
+    }
+    return $existing_token;
+}
+
+sub generate_csrf_token {
+    my ($self) = @_;
+
+    my $session_key = 'csrf_token:' . $self->generate_nonce;
+    my $token = $self->generate_nonce;
+    $self->session->{$session_key} = $token;
+    $self->session_expire_key($session_key, 600); # 10 minutes
+    return ($session_key, $token);
+}
+
+sub set_csp_headers {
+    my ($self) = @_;
+
+    return if defined $self->res->header('Content-Security-Policy');
+
+    my $globals_script_nonce = $self->generate_nonce;
+    $self->stash->{globals_script_nonce} = $globals_script_nonce;
+
+    # CSP headers are generally only added where SecureForm is also used:
+    # account and admin-related forms. So there's no need to account for
+    # external origins like coverartarchive.org, archive.org,
+    # acousticbrainz.org, etc. here, as those are used on entity pages which
+    # don't have a CSP. Userscripts should continue to work for the same
+    # reason: edit and entity pages are unaffected. Avoid using the
+    # SecureForm attribute in those places.
+    my @csp_script_src = (
+        'script-src',
+        q('self'),
+        qq('nonce-$globals_script_nonce'),
+        'staticbrainz.org'
+    );
+
+    my @csp_style_src = (
+        'style-src',
+        q('self'),
+        'staticbrainz.org',
+    );
+
+    my @csp_img_src = (
+        'img-src',
+        q('self'),
+        'data:',
+        'staticbrainz.org',
+        'gravatar.com',
+    );
+
+    my @csp_frame_src = ('frame-src', q('self'));
+    if ($self->req->path eq 'register') {
+        my $use_captcha = ($self->req->address &&
+                           defined DBDefs->RECAPTCHA_PUBLIC_KEY &&
+                           defined DBDefs->RECAPTCHA_PRIVATE_KEY);
+        if ($use_captcha) {
+            push @csp_script_src, qw(
+                https://www.google.com/recaptcha/
+                https://www.gstatic.com/recaptcha/
+            );
+            push @csp_frame_src, 'https://www.google.com/recaptcha/';
+        }
+    }
+
+    $self->res->header(
+        # X-Frame-Options is obsoleted by `frame-ancestors` on the
+        # Content-Security-Policy header; user agents that support
+        # the latter should ignore X-Frame-Options.
+        'X-Frame-Options' => 'DENY',
+        'Content-Security-Policy' => (
+            q(default-src 'self'; frame-ancestors 'none'; ) .
+            (join '; ', map { join ' ', @{$_} } (
+                \@csp_script_src,
+                \@csp_style_src,
+                \@csp_img_src,
+                \@csp_frame_src,
+            ))
+        ),
+    );
+}
+
+sub is_cross_origin {
+    my $self = shift;
+
+    my $origin = $self->req->header('Origin');
+    return 0 unless defined $origin;
+
+    my $mb_origin = DBDefs->SSL_REDIRECTS_ENABLED
+        ? ('https://' . DBDefs->WEB_SERVER_SSL)
+        : ('http://' . DBDefs->WEB_SERVER);
+
+    return $origin ne $mb_origin;
+}
+
+sub unsanitized_editor_json {
+    my ($self, $editor) = @_;
+
+    my $json = $editor->_unsanitized_json;
+
+    if ($self->user_exists) {
+        my $active_user = $self->user;
+
+        if ($editor->id == $active_user->id) {
+            my $birth_date = $editor->birth_date;
+            if ($birth_date) {
+                $json->{birth_date} = {
+                    year => $birth_date->year,
+                    month => $birth_date->month,
+                    day => $birth_date->day,
+                };
+            }
+            $json->{email} = $editor->email;
+        } elsif ($active_user->is_account_admin) {
+            $json->{email} = $editor->email;
+        }
+    }
+
+    return $json;
+}
+
 sub TO_JSON {
     my $self = shift;
 
     # Whitelist of keys that we use in the templates.
     my @stash_keys = qw(
+        can_delete
         collaborative_collections
         commons_image
         containment
         current_language
         current_language_html
         entity
-        hide_merge_helper
+        genre_map
+        globals_script_nonce
         jsonld_data
         last_replication_date
-        makes_no_changes
-        merge_link
         more_tags
-        new_edit_notes
+        new_edit_notes_mtime
         number_of_collections
         number_of_revisions
         own_collections
         release_artwork
+        release_artwork_count
+        release_cdtoc_count
         server_details
         server_languages
         subscribed
@@ -513,9 +785,21 @@ sub TO_JSON {
         user_tags
     );
 
+    my @boolean_stash_keys = qw(
+        current_action_requires_auth
+        hide_merge_helper
+        makes_no_changes
+        new_edit_notes
+    );
+
     my %stash;
     for (@stash_keys) {
         $stash{$_} = $self->stash->{$_} if exists $self->stash->{$_};
+    }
+
+    for (@boolean_stash_keys) {
+        $stash{$_} = boolean_to_json($self->stash->{$_})
+            if exists $self->stash->{$_};
     }
 
     if (my $entity = delete $stash{entity}) {
@@ -545,29 +829,56 @@ sub TO_JSON {
         $stash{alert_mtime} = $server_details->{alert_mtime};
     }
 
+    if (my $to_merge = delete $stash{to_merge}) {
+        $stash{to_merge} = to_json_array($to_merge);
+    }
+
+    if (my $release_artwork = delete $stash{release_artwork}) {
+        $stash{release_artwork} = to_json_object($release_artwork);
+    }
+
     my $req = $self->req;
     my %headers;
     for my $name ($req->headers->header_field_names) {
         $headers{lc($name)} = $req->headers->header($name);
     }
 
+    my $session = $self->session;
+    if ($session) {
+        my $tport = $session->{tport};
+        my $merger = $session->{merger};
+
+        $session = {};
+        if (is_positive_integer($tport)) {
+            $session->{tport} = $tport + 0;
+        }
+        if (defined $merger) {
+            $session->{merger} = $merger->TO_JSON;
+        }
+    }
+
     return {
         action => {
             name => $self->action->name,
         },
-        user => ($self->user_exists ? $self->user : undef),
+        user => (
+            $self->user_exists
+                ? $self->unsanitized_editor_json($self->user)
+                : undef
+        ),
         user_exists => boolean_to_json($self->user_exists),
         debug => boolean_to_json($self->debug),
-        relative_uri => $self->relative_uri,
+        relative_uri => '' . $self->relative_uri,
         req => {
+            body_params => $req->body_params,
             headers => \%headers,
             query_params => $req->query_params,
             secure => boolean_to_json($req->secure),
-            uri => $req->uri,
+            uri => '' . $req->uri,
         },
         stash => \%stash,
         sessionid => scalar($self->sessionid),
-        session => $self->session,
+        session => $session,
         flash => $self->flash,
     };
 }
@@ -580,25 +891,15 @@ MusicBrainz::Server - Catalyst-based MusicBrainz server
 
     script/musicbrainz_server.pl
 
-=head1 LICENSE
+=head1 COPYRIGHT AND LICENSE
 
 Copyright (C) 2012 MetaBrainz Foundation
 Copyright (C) 2008 Oliver Charles
 Copyright (C) 2009 Lukas Lalinsky
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program; if not, write to the Free Software
-Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+This file is part of MusicBrainz, the open internet music database,
+and is licensed under the GPL version 2, or (at your option) any
+later version: http://www.gnu.org/licenses/gpl-2.0.txt
 
 =cut
 

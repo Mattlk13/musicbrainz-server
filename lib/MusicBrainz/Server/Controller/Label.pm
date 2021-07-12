@@ -7,10 +7,15 @@ with 'MusicBrainz::Server::Controller::Role::Load' => {
     model           => 'Label',
     entity_name     => 'label',
     relationships   => {
-        all => ['relationships'],
         cardinal => ['edit'],
         default => ['url'],
-        subset => { show => ['artist', 'url'] }
+        subset => {
+            show => ['artist', 'url'],
+            relationships => [qw( area artist event instrument label place series url )],
+        },
+        paged_subset => {
+            relationships => [qw( recording release release_group work )],
+        },
     },
 };
 with 'MusicBrainz::Server::Controller::Role::LoadWithRowID';
@@ -28,7 +33,7 @@ with 'MusicBrainz::Server::Controller::Role::WikipediaExtract';
 with 'MusicBrainz::Server::Controller::Role::CommonsImage';
 with 'MusicBrainz::Server::Controller::Role::EditRelationships';
 with 'MusicBrainz::Server::Controller::Role::JSONLD' => {
-    endpoints => {show => {copy_stash => [{from => 'releases_jsonld', to => 'releases'}]},
+    endpoints => {show => {copy_stash => [{from => 'releases_jsonld', to => 'releases'}, 'top_tags']},
                   aliases => {copy_stash => ['aliases']}}
 };
 with 'MusicBrainz::Server::Controller::Role::Collection' => {
@@ -38,6 +43,11 @@ with 'MusicBrainz::Server::Controller::Role::Collection' => {
 use MusicBrainz::Server::Constants qw( $DLABEL_ID $EDIT_LABEL_CREATE $EDIT_LABEL_DELETE $EDIT_LABEL_EDIT $EDIT_LABEL_MERGE );
 use MusicBrainz::Server::ControllerUtils::JSON qw( serialize_pager );
 use Data::Page;
+use MusicBrainz::Server::Data::Utils qw( is_special_label );
+use MusicBrainz::Server::Entity::Util::JSON qw( to_json_array to_json_object );
+use MusicBrainz::Server::Translation qw( l );
+use HTTP::Status qw( :constants );
+use List::AllUtils qw( any );
 
 use Sql;
 
@@ -108,16 +118,17 @@ sub show : PathPart('') Chained('load')
 
     $c->model('ArtistCredit')->load(@$releases);
     $c->model('Release')->load_release_events(@$releases);
+    $c->model('Release')->load_meta(@$releases);
     $c->model('Medium')->load_for_releases(@$releases);
     $c->model('MediumFormat')->load(map { $_->all_mediums } @$releases);
     $c->model('ReleaseLabel')->load(@$releases);
  
     my %props = (
-        label             => $c->stash->{label},
+        label             => $c->stash->{label}->TO_JSON,
         numberOfRevisions => $c->stash->{number_of_revisions},
         pager             => serialize_pager($c->stash->{pager}),
-        releases          => $releases,
-        wikipediaExtract  => $c->stash->{wikipedia_extract},
+        releases          => to_json_array($releases),
+        wikipediaExtract  => to_json_object($c->stash->{wikipedia_extract}),
     );
 
     $c->stash(
@@ -131,14 +142,22 @@ sub show : PathPart('') Chained('load')
 sub relationships : Chained('load') PathPart('relationships') {
     my ($self, $c) = @_;
 
+    my $stash = $c->stash;
+    my $pager = defined $stash->{pager}
+        ? serialize_pager($stash->{pager})
+        : undef;
     $c->stash(
         component_path => 'label/LabelRelationships',
-        component_props => {label => $c->stash->{label}},
+        component_props => {
+            label => $stash->{label}->TO_JSON,
+            pagedLinkTypeGroup => to_json_object($stash->{paged_link_type_group}),
+            pager => $pager,
+        },
         current_view => 'Node',
     );
 }
 
-after [qw( show collections details tags aliases relationships )] => sub {
+after [qw( show collections details tags ratings aliases subscribers relationships )] => sub {
     my ($self, $c) = @_;
     $self->_stash_collections($c);
 };
@@ -171,6 +190,46 @@ with 'MusicBrainz::Server::Controller::Role::Edit' => {
 
 with 'MusicBrainz::Server::Controller::Role::Delete' => {
     edit_type      => $EDIT_LABEL_DELETE,
+};
+
+around edit => sub {
+    my $orig = shift;
+    my ($self, $c) = @_;
+
+    my $label = $c->stash->{label};
+    if ($label->is_special_purpose) {
+        my %props = (
+            label => $label->TO_JSON,
+        );
+        $c->stash(
+            component_path => 'label/SpecialPurpose',
+            component_props => \%props,
+            current_view => 'Node',
+        );
+        $c->response->status(HTTP_FORBIDDEN);
+        $c->detach;
+    }
+    else {
+        $self->$orig($c);
+    }
+};
+
+around _validate_merge => sub {
+    my ($orig, $self, $c, $form) = @_;
+    return unless $self->$orig($c, $form);
+    my $target = $form->field('target')->value;
+    my @all = map { $_->value } $form->field('merging')->fields;
+    if (grep { is_special_label($_) && $target != $_ } @all) {
+        $form->field('target')->add_error(l('You cannot merge a special purpose label into another label.'));
+        return 0;
+    }
+
+    if ($target == $DLABEL_ID) {
+        $form->field('target')->add_error(l('You cannot merge into Deleted Label.'));
+        return 0;
+    }
+
+    return 1;
 };
 
 1;

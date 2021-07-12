@@ -11,38 +11,20 @@ import ko from 'knockout';
 
 import {ENTITIES} from '../constants';
 
-import nonEmpty from './nonEmpty';
-
 const leadingSlash = /^\/?(.*)/;
 
 type LinkableEntity =
-  | CDStubT
-  | CollectionT
-  | CoreEntityT
-  | EditorT
-  | IsrcT
-  | IswcT
-  | MinimalCoreEntityT
-  | SanitizedEditorT;
+  | {+discid: string, +entityType: 'cdtoc', ...}
+  | {+discid: string, +entityType: 'cdstub', ...}
+  | {+entityType: 'editor', +name: string, ...}
+  | {+entityType: 'isrc', +isrc: string, ...}
+  | {+entityType: 'iswc', +iswc: string, ...}
+  | {+entityType: CoreEntityTypeT, +gid: string, ...}
+  | {+entityType: 'collection', +gid: string, ...}
+  | {+entityType: 'link_type', +gid: string, ...};
 
-function entityHref(
-  entity: LinkableEntity,
-  subPath?: string,
-) {
-  const entityType = entity.entityType;
-  const entityProps = ENTITIES[entityType];
-  let href = '/' + entityProps.url + '/';
-  let id: string;
-
-  if (entityProps.mbid) {
-    id = ko.unwrap((entity: any).gid);
-  } else if (entityType === 'isrc' || entityType === 'iswc') {
-    id = (entity: any)[entityType];
-  } else if (entityType === 'cdstub') {
-    id = (entity: any).discid;
-  } else {
-    id = (entity: any).name;
-  }
+function generateHref(path, id, subPath, anchorPath) {
+  let href = '/' + path + '/';
 
   href += encodeURIComponent(id);
 
@@ -53,7 +35,60 @@ function entityHref(
     }
   }
 
+  if (nonEmpty(anchorPath)) {
+    if (anchorPath) {
+      href += '#' + anchorPath;
+    }
+  }
+
   return href;
+}
+
+export function editHref(
+  edit: EditT,
+  subPath?: string,
+): string {
+  if (edit.id == null) {
+    throw new Error(`An edit missing an ID was passed.
+                     Ensure you are not using this on a preview.`);
+  }
+  return generateHref('edit', edit.id.toString(), subPath);
+}
+
+function entityHref(
+  entity: LinkableEntity,
+  subPath?: string,
+  anchorPath?: string,
+): string {
+  const entityProps = ENTITIES[entity.entityType];
+  const path = entityProps.url;
+  let id = '';
+
+  switch (entity.entityType) {
+    case 'isrc':
+      id = entity.isrc;
+      break;
+
+    case 'iswc':
+      id = entity.iswc;
+      break;
+
+    case 'cdstub':
+    case 'cdtoc':
+      id = entity.discid;
+      break;
+
+    case 'editor':
+      id = entity.name;
+      break;
+
+    default:
+      if (entityProps.mbid && entity.gid) {
+        id = ko.unwrap(entity.gid);
+      }
+  }
+
+  return generateHref(path, id, subPath, anchorPath);
 }
 
 export default entityHref;

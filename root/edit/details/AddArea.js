@@ -1,5 +1,5 @@
 /*
- * @flow
+ * @flow strict-local
  * Copyright (C) 2019 MetaBrainz Foundation
  *
  * This file is part of MusicBrainz, the open internet music database,
@@ -7,17 +7,18 @@
  * later version: http://www.gnu.org/licenses/gpl-2.0.txt
  */
 
-import React from 'react';
+import * as React from 'react';
 
 import commaOnlyList from '../../static/scripts/common/i18n/commaOnlyList';
 import formatDate from '../../static/scripts/common/utility/formatDate';
 import isDateEmpty from '../../static/scripts/common/utility/isDateEmpty';
-import DescriptiveLink from '../../static/scripts/common/components/DescriptiveLink';
+import DescriptiveLink
+  from '../../static/scripts/common/components/DescriptiveLink';
 import yesNo from '../../static/scripts/common/utility/yesNo';
 
-type AddAreaEditT = {|
+type AddAreaEditT = {
   ...EditT,
-  +display_data: {|
+  +display_data: {
     ...DatePeriodRoleT,
     +area: AreaT,
     +comment: string | null,
@@ -26,12 +27,17 @@ type AddAreaEditT = {|
     +iso_3166_3: $ReadOnlyArray<string>,
     +name: string,
     +sort_name: string | null,
-    +type: AreaTypeT,
-  |},
-|};
+    +type: AreaTypeT | null,
+  },
+};
 
-const AddArea = ({edit}: {edit: AddAreaEditT}) => {
+type Props = {
+  +edit: AddAreaEditT,
+};
+
+const AddArea = ({edit}: Props): React.MixedElement => {
   const display = edit.display_data;
+  const areaType = display.type;
 
   return (
     <>
@@ -52,24 +58,24 @@ const AddArea = ({edit}: {edit: AddAreaEditT}) => {
           <td>{display.name}</td>
         </tr>
 
-        {display.sort_name ? (
+        {nonEmpty(display.sort_name) ? (
           <tr>
             <th>{addColon(l('Sort name'))}</th>
             <td>{display.sort_name}</td>
           </tr>
         ) : null}
 
-        {display.comment ? (
+        {nonEmpty(display.comment) ? (
           <tr>
             <th>{addColon(l('Disambiguation'))}</th>
             <td>{display.comment}</td>
           </tr>
         ) : null}
 
-        {display.type ? (
+        {areaType ? (
           <tr>
             <th>{addColon(l('Type'))}</th>
-            <td>{lp_attributes(display.type.name, 'area_type')}</td>
+            <td>{lp_attributes(areaType.name, 'area_type')}</td>
           </tr>
         ) : null}
 

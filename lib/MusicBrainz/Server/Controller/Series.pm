@@ -3,10 +3,11 @@ use JSON;
 use Moose;
 use MusicBrainz::Server::Constants qw(
     $EDIT_SERIES_CREATE
-    $EDIT_SERIES_DELETE
     $EDIT_SERIES_EDIT
     $EDIT_SERIES_MERGE
 );
+use MusicBrainz::Server::ControllerUtils::JSON qw( serialize_pager );
+use MusicBrainz::Server::Entity::Util::JSON qw( to_json_array to_json_object );
 use MusicBrainz::Server::Translation qw( l );
 
 BEGIN { extends 'MusicBrainz::Server::Controller'; }
@@ -16,7 +17,7 @@ with 'MusicBrainz::Server::Controller::Role::Load' => {
     entity_name     => 'series',
     relationships => {
         cardinal => ['edit'],
-        subset => {show => ['artist', 'label', 'series', 'url']},
+        subset => {show => ['artist', 'label', 'place', 'series', 'url']},
         default => ['url']
     },
 };
@@ -61,16 +62,23 @@ sub show : PathPart('') Chained('load') {
     });
 
     my @entities;
-    my $item_numbers = {};
+    my @item_numbers;
 
     for (@$items) {
         push @entities, $_->{entity};
-        $item_numbers->{$_->{entity}->id} = $_->{ordering_key};
+        push @item_numbers, $_->{ordering_key};
+    }
+
+    if ($series->type->item_entity_type eq 'artist') {
+        $c->model('Artist')->load_related_info(@entities);
+        $c->model('Artist')->load_meta(@entities);
+        $c->model('Artist')->rating->load_user_ratings($c->user->id, @entities) if $c->user_exists;
     }
 
     if ($series->type->item_entity_type eq 'event') {
         $c->model('Event')->load_related_info(@entities);
         $c->model('Event')->load_areas(@entities);
+        $c->model('Event')->load_meta(@entities);
         $c->model('Event')->rating->load_user_ratings($c->user->id, @entities) if $c->user_exists;
     }
 
@@ -95,17 +103,27 @@ sub show : PathPart('') Chained('load') {
 
     if ($series->type->item_entity_type eq 'work') {
         $c->model('Work')->load_related_info(@entities);
+        $c->model('Work')->load_meta(@entities);
         $c->model('Work')->rating->load_user_ratings($c->user->id, @entities) if $c->user_exists;
     }
 
+    my %props = (
+        entities          => to_json_array(\@entities),
+        numberOfRevisions => $c->stash->{number_of_revisions},
+        pager             => serialize_pager($c->stash->{pager}),
+        series            => $series->TO_JSON,
+        seriesItemNumbers => \@item_numbers,
+        wikipediaExtract  => to_json_object($c->stash->{wikipedia_extract}),
+    );
+
     $c->stash(
-        template => 'series/index.tt',
-        entities => \@entities,
-        series_item_numbers => $item_numbers,
+        component_path => 'series/SeriesIndex',
+        component_props => \%props,
+        current_view => 'Node',
     );
 }
 
-after [qw( show collections details tags aliases )] => sub {
+after [qw( show collections details tags aliases subscribers )] => sub {
     my ($self, $c) = @_;
     $self->_stash_collections($c);
 };
@@ -145,10 +163,6 @@ with 'MusicBrainz::Server::Controller::Role::Create' => {
 with 'MusicBrainz::Server::Controller::Role::Edit' => {
     form           => 'Series',
     edit_type      => $EDIT_SERIES_EDIT,
-};
-
-with 'MusicBrainz::Server::Controller::Role::Delete' => {
-    edit_type      => $EDIT_SERIES_DELETE,
 };
 
 before qw( edit create ) => sub {

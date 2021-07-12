@@ -2,6 +2,7 @@ package MusicBrainz::Server::Entity::URL;
 use Moose;
 
 use MooseX::Types::URI qw( Uri );
+use MusicBrainz::Server::Data::Utils qw( boolean_to_json );
 
 extends 'MusicBrainz::Server::Entity::CoreEntity';
 with 'MusicBrainz::Server::Entity::Role::Linkable';
@@ -122,7 +123,7 @@ around TO_JSON => sub {
     return {
         %{ $self->$orig },
         $self->can('show_in_external_links') ?
-            (show_in_external_links => $self->show_in_external_links) : (),
+            (show_in_external_links => boolean_to_json($self->show_in_external_links)) : (),
         $self->can('sidebar_name') ?
             (sidebar_name => $self->sidebar_name) : (),
         href_url => $self->href_url,
@@ -135,23 +136,13 @@ __PACKAGE__->meta->make_immutable;
 no Moose;
 1;
 
-=head1 COPYRIGHT
+=head1 COPYRIGHT AND LICENSE
 
 Copyright (C) 2009 Lukas Lalinsky
 Copyright (C) 2016 Ulrich Klauer
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program; if not, write to the Free Software
-Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+This file is part of MusicBrainz, the open internet music database,
+and is licensed under the GPL version 2, or (at your option) any
+later version: http://www.gnu.org/licenses/gpl-2.0.txt
 
 =cut

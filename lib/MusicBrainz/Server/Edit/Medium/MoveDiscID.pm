@@ -4,6 +4,7 @@ use namespace::autoclean;
 
 use MusicBrainz::Server::Constants qw( $EDIT_MEDIUM_MOVE_DISCID );
 use MusicBrainz::Server::Edit::Exceptions;
+use MusicBrainz::Server::Entity::Util::JSON qw( to_json_object );
 use MusicBrainz::Server::Translation qw( N_l );
 use MooseX::Types::Moose qw( Int Str );
 use MooseX::Types::Structured qw( Dict );
@@ -20,6 +21,7 @@ use aliased 'MusicBrainz::Server::Entity::Medium';
 sub edit_name { N_l('Move disc ID') }
 sub edit_kind { 'other' }
 sub edit_type { $EDIT_MEDIUM_MOVE_DISCID }
+sub edit_template_react { 'MoveDiscId' }
 
 has '+data' => (
     isa => Dict[
@@ -65,8 +67,20 @@ sub alter_edit_pending
 sub _build_related_entities
 {
     my $self = shift;
+    my @releases = values %{
+        $self->c->model('Release')->get_by_ids($self->release_ids)
+    };
+    $self->c->model('ReleaseGroup')->load(@releases);
+    my @release_groups = map { $_->release_group } @releases;
+
+    $self->c->model('ArtistCredit')->load(@releases, @release_groups);
     return {
-        release => [ $self->release_ids ],
+        artist => [
+            map { $_->artist_id } map { $_->artist_credit->all_names }
+                @releases, @release_groups
+        ],
+        release_group => [ map { $_->id } @release_groups ],
+        release => [ $self->release_ids ]
     }
 }
 
@@ -85,14 +99,24 @@ sub build_display_data
 {
     my ($self, $loaded) = @_;
     return {
-        medium_cdtoc => $loaded->{MediumCDTOC}->{ $self->data->{medium_cdtoc}{id} }
-            || MediumCDTOC->new(
+        medium_cdtoc => to_json_object(
+            $loaded->{MediumCDTOC}{ $self->data->{medium_cdtoc}{id} } ||
+            MediumCDTOC->new(
                 cdtoc => CDTOC->new_from_toc($self->data->{medium_cdtoc}{toc})
-            ),
-        map { $_ => $loaded->{Medium}->{ $self->data->{$_}{id} } //
-                    Medium->new( release => $loaded->{Release}{ $self->data->{$_}{release}{id} } //
-                                            Release->new( name => $self->data->{$_}{release}{name} )
-                    )
+            )
+        ),
+        map {
+            $_ => to_json_object(
+                $loaded->{Medium}{ $self->data->{$_}{id} } //
+                Medium->new(
+                    release_id => $self->data->{$_}{release}{id},
+                    release => $loaded->{Release}{ $self->data->{$_}{release}{id} } //
+                        Release->new(
+                            id => $self->data->{$_}{release}{id},
+                            name => $self->data->{$_}{release}{name},
+                        ),
+                )
+            )
         } qw( new_medium old_medium ),
     }
 }

@@ -7,6 +7,7 @@ use MusicBrainz::Server::Constants qw(
     $EDIT_LABEL_EDIT
 );
 use MusicBrainz::Server::Data::Label;
+use MusicBrainz::Server::Data::Utils qw( boolean_to_json );
 use MusicBrainz::Server::Edit::Types qw( PartialDateHash Nullable );
 use MusicBrainz::Server::Edit::Utils qw(
     date_closure
@@ -15,6 +16,7 @@ use MusicBrainz::Server::Edit::Utils qw(
     merge_partial_date
 );
 use MusicBrainz::Server::Entity::PartialDate;
+use MusicBrainz::Server::Entity::Util::JSON qw( to_json_object );
 use MusicBrainz::Server::Validation qw( normalise_strings );
 use MusicBrainz::Server::Translation qw( N_l );
 
@@ -40,6 +42,7 @@ with 'MusicBrainz::Server::Edit::Role::AllowAmending' => {
 
 sub edit_type { $EDIT_LABEL_EDIT }
 sub edit_name { N_l('Edit label') }
+sub edit_template_react { 'EditLabel' }
 sub _edit_model { 'Label' }
 sub label_id { shift->entity_id }
 
@@ -106,14 +109,16 @@ sub build_display_data
         my $field = $period . '_date';
         if (exists $self->data->{new}{$field}) {
             $data->{$field} = {
-                new => MusicBrainz::Server::Entity::PartialDate->new_from_row($self->data->{new}{$field}),
-                old => MusicBrainz::Server::Entity::PartialDate->new_from_row($self->data->{old}{$field}),
+                new => to_json_object(MusicBrainz::Server::Entity::PartialDate->new_from_row($self->data->{new}{$field})),
+                old => to_json_object(MusicBrainz::Server::Entity::PartialDate->new_from_row($self->data->{old}{$field})),
             };
         }
     }
 
-    $data->{label} = $loaded->{Label}{ $self->data->{entity}{id} }
-        || Label->new( name => $self->data->{entity}{name} );
+    $data->{label} = to_json_object(
+        $loaded->{Label}{ $self->data->{entity}{id} } ||
+        Label->new( name => $self->data->{entity}{name} )
+    );
 
     if (exists $self->data->{new}{ipi_codes}) {
         $data->{ipi_codes}{old} = $self->data->{old}{ipi_codes};
@@ -125,9 +130,19 @@ sub build_display_data
         $data->{isni_codes}{new} = $self->data->{new}{isni_codes};
     }
 
+    if (exists $data->{ended}) {
+        $data->{ended}{old} = boolean_to_json($data->{ended}{old});
+        $data->{ended}{new} = boolean_to_json($data->{ended}{new});
+    }
+
     for my $side (qw( old new )) {
-        $data->{area}{$side} //= Area->new()
+        $data->{area}{$side} = to_json_object($data->{area}{$side} // Area->new())
             if defined $self->data->{$side}{area_id};
+    }
+
+    if (exists $data->{type}) {
+        $data->{type}{old} = to_json_object($data->{type}{old});
+        $data->{type}{new} = to_json_object($data->{type}{new});
     }
 
     return $data;
@@ -164,9 +179,33 @@ around allow_auto_edit => sub {
     # Don't allow an autoedit if the area changed
     return 0 if defined $self->data->{old}{area_id};
 
-    return 0 if $self->data->{new}{ipi_codes};
+    if (defined $self->data->{new}{ipi_codes}) {
+        # If there's already IPIs for the label, not an autoedit
+        if (@{ $self->data->{old}{ipi_codes} // [] }) {
+            return 0;
+        }
 
-    return 0 if $self->data->{new}{isni_codes};
+        # If there's already an entity with any of the IPIs, not an autoedit
+        my $reused_ipis = $self->reused_ipis;
+
+        if (%$reused_ipis) {
+            return 0;
+        }
+    }
+        
+    if (defined $self->data->{new}{isni_codes}) {
+        # If there's already ISNIs for the label, not an autoedit
+        if (@{ $self->data->{old}{isni_codes} // [] }) {
+            return 0;
+        }
+
+        # If there's already an entity with any of the ISNIs, not an autoedit
+        my $reused_isnis = $self->reused_isnis;
+
+        if (%$reused_isnis) {
+            return 0;
+        }
+    }
 
     return $self->$orig(@args);
 };
@@ -223,22 +262,12 @@ no Moose;
 
 1;
 
-=head1 LICENSE
+=head1 COPYRIGHT AND LICENSE
 
 Copyright (C) 2012 MetaBrainz Foundation
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program; if not, write to the Free Software
-Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+This file is part of MusicBrainz, the open internet music database,
+and is licensed under the GPL version 2, or (at your option) any
+later version: http://www.gnu.org/licenses/gpl-2.0.txt
 
 =cut

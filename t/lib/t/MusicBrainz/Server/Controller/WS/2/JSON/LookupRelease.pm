@@ -21,7 +21,7 @@ test 'basic release lookup' => sub {
             title => "Summer Reggae! Rainbow",
             status => "Pseudo-Release",
             "status-id" => "41121bb9-3413-3818-8a9a-9742318349aa",
-            quality => "normal",
+            quality => "high",
             "text-representation" => {
                 language => "jpn",
                 script => "Latn",
@@ -43,6 +43,8 @@ test 'basic release lookup' => sub {
                     "name" => "Japan",
                     "sort-name" => "Japan",
                     "iso-3166-1-codes" => ["JP"],
+                    "type" => JSON::null,
+                    "type-id" => JSON::null,
                 },
             }],
             barcode => "4942463511227",
@@ -88,6 +90,8 @@ test 'basic release lookup, inc=annotation' => sub {
                     "name" => "United Kingdom",
                     "sort-name" => "United Kingdom",
                     "iso-3166-1-codes" => ["GB"],
+                    "type" => JSON::null,
+                    "type-id" => JSON::null,
                 },
             }],
             barcode => "600116817020",
@@ -111,7 +115,7 @@ test 'basic release lookup, inc=ratings' => sub {
             title => "Summer Reggae! Rainbow",
             status => "Pseudo-Release",
             "status-id" => "41121bb9-3413-3818-8a9a-9742318349aa",
-            quality => "normal",
+            quality => "high",
             "text-representation" => {
                 language => "jpn",
                 script => "Latn",
@@ -133,6 +137,8 @@ test 'basic release lookup, inc=ratings' => sub {
                     "name" => "Japan",
                     "sort-name" => "Japan",
                     "iso-3166-1-codes" => ["JP"],
+                    "type" => JSON::null,
+                    "type-id" => JSON::null,
                 },
             }],
             barcode => "4942463511227",
@@ -158,7 +164,7 @@ test 'basic release with tags' => sub {
             title => "Summer Reggae! Rainbow",
             status => "Pseudo-Release",
             "status-id" => "41121bb9-3413-3818-8a9a-9742318349aa",
-            quality => "normal",
+            quality => "high",
             "text-representation" => {
                 language => "jpn",
                 script => "Latn",
@@ -180,6 +186,8 @@ test 'basic release with tags' => sub {
                     "name" => "Japan",
                     "sort-name" => "Japan",
                     "iso-3166-1-codes" => ["JP"],
+                    "type" => JSON::null,
+                    "type-id" => JSON::null,
                 },
             }],
             barcode => "4942463511227",
@@ -195,20 +203,25 @@ test 'basic release with collections' => sub {
     my $c = shift->c;
 
     MusicBrainz::Server::Test->prepare_test_database($c, '+webservice');
-    MusicBrainz::Server::Test->prepare_test_database($c, <<'EOSQL');
-        INSERT INTO release_tag (count, release, tag) VALUES (1, 123054, 114);
-        INSERT INTO editor (id, name, password, ha1, email, email_confirm_date) VALUES (15412, 'editor', '{CLEARTEXT}mb', 'be88da857f697a78656b1307f89f90ab', 'foo@example.com', now());
-        INSERT INTO editor_collection (id, gid, editor, name, public, type) VALUES (14933, 'f34c079d-374e-4436-9448-da92dedef3cd', 15412, 'My Collection', TRUE, 1);
-        INSERT INTO editor_collection (id, gid, editor, name, public, type) VALUES (14934, '5e8dd65f-7d52-4d6e-93f6-f84651e137ca', 15412, 'My Private Collection', FALSE, 1);
-        INSERT INTO editor_collection_release (collection, release) VALUES (14933, 123054), (14934, 123054);
-EOSQL
+    MusicBrainz::Server::Test->prepare_test_database($c, <<~'EOSQL');
+        INSERT INTO release_tag (count, release, tag)
+            VALUES (1, 123054, 114);
+        INSERT INTO editor (id, name, password, ha1, email, email_confirm_date)
+            VALUES (15412, 'editor', '{CLEARTEXT}mb', 'be88da857f697a78656b1307f89f90ab', 'foo@example.com', now());
+        INSERT INTO editor_collection (id, gid, editor, name, public, type)
+            VALUES (14933, 'f34c079d-374e-4436-9448-da92dedef3cd', 15412, 'My Collection', TRUE, 1);
+        INSERT INTO editor_collection (id, gid, editor, name, public, type)
+            VALUES (14934, '5e8dd65f-7d52-4d6e-93f6-f84651e137ca', 15412, 'My Private Collection', FALSE, 1);
+        INSERT INTO editor_collection_release (collection, release)
+            VALUES (14933, 123054), (14934, 123054);
+        EOSQL
 
     my $common_release_json = {
         id => "b3b7e934-445b-4c68-a097-730c6a6d47e6",
         title => "Summer Reggae! Rainbow",
         status => "Pseudo-Release",
         "status-id" => "41121bb9-3413-3818-8a9a-9742318349aa",
-        quality => "normal",
+        quality => "high",
         "text-representation" => {
             language => "jpn",
             script => "Latn",
@@ -230,6 +243,8 @@ EOSQL
                 "name" => "Japan",
                 "sort-name" => "Japan",
                 "iso-3166-1-codes" => ["JP"],
+                "type" => JSON::null,
+                "type-id" => JSON::null,
             },
         }],
         barcode => "4942463511227",
@@ -260,8 +275,8 @@ EOSQL
             %$common_release_json,
             collections => [
                 {
-                    id => "5e8dd65f-7d52-4d6e-93f6-f84651e137ca",
-                    name => "My Private Collection",
+                    id => "f34c079d-374e-4436-9448-da92dedef3cd",
+                    name => "My Collection",
                     editor => "editor",
                     type => "Release",
                     "type-id" => "d94659b2-4ce5-3a98-b4b8-da1131cf33ee",
@@ -269,8 +284,8 @@ EOSQL
                     "release-count" => 1
                 },
                 {
-                    id => "f34c079d-374e-4436-9448-da92dedef3cd",
-                    name => "My Collection",
+                    id => "5e8dd65f-7d52-4d6e-93f6-f84651e137ca",
+                    name => "My Private Collection",
                     editor => "editor",
                     type => "Release",
                     "type-id" => "d94659b2-4ce5-3a98-b4b8-da1131cf33ee",
@@ -313,6 +328,8 @@ test 'release lookup with artists + aliases' => sub {
                         name => "m-flo",
                         "sort-name" => "m-flo",
                         disambiguation => "",
+                        "type" => "Group",
+                        "type-id" => 'e431f5f6-b5d2-343d-8b36-72607fffb74b',
                         aliases => [
                             { "sort-name" => "m-flow", name => "m-flow", locale => JSON::null, primary => JSON::null, type => JSON::null, "type-id" => JSON::null, begin => JSON::null, end => JSON::null, ended => JSON::false },
                             { "sort-name" => "mediarite-flow crew", name => "mediarite-flow crew", locale => JSON::null, primary => JSON::null, type => JSON::null, "type-id" => JSON::null, begin => JSON::null, end => JSON::null, ended => JSON::false },
@@ -333,11 +350,67 @@ test 'release lookup with artists + aliases' => sub {
                     "name" => "Japan",
                     "sort-name" => "Japan",
                     "iso-3166-1-codes" => ["JP"],
+                    "type" => JSON::null,
+                    "type-id" => JSON::null,
                 },
             }],
             barcode => "4988064451180",
             asin => "B0001FAD2O",
             aliases => [],
+        };
+};
+
+test 'release lookup with recordings, no tracks' => sub {
+
+    MusicBrainz::Server::Test->prepare_test_database(shift->c, '+webservice');
+
+    ws2_test_json 'release lookup with recordings, no tracks',
+    '/release/b3b7e934-445b-4c68-a097-730c6a6d47e7?inc=recordings' =>
+        {
+            id => "b3b7e934-445b-4c68-a097-730c6a6d47e7",
+            title => "Testy",
+            status => "Pseudo-Release",
+            "status-id" => "41121bb9-3413-3818-8a9a-9742318349aa",
+            quality => "normal",
+            "text-representation" => {
+                language => "jpn",
+                script => "Latn",
+            },
+            "cover-art-archive" => {
+                artwork => JSON::false,
+                count => 0,
+                front => JSON::false,
+                back => JSON::false,
+                darkened => JSON::false,
+            },
+            date => "2001-07-04",
+            country => "JP",
+            "release-events" => [{
+                date => "2001-07-04",
+                "area" => {
+                    disambiguation => '',
+                    "id" => "2db42837-c832-3c27-b4a3-08198f75693c",
+                    "name" => "Japan",
+                    "sort-name" => "Japan",
+                    "iso-3166-1-codes" => ["JP"],
+                    "type" => JSON::null,
+                    "type-id" => JSON::null,
+                },
+            }],
+            barcode => "4942463511227",
+            asin => "B00005LA6G",
+            disambiguation => "",
+            packaging => JSON::null,
+            "packaging-id" => JSON::null,
+            media => [
+                {
+                    format => 'CD',
+                    "format-id" => "9712d52a-4509-3d4b-a1a2-67c88c643e31",
+                    title => '',
+                    position => 1,
+                    "track-count" => 0,
+                },
+            ],
         };
 };
 
@@ -374,6 +447,8 @@ test 'release lookup with labels and recordings' => sub {
                     "name" => "Japan",
                     "sort-name" => "Japan",
                     "iso-3166-1-codes" => ["JP"],
+                    "type" => JSON::null,
+                    "type-id" => JSON::null,
                 },
             }],
             barcode => "4988064451180",
@@ -387,6 +462,8 @@ test 'release lookup with labels and recordings' => sub {
                         "sort-name" => "rhythm zone",
                         disambiguation => "",
                         "label-code" => JSON::null,
+                        type => "Original Production",
+                        "type-id" => '7aaa37fe-2def-3476-b359-80245850062d',
                     }
                 }],
             media => [
@@ -410,6 +487,7 @@ test 'release lookup with labels and recordings' => sub {
                                 length => 243000,
                                 disambiguation => "",
                                 video => JSON::false,
+                                "first-release-date" => '2004-03-17',
                             }
                         },
                         {
@@ -424,6 +502,7 @@ test 'release lookup with labels and recordings' => sub {
                                 length => 222000,
                                 disambiguation => "",
                                 video => JSON::false,
+                                "first-release-date" => '2004-03-17',
                             }
                         },
                         {
@@ -438,6 +517,7 @@ test 'release lookup with labels and recordings' => sub {
                                 length => 333000,
                                 disambiguation => "",
                                 video => JSON::false,
+                                "first-release-date" => '2004-03-17',
                             }
                         }]
                 }],
@@ -477,6 +557,8 @@ test 'release lookup with release-groups' => sub {
                     "name" => "Japan",
                     "sort-name" => "Japan",
                     "iso-3166-1-codes" => ["JP"],
+                    "type" => JSON::null,
+                    "type-id" => JSON::null,
                 },
             }],
             barcode => "4988064451180",
@@ -489,6 +571,8 @@ test 'release lookup with release-groups' => sub {
                       name => "m-flo",
                       "sort-name" => "m-flo",
                       disambiguation => "",
+                    "type" => "Group",
+                    "type-id" => 'e431f5f6-b5d2-343d-8b36-72607fffb74b',
                    },
                    joinphrase => '',
                 }
@@ -510,6 +594,8 @@ test 'release lookup with release-groups' => sub {
                           name => "m-flo",
                           "sort-name" => "m-flo",
                           disambiguation => "",
+                          "type" => "Group",
+                          "type-id" => 'e431f5f6-b5d2-343d-8b36-72607fffb74b',
                        },
                        joinphrase => "",
                     }
@@ -553,6 +639,8 @@ test 'release lookup with release-group and ratings' => sub {
                     "name" => "Japan",
                     "sort-name" => "Japan",
                     "iso-3166-1-codes" => ["JP"],
+                    "type" => JSON::null,
+                    "type-id" => JSON::null,
                 },
             }],
             barcode => "4988064451180",
@@ -566,7 +654,7 @@ test 'release lookup with release-group and ratings' => sub {
                 "primary-type-id" => "d6038452-8ee0-3f68-affc-2de9a1ede0b9",
                 "secondary-types" => [],
                 "secondary-type-ids" => [],
-                rating => { "votes-count" => 0, value => JSON::null },
+                rating => { "votes-count" => 2, value => 5 },
             }
         };
 
@@ -599,6 +687,8 @@ test 'release lookup with release-group and ratings' => sub {
                     "name" => "Japan",
                     "sort-name" => "Japan",
                     "iso-3166-1-codes" => ["JP"],
+                    "type" => JSON::null,
+                    "type-id" => JSON::null,
                 },
             }],
             barcode => "4988064451180",
@@ -621,18 +711,18 @@ test 'release lookup with release-group and ratings' => sub {
     { username => 'the-anti-kuno', password => 'wrong' };
 };
 
-test 'release lookup with discids and puids' => sub {
+test 'release lookup with discids' => sub {
 
     MusicBrainz::Server::Test->prepare_test_database(shift->c, '+webservice');
 
-    ws2_test_json 'release lookup with discids and puids',
-    '/release/b3b7e934-445b-4c68-a097-730c6a6d47e6?inc=discids+puids+recordings' =>
+    ws2_test_json 'release lookup with discids and recordings',
+    '/release/b3b7e934-445b-4c68-a097-730c6a6d47e6?inc=discids+recordings' =>
         {
             id => "b3b7e934-445b-4c68-a097-730c6a6d47e6",
             title => "Summer Reggae! Rainbow",
             status => "Pseudo-Release",
             "status-id" => "41121bb9-3413-3818-8a9a-9742318349aa",
-            quality => "normal",
+            quality => "high",
             "text-representation" => {
                 language => "jpn",
                 script => "Latn",
@@ -654,6 +744,8 @@ test 'release lookup with discids and puids' => sub {
                     "name" => "Japan",
                     "sort-name" => "Japan",
                     "iso-3166-1-codes" => ["JP"],
+                    "type" => JSON::null,
+                    "type-id" => JSON::null,
                 },
             }],
             barcode => "4942463511227",
@@ -694,6 +786,7 @@ test 'release lookup with discids and puids' => sub {
                                 length => 296026,
                                 disambiguation => "",
                                 video => JSON::false,
+                                "first-release-date" => '2001-07-04',
                             }
                         },
                         {
@@ -708,6 +801,7 @@ test 'release lookup with discids and puids' => sub {
                                 length => 213106,
                                 disambiguation => "",
                                 video => JSON::false,
+                                "first-release-date" => '2001-07-04',
                             }
                         },
                         {
@@ -722,6 +816,7 @@ test 'release lookup with discids and puids' => sub {
                                 length => 292800,
                                 disambiguation => "",
                                 video => JSON::false,
+                                "first-release-date" => '2001-07-04',
                             }
                         }]
                 }]
@@ -761,6 +856,8 @@ test 'release lookup, barcode is NULL' => sub {
                     "name" => "United States",
                     "sort-name" => "United States",
                     "iso-3166-1-codes" => ["US"],
+                    "type" => JSON::null,
+                    "type-id" => JSON::null,
                 },
             }],
             barcode => JSON::null,
@@ -804,6 +901,8 @@ test 'release lookup, barcode is  empty string' => sub {
                     "name" => "United Kingdom",
                     "sort-name" => "United Kingdom",
                     "iso-3166-1-codes" => ["GB"],
+                    "type" => JSON::null,
+                    "type-id" => JSON::null,
                 },
             }],
             barcode => "",
@@ -844,7 +943,9 @@ test 'release lookup, relation attributes' => sub {
                     disambiguation => '',
                     name => 'Japan',
                     'iso-3166-1-codes' => ['JP'],
-                    'sort-name' => 'Japan'
+                    'sort-name' => 'Japan',
+                    "type" => JSON::null,
+                    "type-id" => JSON::null,
                 },
                 date => '2004-01-15'
             }],
@@ -864,7 +965,9 @@ test 'release lookup, relation attributes' => sub {
                     id => '4d5ec626-2251-4bb1-b62a-f24f471e3f2c',
                     'sort-name' => 'Lee, Soo-Man',
                     disambiguation => '',
-                    name => '이수만'
+                    name => '이수만',
+                    "type" => "Person",
+                    "type-id" => "b6e035f4-3ce9-331c-97df-83397230b0df",
                 },
                 'target-type' => 'artist',
             },
@@ -888,7 +991,9 @@ test 'release lookup, relation attributes' => sub {
                             name => 'Japan',
                             disambiguation => '',
                             'sort-name' => 'Japan',
-                            'iso-3166-1-codes' => ['JP']
+                            'iso-3166-1-codes' => ['JP'],
+                            "type" => JSON::null,
+                            "type-id" => JSON::null,
                         },
                         date => '2004-01-15'
                     }],
@@ -931,6 +1036,8 @@ test 'release lookup, related artists have no tags/genres' => sub {
                 id => '3088b672-fba9-4b4b-8ae0-dce13babfbb4',
                 name => 'Plone',
                 'sort-name' => 'Plone',
+                "type" => "Group",
+                "type-id" => 'e431f5f6-b5d2-343d-8b36-72607fffb74b',
                 tags => [
                     { count => 1, name => 'british' },
                     { count => 1, name => 'electronic' },
@@ -941,9 +1048,9 @@ test 'release lookup, related artists have no tags/genres' => sub {
                     { count => 1, name => 'warp' },
                 ],
                 genres => [
-                    { count => 1, name => 'electronic' },
-                    { count => 1, name => 'electronica' },
-                    { count => 1, name => 'glitch' },
+                    { count => 1, disambiguation => '', id => '89255676-1f14-4dd8-bbad-fca839d6aff4', name => "electronic" },
+                    { count => 1, disambiguation => '', id => '53a3cea3-17af-4421-a07a-5824b540aeb5', name => 'electronica' },
+                    { count => 1, disambiguation => '', id => '18b010d7-7d85-4445-a4a8-1889a4688308', name => 'glitch' },
                 ],
             },
             joinphrase => '',
@@ -987,6 +1094,8 @@ test 'release lookup, related artists have no tags/genres' => sub {
                                     id => '3088b672-fba9-4b4b-8ae0-dce13babfbb4',
                                     name => 'Plone',
                                     'sort-name' => 'Plone',
+                                    "type" => "Group",
+                                    "type-id" => 'e431f5f6-b5d2-343d-8b36-72607fffb74b',
                                 },
                                 attributes => [],
                                 "attribute-ids" => {},
@@ -1004,7 +1113,8 @@ test 'release lookup, related artists have no tags/genres' => sub {
                         ],
                         tags => [],
                         genres => [],
-                        title => 'On My Bus'
+                        title => 'On My Bus',
+                        "first-release-date" => '1999-09-13',
                     },
                     title => 'On My Bus'
                 },
@@ -1024,6 +1134,8 @@ test 'release lookup, related artists have no tags/genres' => sub {
                                     id => '3088b672-fba9-4b4b-8ae0-dce13babfbb4',
                                     name => 'Plone',
                                     'sort-name' => 'Plone',
+                                    "type" => "Group",
+                                    "type-id" => 'e431f5f6-b5d2-343d-8b36-72607fffb74b',
                                 },
                                 attributes => [],
                                 "attribute-ids" => {},
@@ -1040,7 +1152,8 @@ test 'release lookup, related artists have no tags/genres' => sub {
                         } ],
                         tags => [],
                         genres => [],
-                        title => 'Top & Low Rent'
+                        title => 'Top & Low Rent',
+                        "first-release-date" => '1999-09-13',
                     },
                     title => 'Top & Low Rent'
                 },
@@ -1060,6 +1173,8 @@ test 'release lookup, related artists have no tags/genres' => sub {
                                 id => '3088b672-fba9-4b4b-8ae0-dce13babfbb4',
                                 name => 'Plone',
                                 'sort-name' => 'Plone',
+                                "type" => "Group",
+                                "type-id" => 'e431f5f6-b5d2-343d-8b36-72607fffb74b',
                             },
                             attributes => [],
                             "attribute-ids" => {},
@@ -1076,7 +1191,8 @@ test 'release lookup, related artists have no tags/genres' => sub {
                         } ],
                         tags => [],
                         genres => [],
-                        title => 'Plock'
+                        title => 'Plock',
+                        "first-release-date" => '1999-09-13',
                     },
                     title => 'Plock'
                 },
@@ -1096,6 +1212,8 @@ test 'release lookup, related artists have no tags/genres' => sub {
                                 id => '3088b672-fba9-4b4b-8ae0-dce13babfbb4',
                                 name => 'Plone',
                                 'sort-name' => 'Plone',
+                                "type" => "Group",
+                                "type-id" => 'e431f5f6-b5d2-343d-8b36-72607fffb74b',
                             },
                             attributes => [],
                             "attribute-ids" => {},
@@ -1112,7 +1230,8 @@ test 'release lookup, related artists have no tags/genres' => sub {
                         } ],
                         tags => [],
                         genres => [],
-                        title => 'Marbles'
+                        title => 'Marbles',
+                        "first-release-date" => '1999-09-13',
                     },
                     title => 'Marbles'
                 },
@@ -1132,6 +1251,8 @@ test 'release lookup, related artists have no tags/genres' => sub {
                                 id => '3088b672-fba9-4b4b-8ae0-dce13babfbb4',
                                 name => 'Plone',
                                 'sort-name' => 'Plone',
+                                "type" => "Group",
+                                "type-id" => 'e431f5f6-b5d2-343d-8b36-72607fffb74b',
                             },
                             attributes => [],
                             "attribute-ids" => {},
@@ -1148,7 +1269,8 @@ test 'release lookup, related artists have no tags/genres' => sub {
                         } ],
                         tags => [],
                         genres => [],
-                        title => 'Busy Working'
+                        title => 'Busy Working',
+                        "first-release-date" => '1999-09-13',
                     },
                     title => 'Busy Working'
                 },
@@ -1168,6 +1290,8 @@ test 'release lookup, related artists have no tags/genres' => sub {
                                 id => '3088b672-fba9-4b4b-8ae0-dce13babfbb4',
                                 name => 'Plone',
                                 'sort-name' => 'Plone',
+                                "type" => "Group",
+                                "type-id" => 'e431f5f6-b5d2-343d-8b36-72607fffb74b',
                             },
                             attributes => [],
                             "attribute-ids" => {},
@@ -1184,7 +1308,8 @@ test 'release lookup, related artists have no tags/genres' => sub {
                         } ],
                         tags => [],
                         genres => [],
-                        title => 'The Greek Alphabet'
+                        title => 'The Greek Alphabet',
+                        "first-release-date" => '1999-09-13',
                     },
                     title => 'The Greek Alphabet'
                 },
@@ -1204,6 +1329,8 @@ test 'release lookup, related artists have no tags/genres' => sub {
                                 id => '3088b672-fba9-4b4b-8ae0-dce13babfbb4',
                                 name => 'Plone',
                                 'sort-name' => 'Plone',
+                                "type" => "Group",
+                                "type-id" => 'e431f5f6-b5d2-343d-8b36-72607fffb74b',
                             },
                             attributes => [],
                             "attribute-ids" => {},
@@ -1220,7 +1347,8 @@ test 'release lookup, related artists have no tags/genres' => sub {
                         } ],
                         tags => [],
                         genres => [],
-                        title => 'Press a Key'
+                        title => 'Press a Key',
+                        "first-release-date" => '1999-09-13',
                     },
                     title => 'Press a Key'
                 },
@@ -1240,6 +1368,8 @@ test 'release lookup, related artists have no tags/genres' => sub {
                                 id => '3088b672-fba9-4b4b-8ae0-dce13babfbb4',
                                 name => 'Plone',
                                 'sort-name' => 'Plone',
+                                "type" => "Group",
+                                "type-id" => 'e431f5f6-b5d2-343d-8b36-72607fffb74b',
                             },
                             attributes => [],
                             "attribute-ids" => {},
@@ -1256,7 +1386,8 @@ test 'release lookup, related artists have no tags/genres' => sub {
                         } ],
                         tags => [],
                         genres => [],
-                        title => 'Bibi Plone'
+                        title => 'Bibi Plone',
+                        "first-release-date" => '1999-09-13',
                     },
                     title => 'Bibi Plone'
                 },
@@ -1276,6 +1407,8 @@ test 'release lookup, related artists have no tags/genres' => sub {
                                 id => '3088b672-fba9-4b4b-8ae0-dce13babfbb4',
                                 name => 'Plone',
                                 'sort-name' => 'Plone',
+                                "type" => "Group",
+                                "type-id" => 'e431f5f6-b5d2-343d-8b36-72607fffb74b',
                             },
                             attributes => [],
                             "attribute-ids" => {},
@@ -1292,7 +1425,8 @@ test 'release lookup, related artists have no tags/genres' => sub {
                         } ],
                         tags => [],
                         genres => [],
-                        title => 'Be Rude to Your School'
+                        title => 'Be Rude to Your School',
+                        "first-release-date" => '1999-09-13',
                     },
                     title => 'Be Rude to Your School'
                 },
@@ -1312,6 +1446,8 @@ test 'release lookup, related artists have no tags/genres' => sub {
                                 id => '3088b672-fba9-4b4b-8ae0-dce13babfbb4',
                                 name => 'Plone',
                                 'sort-name' => 'Plone',
+                                "type" => "Group",
+                                "type-id" => 'e431f5f6-b5d2-343d-8b36-72607fffb74b',
                             },
                             attributes => [],
                             "attribute-ids" => {},
@@ -1328,7 +1464,8 @@ test 'release lookup, related artists have no tags/genres' => sub {
                         } ],
                         tags => [],
                         genres => [],
-                        title => 'Summer Plays Out'
+                        title => 'Summer Plays Out',
+                        "first-release-date" => '1999-09-13',
                     },
                     title => 'Summer Plays Out'
                 }
@@ -1343,6 +1480,8 @@ test 'release lookup, related artists have no tags/genres' => sub {
                 id => '3088b672-fba9-4b4b-8ae0-dce13babfbb4',
                 name => 'Plone',
                 'sort-name' => 'Plone',
+                "type" => "Group",
+                "type-id" => 'e431f5f6-b5d2-343d-8b36-72607fffb74b',
             },
             attributes => [],
             "attribute-ids" => {},
@@ -1363,7 +1502,9 @@ test 'release lookup, related artists have no tags/genres' => sub {
                 id => '8a754a16-0027-3a29-b6d7-2b40ea0481ed',
                 'iso-3166-1-codes' => [ 'GB' ],
                 name => 'United Kingdom',
-                'sort-name' => 'United Kingdom'
+                'sort-name' => 'United Kingdom',
+                "type" => JSON::null,
+                "type-id" => JSON::null,
             },
             date => '1999-09-13'
         } ],
@@ -1387,7 +1528,9 @@ test 'release lookup, pregap track' => sub {
             disambiguation => '',
             id => '38c5cdab-5d6d-43d1-85b0-dac41bde186e',
             name => 'Blind Melon',
-            'sort-name' => 'Blind Melon'
+            'sort-name' => 'Blind Melon',
+            "type" => "Group",
+            "type-id" => 'e431f5f6-b5d2-343d-8b36-72607fffb74b',
         },
         joinphrase => '',
         name => 'Blind Melon'
@@ -1504,7 +1647,9 @@ test 'MBS-7914' => sub {
                 disambiguation => '',
                 id => '8d610e51-64b4-4654-b8df-064b0fb7a9d9',
                 name => 'Gustav Mahler',
-                'sort-name' => 'Mahler, Gustav'
+                'sort-name' => 'Mahler, Gustav',
+                "type" => "Person",
+                "type-id" => "b6e035f4-3ce9-331c-97df-83397230b0df",
             },
             joinphrase => '',
             name => 'Gustav Mahler'
@@ -1544,7 +1689,9 @@ test 'MBS-7914' => sub {
                         disambiguation => '',
                         id => '8d610e51-64b4-4654-b8df-064b0fb7a9d9',
                         name => 'Gustav Mahler',
-                        'sort-name' => 'Mahler, Gustav'
+                        'sort-name' => 'Mahler, Gustav',
+                        "type" => "Person",
+                        "type-id" => "b6e035f4-3ce9-331c-97df-83397230b0df",
                     },
                     joinphrase => '',
                     name => 'Gustav Mahler'
@@ -1557,10 +1704,23 @@ test 'MBS-7914' => sub {
                     aliases => [],
                     'artist-credit' => [{
                         artist => {
+                            aliases => [{
+                                locale => JSON::null,
+                                name => "CSO",
+                                primary => JSON::null,
+                                'sort-name' => "CSO",
+                                type => JSON::null,
+                                "type-id" => JSON::null,
+                                begin => JSON::null,
+                                end => JSON::null,
+                                ended => JSON::false,
+                            }],
                             disambiguation => '',
                             id => '509c772e-1164-4457-8d09-0553cfa77d64',
                             name => 'Chicago Symphony Orchestra',
-                            'sort-name' => 'Chicago Symphony Orchestra'
+                            'sort-name' => 'Chicago Symphony Orchestra',
+                            "type" => "Orchestra",
+                            "type-id" => 'a0b36c92-3eb1-3839-a4f9-4799823f54a5',
                         },
                         joinphrase => '',
                         name => 'Chicago Symphony Orchestra'
@@ -1604,12 +1764,16 @@ test 'tags and genres on associated entities' => sub {
                     genres => [
                         {
                             count => 1,
+                            disambiguation => '',
+                            id => '8a14f570-7297-438d-996d-8797f9b8cfcc',
                             name => 'psychobilly',
                         },
                     ],
                     id => 'c369975a-7381-4afd-9c36-1d8fe5115e28',
                     name => 'Lori Cooke',
                     'sort-name' => 'Cooke, Lori',
+                    "type" => "Person",
+                    "type-id" => "b6e035f4-3ce9-331c-97df-83397230b0df",
                     tags => [
                         {
                             count => 1,
@@ -1634,6 +1798,8 @@ test 'tags and genres on associated entities' => sub {
         genres => [
             {
                 count => 1,
+                disambiguation => '',
+                id => '8c083468-2dce-4a31-ae77-433af3deafd3',
                 name => 'hard bop',
             },
         ],
@@ -1655,6 +1821,8 @@ test 'tags and genres on associated entities' => sub {
                                     id => 'c369975a-7381-4afd-9c36-1d8fe5115e28',
                                     name => 'Lori Cooke',
                                     'sort-name' => 'Cooke, Lori',
+                                    "type" => "Person",
+                                    "type-id" => "b6e035f4-3ce9-331c-97df-83397230b0df",
                                 },
                                 joinphrase => ', ',
                                 name => 'Lori Cooke',
@@ -1665,12 +1833,16 @@ test 'tags and genres on associated entities' => sub {
                                     genres => [
                                         {
                                             count => 1,
+                                            disambiguation => '',
+                                            id => 'f1c9b874-7ef2-4e79-9419-c0bcb5f33a30',
                                             name => 'britpop',
                                         },
                                     ],
                                     id => '561e53a1-9ae6-4d85-95c0-a39b028eabe4',
                                     name => 'Frances Jones',
                                     'sort-name' => 'Jones, Frances',
+                                    "type" => "Person",
+                                    "type-id" => "b6e035f4-3ce9-331c-97df-83397230b0df",
                                     tags => [
                                         {
                                             count => 1,
@@ -1687,12 +1859,16 @@ test 'tags and genres on associated entities' => sub {
                                     genres => [
                                         {
                                             count => 1,
+                                            disambiguation => '',
+                                            id => 'f976d48b-965e-4fe9-aaa6-105aab988c7c',
                                             name => 'blackened death metal',
                                         },
                                     ],
                                     id => '95ffd873-9901-4ebd-b07d-eb1fe4485baf',
                                     name => 'Lavone Grimm',
                                     'sort-name' => 'Grimm, Lavone',
+                                    "type" => "Person",
+                                    "type-id" => "b6e035f4-3ce9-331c-97df-83397230b0df",
                                     tags => [
                                         {
                                             count => 1,
@@ -1716,6 +1892,8 @@ test 'tags and genres on associated entities' => sub {
                                         id => 'c369975a-7381-4afd-9c36-1d8fe5115e28',
                                         name => 'Lori Cooke',
                                         'sort-name' => 'Cooke, Lori',
+                                        "type" => "Person",
+                                        "type-id" => "b6e035f4-3ce9-331c-97df-83397230b0df",
                                     },
                                     joinphrase => ', ',
                                     name => 'Lori Cooke',
@@ -1726,6 +1904,8 @@ test 'tags and genres on associated entities' => sub {
                                         id => '561e53a1-9ae6-4d85-95c0-a39b028eabe4',
                                         name => 'Frances Jones',
                                         'sort-name' => 'Jones, Frances',
+                                        "type" => "Person",
+                                        "type-id" => "b6e035f4-3ce9-331c-97df-83397230b0df",
                                     },
                                     joinphrase => ' & ',
                                     name => 'Frances Jones',
@@ -1736,12 +1916,16 @@ test 'tags and genres on associated entities' => sub {
                                         genres => [
                                             {
                                                 count => 1,
+                                                disambiguation => '',
+                                                id => '842008b8-1c67-4c8c-b450-7f5adf20fb7f',
                                                 name => 'post-classical',
                                             },
                                         ],
                                         id => '9084ad69-7e81-44f9-a195-a522a9b7b08b',
                                         name => 'Leslie Rice',
                                         'sort-name' => 'Rice, Leslie',
+                                        "type" => "Character",
+                                        "type-id" => "5c1375b0-f18d-3db7-a164-a49d7a63773f",
                                         tags => [
                                             {
                                                 count => 1,
@@ -1757,6 +1941,8 @@ test 'tags and genres on associated entities' => sub {
                             genres => [
                                 {
                                     count => 1,
+                                    disambiguation => '',
+                                    id => '8103927c-5f4b-4bbc-9d8c-7a1241d2bab8',
                                     name => 'freak folk',
                                 },
                             ],
@@ -1787,6 +1973,8 @@ test 'tags and genres on associated entities' => sub {
                         id => 'c369975a-7381-4afd-9c36-1d8fe5115e28',
                         name => 'Lori Cooke',
                         'sort-name' => 'Cooke, Lori',
+                        "type" => "Person",
+                        "type-id" => "b6e035f4-3ce9-331c-97df-83397230b0df",
                     },
                     joinphrase => ' & ',
                     name => 'Lori Cooke',
@@ -1797,12 +1985,16 @@ test 'tags and genres on associated entities' => sub {
                         genres => [
                             {
                                 count => 1,
+                                disambiguation => '',
+                                id => 'f1c9b874-7ef2-4e79-9419-c0bcb5f33a30',
                                 name => 'britpop',
                             },
                         ],
                         id => '561e53a1-9ae6-4d85-95c0-a39b028eabe4',
                         name => 'Frances Jones',
                         'sort-name' => 'Jones, Frances',
+                        "type" => "Person",
+                        "type-id" => "b6e035f4-3ce9-331c-97df-83397230b0df",
                         tags => [
                             {
                                 count => 1,
@@ -1819,6 +2011,8 @@ test 'tags and genres on associated entities' => sub {
             genres => [
                 {
                     count => 1,
+                    disambiguation => '',
+                    id => '1696f12e-9f01-4309-be9d-116e31ac65b7',
                     name => 'doo-wop',
                 },
             ],

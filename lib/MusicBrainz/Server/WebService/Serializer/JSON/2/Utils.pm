@@ -39,6 +39,7 @@ my %serializers =
         CDTOC
         Collection
         Event
+        Genre
         Instrument
         ISRC
         Label
@@ -131,9 +132,7 @@ sub list_of
     my $list = $opts->{$type};
     my $items = (ref $list eq 'HASH') ? $list->{items} : $list;
 
-    return [
-        map { serialize_entity($_, $inc, $stash, $toplevel) }
-        sort_by { $_->gid } @$items ];
+    return [map { serialize_entity($_, $inc, $stash, $toplevel) } @$items];
 }
 
 sub count_of
@@ -153,6 +152,18 @@ sub serialize_aliases {
     return if $hide_aliases;
 
     return unless defined $inc && $inc->aliases;
+
+    # We don't show aliases again for recording artists if they're on the release or track AC
+    if ($entity->isa('MusicBrainz::Server::Entity::Artist')) {
+        if (my $release_ac = $stash->{release_artist_credit}) {
+            # We make sure a track AC is set (i.e. this is a recording)
+            # to avoid breaking stuff that expects track artist aliases
+            if (my $track_ac = $stash->{track_artist_credit}) {
+                return if (grep { $_->artist_id == $entity->id } $release_ac->all_names);
+                return if (grep { $_->artist_id == $entity->id } $track_ac->all_names);
+            }
+        }
+    }
 
     my $opts = $stash->store($entity);
 
@@ -254,15 +265,11 @@ sub serialize_relationships {
          $entity->has_loaded_relationships);
 
     local $hide_tags_and_genres = 1;
+    local $hide_aliases = 1;
 
     my @relationships =
         map { serialize_entity($_, $inc, $stash) }
-        sort_by {
-            join("\t",
-                 $_->link->type->name,
-                 (sprintf "%09d", $_->link_order // 0),
-                 $_->target_key)
-        } $entity->all_relationships;
+        $entity->all_relationships;
 
     $into->{relations} = \@relationships;
     return;
@@ -299,7 +306,7 @@ sub serialize_tags {
     if ($inc->genres) {
         $into->{genres} = [
             sort { $a->{name} cmp $b->{name} }
-            map +{ count => $_->count, name => $_->tag->name },
+            map +{ count => $_->count, disambiguation => $_->tag->genre->comment, id => $_->tag->genre->gid, name => $_->tag->name },
                 @{ $opts->{genres} }
         ];
     }
@@ -314,7 +321,7 @@ sub serialize_tags {
     if ($inc->user_genres) {
         $into->{'user-genres'} = [
             sort { $a->{name} cmp $b->{name} }
-            map +{ name => $_->tag->name },
+            map +{ disambiguation => $_->tag->genre->comment, id => $_->tag->genre->gid, name => $_->tag->name },
                 @{ $opts->{user_genres} }
         ];
     }
@@ -326,14 +333,6 @@ sub serialize_type {
     my ($into, $entity, $inc, $stash, $toplevel) = @_;
 
     my $entity_type = $entity->entity_type;
-    return unless
-        ($toplevel ||
-         # For some reason, these four entities were implemented to always
-         # output types in the XML and JSON, regardless of `$toplevel`.
-         $entity_type eq 'collection' ||
-         $entity_type eq 'event' ||
-         $entity_type eq 'place' ||
-         $entity_type eq 'work');
 
     my $type = $entity->type;
     $into->{type} = defined $type ? $type->name : JSON::null;
@@ -343,22 +342,12 @@ sub serialize_type {
 
 1;
 
-=head1 COPYRIGHT
+=head1 COPYRIGHT AND LICENSE
 
 Copyright (C) 2012-2013 MetaBrainz Foundation
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program; if not, write to the Free Software
-Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+This file is part of MusicBrainz, the open internet music database,
+and is licensed under the GPL version 2, or (at your option) any
+later version: http://www.gnu.org/licenses/gpl-2.0.txt
 
 =cut

@@ -1,5 +1,5 @@
 /*
- * @flow
+ * @flow strict-local
  * Copyright (C) 2019 MetaBrainz Foundation
  *
  * This file is part of MusicBrainz, the open internet music database,
@@ -9,106 +9,156 @@
 
 import * as React from 'react';
 
-import {withCatalystContext} from '../../../../context';
+import {CatalystContext} from '../../../../context';
+import InstrumentRelTypes
+  from '../../../../components/InstrumentRelTypes';
+import RemoveFromMergeTableCell
+  from '../../../../components/RemoveFromMergeTableCell';
 import RatingStars from '../../../../components/RatingStars';
 import loopParity from '../../../../utility/loopParity';
 import formatDate from '../utility/formatDate';
 import formatEndDate from '../utility/formatEndDate';
+import renderMergeCheckboxElement
+  from '../utility/renderMergeCheckboxElement';
 
 import DescriptiveLink from './DescriptiveLink';
 
-type ArtistListRowProps = {|
-  +$c: CatalystContextT,
+type ArtistListRowProps = {
+  ...InstrumentCreditsAndRelTypesRoleT,
   +artist: ArtistT,
-  +checkboxes?: string,
-  +showBeginEnd?: boolean,
-  +showRatings?: boolean,
-  +showSortName?: boolean,
-|};
-
-type ArtistListEntryProps = {|
-  +artist: ArtistT,
+  +artistList?: $ReadOnlyArray<ArtistT>,
   +checkboxes?: string,
   +index: number,
-  +score?: number,
+  +mergeForm?: MergeFormT,
   +showBeginEnd?: boolean,
+  +showInstrumentCreditsAndRelTypes?: boolean,
   +showRatings?: boolean,
   +showSortName?: boolean,
-|};
+};
 
-const ArtistListRow = withCatalystContext(({
-  $c,
+type ArtistListEntryProps = {
+  ...InstrumentCreditsAndRelTypesRoleT,
+  +artist: ArtistT,
+  +artistList?: $ReadOnlyArray<ArtistT>,
+  +checkboxes?: string,
+  +index: number,
+  +mergeForm?: MergeFormT,
+  +score?: number,
+  +showBeginEnd?: boolean,
+  +showInstrumentCreditsAndRelTypes?: boolean,
+  +showRatings?: boolean,
+  +showSortName?: boolean,
+};
+
+const ArtistListRow = ({
   artist,
+  artistList,
   checkboxes,
-  showBeginEnd,
-  showRatings,
-  showSortName,
-}: ArtistListRowProps) => (
-  <>
-    {$c.user_exists && checkboxes ? (
+  index,
+  instrumentCreditsAndRelTypes,
+  mergeForm,
+  showBeginEnd = false,
+  showInstrumentCreditsAndRelTypes = false,
+  showRatings = false,
+  showSortName = false,
+}: ArtistListRowProps) => {
+  const $c = React.useContext(CatalystContext);
+
+  return (
+    <>
+      {$c.user && (nonEmpty(checkboxes) || mergeForm) ? (
+        <td>
+          {mergeForm
+            ? renderMergeCheckboxElement(artist, mergeForm, index)
+            : (
+              <input
+                name={checkboxes}
+                type="checkbox"
+                value={artist.id}
+              />
+            )}
+        </td>
+      ) : null}
       <td>
-        <input
-          name={checkboxes}
-          type="checkbox"
-          value={artist.id}
+        <DescriptiveLink entity={artist} />
+      </td>
+      {showSortName ? <td>{artist.sort_name}</td> : null}
+      <td>
+        {nonEmpty(artist.typeName)
+          ? lp_attributes(artist.typeName, 'artist_type')
+          : null}
+      </td>
+      <td>
+        {artist.gender
+          ? lp_attributes(artist.gender.name, 'gender')
+          : null}
+      </td>
+      <td>
+        {artist.area ? <DescriptiveLink entity={artist.area} /> : null}
+      </td>
+      {showBeginEnd ? (
+        <>
+          <td>{formatDate(artist.begin_date)}</td>
+          <td>
+            {artist.begin_area
+              ? <DescriptiveLink entity={artist.begin_area} />
+              : null}
+          </td>
+          <td>{formatEndDate(artist)}</td>
+          <td>
+            {artist.end_area
+              ? <DescriptiveLink entity={artist.end_area} />
+              : null}
+          </td>
+        </>
+      ) : null}
+      {showRatings ? (
+        <td>
+          <RatingStars entity={artist} />
+        </td>
+      ) : null}
+      {showInstrumentCreditsAndRelTypes ? (
+        <td>
+          <InstrumentRelTypes
+            entity={artist}
+            instrumentCreditsAndRelTypes={instrumentCreditsAndRelTypes}
+          />
+        </td>
+      ) : null}
+      {mergeForm && artistList ? (
+        <RemoveFromMergeTableCell
+          $c={$c}
+          entity={artist}
+          toMerge={artistList}
         />
-      </td>
-    ) : null}
-    <td>
-      <DescriptiveLink entity={artist} />
-    </td>
-    {showSortName ? <td>{artist.sort_name}</td> : null}
-    <td>
-      {artist.typeName
-        ? lp_attributes(artist.typeName, 'artist_type')
-        : null}
-    </td>
-    <td>
-      {artist.gender
-        ? lp_attributes(artist.gender.name, 'gender')
-        : null}
-    </td>
-    <td>
-      {artist.area ? <DescriptiveLink entity={artist.area} /> : null}
-    </td>
-    {showBeginEnd ? (
-      <>
-        <td>{formatDate(artist.begin_date)}</td>
-        <td>
-          {artist.begin_area
-            ? <DescriptiveLink entity={artist.begin_area} />
-            : null}
-        </td>
-        <td>{formatEndDate(artist)}</td>
-        <td>
-          {artist.end_area
-            ? <DescriptiveLink entity={artist.end_area} />
-            : null}
-        </td>
-      </>
-    ) : null}
-    {showRatings ? (
-      <td>
-        <RatingStars entity={artist} />
-      </td>
-    ) : null}
-  </>
-));
+      ) : null}
+    </>
+  );
+};
 
 const ArtistListEntry = ({
   artist,
+  artistList,
   checkboxes,
   index,
+  instrumentCreditsAndRelTypes,
+  mergeForm,
   score,
   showBeginEnd,
+  showInstrumentCreditsAndRelTypes,
   showRatings,
   showSortName,
-}: ArtistListEntryProps) => (
-  <tr className={loopParity(index)} data-score={score || null}>
+}: ArtistListEntryProps): React.Element<'tr'> => (
+  <tr className={loopParity(index)} data-score={score ?? null}>
     <ArtistListRow
       artist={artist}
+      artistList={artistList}
       checkboxes={checkboxes}
+      index={index}
+      instrumentCreditsAndRelTypes={instrumentCreditsAndRelTypes}
+      mergeForm={mergeForm}
       showBeginEnd={showBeginEnd}
+      showInstrumentCreditsAndRelTypes={showInstrumentCreditsAndRelTypes}
       showRatings={showRatings}
       showSortName={showSortName}
     />

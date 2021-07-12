@@ -1,5 +1,5 @@
 /*
- * @flow
+ * @flow strict
  * Copyright (C) 2018 MetaBrainz Foundation
  *
  * This file is part of MusicBrainz, the open internet music database,
@@ -7,17 +7,17 @@
  * later version: http://www.gnu.org/licenses/gpl-2.0.txt
  */
 
-import React from 'react';
+import * as React from 'react';
 
-type Props = {|
-  +forField?: {+html_name: string},
+type Props = {
+  +forField?: {+html_name: string, ...},
   +label: string,
   +required?: boolean,
-|};
+};
 
-const FormLabel = (props: Props) => (
+const FormLabel = (props: Props): React.Element<'label'> => (
   <label
-    className={props.required ? 'required' : ''}
+    className={props.required /*:: === true */ ? 'required' : ''}
     htmlFor={props.forField ? 'id-' + props.forField.html_name : null}
   >
     {props.label}

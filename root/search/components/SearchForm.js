@@ -1,5 +1,5 @@
 /*
- * @flow
+ * @flow strict-local
  * Copyright (C) 2018 MetaBrainz Foundation
  *
  * This file is part of MusicBrainz, the open internet music database,
@@ -7,18 +7,17 @@
  * later version: http://www.gnu.org/licenses/gpl-2.0.txt
  */
 
-import noop from 'lodash/noop';
-import React from 'react';
+import * as React from 'react';
 
-import * as DBDefs from '../../static/scripts/common/DBDefs';
+import DBDefs from '../../static/scripts/common/DBDefs';
 import FormRowRadio from '../../components/FormRowRadio';
 import FormRowSelect from '../../components/FormRowSelect';
 import FormRowTextLong from '../../components/FormRowTextLong';
 import FormSubmit from '../../components/FormSubmit';
 
-type Props = {|
+type Props = {
   +form: SearchFormT,
-|};
+};
 
 const limitOptions = {
   grouped: false,
@@ -65,7 +64,9 @@ const methodOptions = [
   {label: N_l('Direct database search'), value: 'direct'},
 ];
 
-const SearchForm = ({form}: Props) => (
+const SearchForm = ({
+  form,
+}: Props): React.Element<typeof React.Fragment> => (
   <>
     <div className="searchform">
       <form action="/search" method="get">
@@ -73,18 +74,19 @@ const SearchForm = ({form}: Props) => (
           field={form.field.query}
           label={l('Query:')}
           required
+          uncontrolled
         />
         <FormRowSelect
           field={form.field.type}
           label={l('Type:')}
-          onChange={noop}
           options={typeOptions}
+          uncontrolled
         />
         <FormRowSelect
           field={form.field.limit}
           label={l('Results per page:')}
-          onChange={noop}
           options={limitOptions}
+          uncontrolled
         />
         <FormRowRadio
           field={form.field.method}

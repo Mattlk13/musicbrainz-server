@@ -2,8 +2,10 @@ package MusicBrainz::Server::Edit::Historic::Relationship;
 
 use MusicBrainz::Server::Edit::Historic::Base;
 
+use MusicBrainz::Server::Constants qw( :direction );
 use MusicBrainz::Server::Data::Utils qw( type_to_model );
 use MusicBrainz::Server::Edit::Historic::Utils qw( upgrade_date upgrade_type );
+use MusicBrainz::Server::Entity::Util::JSON qw( to_json_object );
 
 use aliased 'MusicBrainz::Server::Entity::Link';
 use aliased 'MusicBrainz::Server::Entity::LinkType';
@@ -208,29 +210,56 @@ sub _expand_relationships {
     } @$mappings;
 }
 
+# To access entities missing an ID via linkedEntities later on
+my $fake_entity_id = 1000000000;
+
 sub _display_relationships {
     my ($self, $data, $loaded) = @_;
+
+    # Since the link phrase with attributes to display is hacked
+    # onto the link type phrase, we need to pass them separately
+    # to linkedEntities.
+    my $link_type_id = $fake_entity_id++;
+
     return [
         map {
+            my $entity0_type = $_->{entity0_type};
+            my $entity1_type = $_->{entity1_type};
             my $model0 = type_to_model( $_->{entity0_type} );
             my $model1 = type_to_model( $_->{entity1_type} );
-            my $entity0_id = $_->{entity0_id};
-            my $entity1_id = $_->{entity1_id};
+            my $entity0_id = $_->{entity0_id} // $fake_entity_id++;
+            my $entity1_id = $_->{entity1_id} // $fake_entity_id++;
+            my $entity0 = $loaded->{ $model0 }{ $entity0_id } ||
+                $self->c->model($model0)->_entity_class->new(
+                    id => $entity0_id,
+                    name => $_->{entity0_name}
+                );
+            MusicBrainz::Server::Entity::Relationship->link_entity($entity0_type, $entity0_id, $entity0);
+            my $entity1 = $loaded->{ $model1 }{ $entity1_id } ||
+                $self->c->model($model1)->_entity_class->new(
+                    id => $entity1_id,
+                    name => $_->{entity1_name},
+                );
 
-            Relationship->new(
-                entity0 => $loaded->{ $model0 }{ $entity0_id } ||
-                    $self->c->model($model0)->_entity_class->new( name => $_->{entity0_name}),
-                entity1 => $loaded->{ $model1 }{ $entity1_id } ||
-                    $self->c->model($model1)->_entity_class->new( name => $_->{entity1_name}),
+            to_json_object(Relationship->new(
+                entity0_id => $entity0_id,
+                entity1_id => $entity1_id,
+                source => $entity0,
+                target => $entity1,
                 link    => Link->new(
+                    id         => $data->{link_id},
                     begin_date => PartialDate->new($data->{begin_date}),
                     end_date   => PartialDate->new($data->{end_date}),
+                    type_id    => $link_type_id,
                     type       => LinkType->new(
-                        link_phrase => $_->{link_type_phrase}
+                        entity0_type => $entity0_type,
+                        entity1_type => $entity1_type,
+                        id           => $link_type_id,
+                        link_phrase  => $_->{link_type_phrase}
                     )
                 ),
-                direction => $MusicBrainz::Server::Entity::Relationship::DIRECTION_FORWARD
-            ),
+                direction => $DIRECTION_FORWARD,
+            ));
         } @{ $data->{links} }
     ];
 }

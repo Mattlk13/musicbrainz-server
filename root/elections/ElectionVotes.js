@@ -1,5 +1,5 @@
 /*
- * @flow
+ * @flow strict-local
  * Copyright (C) 2018 MetaBrainz Foundation
  *
  * This file is part of MusicBrainz, the open internet music database,
@@ -7,18 +7,17 @@
  * later version: http://www.gnu.org/licenses/gpl-2.0.txt
  */
 
-import React from 'react';
+import * as React from 'react';
 
 import EditorLink from '../static/scripts/common/components/EditorLink';
 import formatUserDate from '../utility/formatUserDate';
-import {votesVisible} from '../utility/voting';
 
 type PropsT = {
+  +$c: CatalystContextT,
   +election: AutoEditorElectionT,
-  +user?: EditorT,
 };
 
-const ElectionVotes = ({election, user}: PropsT) => (
+const ElectionVotes = ({$c, election}: PropsT): React.Element<'table'> => (
   <table className="tbl" style={{width: 'auto'}}>
     <thead>
       <tr>
@@ -32,11 +31,11 @@ const ElectionVotes = ({election, user}: PropsT) => (
         <tr className={index % 2 ? 'even' : 'odd'} key={vote.voter.id}>
           <td><EditorLink editor={vote.voter} /></td>
           <td>
-            {user && user.id === vote.voter.id
+            {$c.user && $c.user.id === vote.voter.id
               ? lp(vote.vote_name, 'vote')
               : l('(private)')}
           </td>
-          <td>{formatUserDate(user, vote.vote_time)}</td>
+          <td>{formatUserDate($c, vote.vote_time)}</td>
         </tr>
       ))}
     </tbody>

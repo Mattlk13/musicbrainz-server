@@ -7,21 +7,21 @@
  * later version: http://www.gnu.org/licenses/gpl-2.0.txt
  */
 
-import React from 'react';
+import * as React from 'react';
 
 import hydrate, {minimalEntity} from '../../../../utility/hydrate';
 import entityHref from '../utility/entityHref';
 
 import Collapsible from './Collapsible';
 
-type Props = {|
+type Props = {
   +cachedWikipediaExtract: WikipediaExtractT | null,
-  +entity: MinimalCoreEntityT,
-|};
+  +entity: CoreEntityT | MinimalCoreEntityT,
+};
 
-type State = {|
+type State = {
   wikipediaExtract: WikipediaExtractT | null,
-|};
+};
 
 class WikipediaExtract extends React.Component<Props, State> {
   constructor(props: Props) {
@@ -52,12 +52,19 @@ class WikipediaExtract extends React.Component<Props, State> {
         </a>
         {' '}
         <small>
-          {exp.l('Wikipedia content provided under the terms of the {license_link|Creative Commons BY-SA license}',
-                 {license_link: 'https://creativecommons.org/licenses/by-sa/3.0/'})}
+          {exp.l(
+            `Wikipedia content provided under the terms of the
+             {license_link|Creative Commons BY-SA license}`,
+            {license_link: 'https://creativecommons.org/licenses/by-sa/3.0/'},
+          )}
         </small>
       </>
     ) : null;
   }
 }
 
-export default hydrate<Props>('div.wikipedia-extract', WikipediaExtract, minimalEntity);
+export default (hydrate<Props>(
+  'div.wikipedia-extract',
+  WikipediaExtract,
+  minimalEntity,
+): React.AbstractComponent<Props, void>);

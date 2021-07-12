@@ -5,6 +5,7 @@ BEGIN { extends 'MusicBrainz::Server::Controller' }
 use List::Util qw( min max );
 use MusicBrainz::Server::ControllerUtils::JSON qw( serialize_pager );
 use MusicBrainz::Server::Data::Utils qw( datetime_to_iso8601 model_to_type type_to_model );
+use MusicBrainz::Server::Entity::Util::JSON qw( to_json_array );
 use MusicBrainz::Server::Form::Search::Query;
 use MusicBrainz::Server::Form::Search::Search;
 use Scalar::Util qw( looks_like_number );
@@ -64,11 +65,11 @@ sub search : Path('')
             my $stash = $c->stash;
 
             my %props = (
-                form => $stash->{form},
+                form => $stash->{form}->TO_JSON,
                 lastUpdated => datetime_to_iso8601($stash->{last_updated}),
                 pager => serialize_pager($stash->{pager}),
                 query => $stash->{query},
-                results => $stash->{results},
+                results => to_json_array($stash->{results}),
             );
 
             $c->stash(
@@ -80,7 +81,15 @@ sub search : Path('')
     }
     else
     {
-        $c->stash( template => 'search/index.tt' );
+        $c->stash(
+            component_path => 'search/SearchIndex',
+            component_props => {
+                otherLookupForm => $c->stash->{otherlookup}->TO_JSON,
+                searchForm => $c->stash->{form}->TO_JSON,
+                tagLookupForm => $c->stash->{taglookup}->TO_JSON,
+            },
+            current_view => 'Node',
+        );
     }
 }
 
@@ -125,6 +134,7 @@ sub direct : Private
         when ('release') {
             $c->model('Language')->load(@entities);
             $c->model('Release')->load_related_info(@entities);
+            $c->model('Release')->load_meta(@entities);
             $c->model('Script')->load(@entities);
             $c->model('ReleaseStatus')->load(@entities);
             $c->model('ReleaseGroup')->load(@entities);
@@ -177,6 +187,10 @@ sub direct : Private
         when ('event') {
             $c->model('Event')->load_related_info(@entities);
             $c->model('Event')->load_areas(@entities);
+        }
+        when ('tag') {
+            #TODO: add support for genre aliases when finishing MBS-10062
+            $c->model('Genre')->load(@entities);
         }
     }
 
@@ -243,20 +257,28 @@ sub do_external_search {
         # Switch on the response code to decide which template to provide
         given ($ret->{code})
         {
-            when (404) { $template .= 'no-results.tt'; }
-            when (403) { $template .= 'no-info.tt'; };
-            when (414) { $template .= 'uri-too-large.tt'; };
-            when (500) { $template .= 'internal-error.tt'; }
-            when (400) { $template .= 'invalid.tt'; }
-            when (503) { $template .= 'rate-limit.tt'; }
+            when (404) { $template .= 'NoResults'; }
+            when (403) { $template .= 'NoInfo'; };
+            when (414) { $template .= 'UriTooLarge'; };
+            when (500) { $template .= 'InternalError'; }
+            when (400) { $template .= 'Invalid'; }
+            when (503) { $template .= 'RateLimited'; }
 
-            default { $template .= 'general.tt'; }
+            default { $template .= 'General'; }
         }
 
-        $c->stash->{content}  = $ret->{error};
-        $c->stash->{query}    = $query;
-        $c->stash->{type}     = $type;
-        $c->stash->{template} = $template;
+        my %props = (
+            form => $c->stash->{form}->TO_JSON,
+            error => $ret->{error},
+            query => $query,
+            type => $type,
+        );
+
+        $c->stash(
+            component_path => $template,
+            component_props => \%props,
+            current_view => 'Node',
+        );
 
         $c->detach;
     }
@@ -276,21 +298,18 @@ sub filter : Private
     my $query = $c->form( query_form => 'Search::Query', name => 'filter' );
     my $results = $c->form( results_form => 'Search::Results' );
 
-    if ($c->form_posted)
+    if ($c->form_posted_and_valid($results))
     {
-        if ($results->submitted_and_valid($c->req->params))
-        {
-            return $c->model($model)->get_by_id($results->field('selected_id')->value);
-        }
-        elsif ($query->submitted_and_valid($c->req->params))
-        {
-            my $q = $query->field('query')->value;
-            $c->stash(
-                search_results => $self->_load_paged($c, sub {
-                        $c->model('DirectSearch')->search($type, $q, shift, shift)
-                    })
-            );
-        }
+        return $c->model($model)->get_by_id($results->field('selected_id')->value);
+    }
+    elsif ($c->form_posted_and_valid($query))
+    {
+        my $q = $query->field('query')->value;
+        $c->stash(
+            search_results => $self->_load_paged($c, sub {
+                    $c->model('DirectSearch')->search($type, $q, shift, shift)
+                })
+        );
     }
 
     $c->detach;
@@ -351,24 +370,13 @@ C<state> method of the current context. For example:
         # until we have an artist
     }
 
-=head1 LICENSE
+=head1 COPYRIGHT AND LICENSE
 
 Copyright (C) 2009 Oliver Charles
 Copyright (C) 2012 Pavan Chander
 
-This software is provided "as is", without warranty of any kind, express or
-implied, including  but not limited  to the warranties of  merchantability,
-fitness for a particular purpose and noninfringement. In no event shall the
-authors or  copyright  holders be  liable for any claim,  damages or  other
-liability, whether  in an  action of  contract, tort  or otherwise, arising
-from,  out of  or in  connection with  the software or  the  use  or  other
-dealings in the software.
-
-GPL - The GNU General Public License    http://www.gnu.org/licenses/gpl.txt
-Permits anyone the right to use and modify the software without limitations
-as long as proper  credits are given  and the original  and modified source
-code are included. Requires  that the final product, software derivate from
-the original  source or any  software  utilizing a GPL  component, such  as
-this, is also licensed under the GPL license.
+This file is part of MusicBrainz, the open internet music database,
+and is licensed under the GPL version 2, or (at your option) any
+later version: http://www.gnu.org/licenses/gpl-2.0.txt
 
 =cut

@@ -1,4 +1,5 @@
 /*
+ * @flow strict-local
  * Copyright (C) 2017 MetaBrainz Foundation
  *
  * This file is part of MusicBrainz, the open internet music database
@@ -8,14 +9,14 @@
 
 import URL from 'url';
 
-import React from 'react';
-import _ from 'lodash';
+import * as React from 'react';
 
-import {withCatalystContext} from '../../context';
 import EntityLink from '../../static/scripts/common/components/EntityLink';
 import {FAVICON_CLASSES} from '../../static/scripts/common/constants';
 import {compare, l} from '../../static/scripts/common/i18n';
 import linkedEntities from '../../static/scripts/common/linkedEntities';
+import {uniqBy} from '../../static/scripts/common/utility/arrays';
+import isDisabledLink from '../../utility/isDisabledLink';
 
 function faviconClass(urlEntity) {
   let matchingClass;
@@ -23,7 +24,7 @@ function faviconClass(urlEntity) {
 
   for (const key in FAVICON_CLASSES) {
     if ((key.indexOf('/') >= 0 && urlEntity.name.indexOf(key) >= 0) ||
-        urlObject.host.indexOf(key) >= 0) {
+        (urlObject.host?.indexOf(key) ?? -1) >= 0) {
       matchingClass = FAVICON_CLASSES[key];
       break;
     }
@@ -32,11 +33,26 @@ function faviconClass(urlEntity) {
   return (matchingClass || 'no') + '-favicon';
 }
 
-const ExternalLink = ({className, relationship, text}) => {
-  const url = relationship.target;
-  let element = <a href={url.href_url}>{text || url.sidebar_name}</a>;
+type ExternalLinkProps = {
+  +className?: string,
+  +editsPending: boolean,
+  +text?: string,
+  +url: UrlT,
+};
 
-  if (relationship.editsPending) {
+const ExternalLink = ({
+  className,
+  editsPending,
+  text,
+  url,
+}: ExternalLinkProps) => {
+  let element = (
+    <a href={url.href_url}>
+      {nonEmpty(text) ? text : url.sidebar_name}
+    </a>
+  );
+
+  if (editsPending) {
     element = <span className="mp mp-rel">{element}</span>;
   }
 
@@ -45,23 +61,41 @@ const ExternalLink = ({className, relationship, text}) => {
   }
 
   return (
-    <li className={className || faviconClass(url)}>
+    <li className={nonEmpty(className) ? className : faviconClass(url)}>
       {element}
     </li>
   );
 };
 
-const ExternalLinks = ({entity, empty, heading}) => {
+type Props = {
+  empty: boolean,
+  entity: CoreEntityT,
+  heading?: string,
+};
+
+const ExternalLinks = ({
+  entity,
+  empty,
+  heading,
+}: Props): React.MixedElement | null => {
   const relationships = entity.relationships;
+  if (!relationships) {
+    return null;
+  }
+
   const links = [];
   const blogLinks = [];
-  const otherLinks = [];
+  const otherLinks: Array<{
+    +editsPending: boolean,
+    +id: number,
+    +url: UrlT,
+  }> = [];
 
   for (let i = 0; i < relationships.length; i++) {
     const relationship = relationships[i];
     const target = relationship.target;
 
-    if (relationship.ended || target.entityType !== 'url') {
+    if (target.entityType !== 'url' || isDisabledLink(relationship, target)) {
       continue;
     }
 
@@ -71,22 +105,28 @@ const ExternalLinks = ({entity, empty, heading}) => {
       links.push(
         <ExternalLink
           className="home-favicon"
+          editsPending={relationship.editsPending}
           key={relationship.id}
-          relationship={relationship}
           text={l('Official homepage')}
+          url={target}
         />,
       );
     } else if (/^blog$/.test(linkType.name)) {
       blogLinks.push(
         <ExternalLink
           className="blog-favicon"
+          editsPending={relationship.editsPending}
           key={relationship.id}
-          relationship={relationship}
           text={l('Blog')}
+          url={target}
         />,
       );
-    } else if (target.show_in_external_links) {
-      otherLinks.push(relationship);
+    } else if (target.show_in_external_links /*:: === true */) {
+      otherLinks.push({
+        editsPending: relationship.editsPending,
+        id: relationship.id,
+        url: target,
+      });
     }
   }
 
@@ -94,25 +134,27 @@ const ExternalLinks = ({entity, empty, heading}) => {
     return null;
   }
 
-  otherLinks.sort(function (a, b) {
-    return compare(a.target.sidebar_name, b.target.sidebar_name) ||
-      compare(a.target.href_url, b.target.href_url);
-  });
-
-  const uniqueOtherLinks = _.sortedUniqBy(otherLinks, x => x.target.href_url);
+  const uniqueOtherLinks =
+    uniqBy(otherLinks, x => x.url.href_url).sort((a, b) => (
+      compare(
+        a.url.sidebar_name ?? '',
+        b.url.sidebar_name ?? '',
+      ) ||
+      compare(a.url.href_url, b.url.href_url)
+    ));
 
   // We ensure official sites are listed above blogs, and blogs above others
-  links.push.apply(links, blogLinks);
-  links.push.apply(links, uniqueOtherLinks.map(function (relationship) {
-    return <ExternalLink key={relationship.id} relationship={relationship} />;
-  }));
+  links.push(...blogLinks);
+  links.push(...uniqueOtherLinks.map(({id, ...props}) => (
+    <ExternalLink key={id} {...props} />
+  )));
 
   const entityType = entity.entityType;
 
   return (
     <>
       <h2 className="external-links">
-        {heading || l('External links')}
+        {nonEmpty(heading) ? heading : l('External links')}
       </h2>
       <ul className="external_links">
         {links}

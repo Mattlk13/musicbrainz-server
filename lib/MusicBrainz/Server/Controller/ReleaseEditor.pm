@@ -14,7 +14,7 @@ use Scalar::Util qw( looks_like_number );
 use MusicBrainz::Server::CGI::Expand qw( expand_hash );
 use MusicBrainz::Server::Track qw( unformat_track_length );
 use MusicBrainz::Server::Translation qw( l );
-use MusicBrainz::Server::Data::Utils qw( sanitize trim );
+use MusicBrainz::Server::Data::Utils qw( non_empty sanitize trim );
 use MusicBrainz::Server::Form::Utils qw(
     language_options
     script_options
@@ -43,6 +43,7 @@ sub _init_release_editor
 
     my @medium_formats = $c->model('MediumFormat')->get_all;
     my $discid_formats = [ grep { $_ } map { $_->has_discids ? ($_->id) : () } @medium_formats ];
+    my %medium_format_dates = map { $_->id => $_->year } @medium_formats;
 
     $c->stash(
         template            => 'release/edit/layout.tt',
@@ -58,6 +59,7 @@ sub _init_release_editor
         type_info           => $c->json->encode(build_type_info($c, qr/release-url/, $url_link_types)),
         attr_info           => $c->json->encode(\@link_attribute_types),
         discid_formats      => $c->json->encode($discid_formats),
+        medium_format_dates => $c->json->encode(\%medium_format_dates),
         # The merge helper doesn't really work well together with the release editor process
         hide_merge_helper   => 1,
         %options
@@ -70,9 +72,15 @@ sub edit : Chained('/release/load') PathPart('edit') Edit RequireAuth
 
     my $release = $c->stash->{release};
 
+    my @mediums = $release->all_mediums;
+    $c->model('MediumCDTOC')->load_for_mediums(@mediums);
+    $c->model('CDTOC')->load(map { $_->all_cdtocs } @mediums);
+    $c->model('Relationship')->load_cardinal($release->release_group, $release);
+
     $self->_init_release_editor(
         $c,
-        return_to => $c->uri_for_action('/release/show', [ $release->gid ])
+        return_to => $c->uri_for_action('/release/show', [ $release->gid ]),
+        release_json => $c->json->encode($release),
     );
 }
 
@@ -132,19 +140,19 @@ sub _process_seeded_data
 
     _report_unknown_fields('', $params, \@errors, @known_fields);
 
-    if (my $name = _seeded_string($params->{name}, 'name', \@errors)) {
+    if (non_empty(my $name = _seeded_string($params->{name}, 'name', \@errors))) {
         $result->{name} = trim($name);
     }
 
-    if (my $comment = _seeded_string($params->{comment}, 'comment', \@errors)) {
+    if (non_empty(my $comment = _seeded_string($params->{comment}, 'comment', \@errors))) {
         $result->{comment} = trim($comment);
     }
 
-    if (my $annotation = _seeded_string($params->{annotation}, 'annotation', \@errors)) {
+    if (non_empty(my $annotation = _seeded_string($params->{annotation}, 'annotation', \@errors))) {
         $result->{annotation} = $annotation;
     }
 
-    if (my $barcode = _seeded_string($params->{barcode}, 'barcode', \@errors)) {
+    if (non_empty(my $barcode = _seeded_string($params->{barcode}, 'barcode', \@errors))) {
         $result->{barcode} = trim($barcode) || undef;
     }
 
@@ -381,11 +389,11 @@ sub _seeded_label
             push @$errors, "Invalid $field_name.mbid: “$gid”."
         }
     }
-    elsif (my $name = _seeded_string($params->{name}, "$field_name.name", $errors)) {
+    elsif (non_empty(my $name = _seeded_string($params->{name}, "$field_name.name", $errors))) {
         $result->{label} = { name => trim($name) };
     }
 
-    $result->{catalogNumber} = trim($params->{catalog_number} // '');
+    $result->{catalogNumber} = trim($params->{catalog_number});
     return $result;
 }
 
@@ -402,13 +410,13 @@ sub _seeded_medium
         my $format = $c->model('MediumFormat')->find_by_name($name);
 
         if ($format) {
-            $result->{formatID} = $format->id;
+            $result->{format_id} = $format->id;
         } else {
             push @$errors, "Invalid $field_name.format: “$name”.";
         }
     }
 
-    if (my $name = _seeded_string($params->{name}, "$field_name.name", $errors)) {
+    if (non_empty(my $name = _seeded_string($params->{name}, "$field_name.name", $errors))) {
         $result->{name} = trim($name);
     }
 
@@ -465,11 +473,11 @@ sub _seeded_track
 
     my $result = {};
 
-    if (my $name = _seeded_string($params->{name}, "$field_name.name", $errors)) {
+    if (non_empty(my $name = _seeded_string($params->{name}, "$field_name.name", $errors))) {
         $result->{name} = trim($name);
     }
 
-    if (my $number = _seeded_string($params->{number}, "$field_name.number", $errors)) {
+    if (non_empty(my $number = _seeded_string($params->{number}, "$field_name.number", $errors))) {
         $result->{number} = trim($number) =~ s/^0+(\d+)/$1/gr;
     }
 
@@ -534,7 +542,7 @@ sub _seeded_artist_credit_name
     my $result = {};
 
     my $name = _seeded_string($params->{name}, "$field_name.name", $errors);
-    $result->{name} = trim($name // '');
+    $result->{name} = trim($name);
 
     if (my $gid = $params->{mbid}) {
         my $entity = $c->model('Artist')->get_by_gid($gid);
@@ -548,7 +556,7 @@ sub _seeded_artist_credit_name
     }
 
     my $join = _seeded_string($params->{join_phrase}, "$field_name.join_phrase", $errors);
-    $result->{joinPhrase} = sanitize($join // '');
+    $result->{joinPhrase} = sanitize($join);
 
     $result->{artist} //= _seeded_hash($c, \&_seeded_artist, $params->{artist},
         "$field_name.artist", $errors);
@@ -565,7 +573,7 @@ sub _seeded_artist
 
     my $result = {};
 
-    if (my $name = _seeded_string($params->{name}, "$field_name.name", $errors)) {
+    if (non_empty(my $name = _seeded_string($params->{name}, "$field_name.name", $errors))) {
         $result->{name} = trim($name);
     }
 
@@ -580,14 +588,15 @@ sub _seeded_url
     _report_unknown_fields($field_name, $params, $errors, @known_fields);
 
     my $result = {
+        id => undef,
         target => { name => '', entityType => 'url' },
     };
 
-    if (my $url = _seeded_string($params->{url}, "$field_name.url", $errors)) {
+    if (non_empty(my $url = _seeded_string($params->{url}, "$field_name.url", $errors))) {
         $result->{target}->{name} = trim($url);
     }
 
-    if (my $id = _seeded_string($params->{link_type}, "$field_name.link_type", $errors)) {
+    if (non_empty(my $id = _seeded_string($params->{link_type}, "$field_name.link_type", $errors))) {
         my $link_type = $c->model('LinkType')->get_by_id($id);
 
         if ($link_type && !$link_type->is_deprecated &&
@@ -620,22 +629,12 @@ no Moose;
 
 1;
 
-=head1 COPYRIGHT
+=head1 COPYRIGHT AND LICENSE
 
 Copyright (C) 2014 MetaBrainz Foundation
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program; if not, write to the Free Software
-Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+This file is part of MusicBrainz, the open internet music database,
+and is licensed under the GPL version 2, or (at your option) any
+later version: http://www.gnu.org/licenses/gpl-2.0.txt
 
 =cut

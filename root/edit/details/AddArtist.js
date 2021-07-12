@@ -1,5 +1,5 @@
 /*
- * @flow
+ * @flow strict-local
  * Copyright (C) 2019 MetaBrainz Foundation
  *
  * This file is part of MusicBrainz, the open internet music database,
@@ -7,7 +7,7 @@
  * later version: http://www.gnu.org/licenses/gpl-2.0.txt
  */
 
-import React from 'react';
+import * as React from 'react';
 
 import {
   artistBeginAreaLabel,
@@ -17,18 +17,19 @@ import {
 } from '../../artist/utils';
 import formatDate from '../../static/scripts/common/utility/formatDate';
 import isDateEmpty from '../../static/scripts/common/utility/isDateEmpty';
-import DescriptiveLink from '../../static/scripts/common/components/DescriptiveLink';
+import DescriptiveLink
+  from '../../static/scripts/common/components/DescriptiveLink';
 import EntityLink from '../../static/scripts/common/components/EntityLink';
 import yesNo from '../../static/scripts/common/utility/yesNo';
 import formatIsni from '../../utility/formatIsni';
 
-type AddArtistEditT = {|
+type AddArtistEditT = {
   ...EditT,
-  +display_data: {|
+  +display_data: {
     ...CommentRoleT,
     ...DatePeriodRoleT,
     +area: AreaT | null,
-    +artist: AreaT,
+    +artist: ArtistT,
     +begin_area: AreaT | null,
     +end_area: AreaT | null,
     +gender: GenderT | null,
@@ -37,10 +38,14 @@ type AddArtistEditT = {|
     +name: string,
     +sort_name: string,
     +type: ArtistTypeT | null,
-  |},
-|};
+  },
+};
 
-const AddArtist = ({edit}: {edit: AddArtistEditT}) => {
+type Props = {
+  +edit: AddArtistEditT,
+};
+
+const AddArtist = ({edit}: Props): React.MixedElement => {
   const display = edit.display_data;
   const area = display.area;
   const beginArea = display.begin_area;
@@ -52,7 +57,7 @@ const AddArtist = ({edit}: {edit: AddArtistEditT}) => {
     <>
       <table className="details">
         <tr>
-          <th>{addColon(l('Artist'))}</th>
+          <th>{addColonText(l('Artist'))}</th>
           <td>
             <EntityLink
               entity={display.artist}
@@ -63,39 +68,39 @@ const AddArtist = ({edit}: {edit: AddArtistEditT}) => {
 
       <table className="details add-artist">
         <tr>
-          <th>{addColon(l('Name'))}</th>
+          <th>{addColonText(l('Name'))}</th>
           <td>{display.name}</td>
         </tr>
 
         <tr>
-          <th>{addColon(l('Sort name'))}</th>
+          <th>{addColonText(l('Sort name'))}</th>
           <td>{display.sort_name}</td>
         </tr>
 
         {display.comment ? (
           <tr>
-            <th>{addColon(l('Disambiguation'))}</th>
+            <th>{addColonText(l('Disambiguation'))}</th>
             <td>{display.comment}</td>
           </tr>
         ) : null}
 
         {type ? (
           <tr>
-            <th>{addColon(l('Type'))}</th>
+            <th>{addColonText(l('Type'))}</th>
             <td>{lp_attributes(type.name, 'artist_type')}</td>
           </tr>
         ) : null}
 
         {gender ? (
           <tr>
-            <th>{addColon(l('Gender'))}</th>
+            <th>{addColonText(l('Gender'))}</th>
             <td>{lp_attributes(gender.name, 'gender')}</td>
           </tr>
         ) : null}
 
         {area ? (
           <tr>
-            <th>{addColon(l('Area'))}</th>
+            <th>{addColonText(l('Area'))}</th>
             <td>
               <DescriptiveLink
                 entity={area}
@@ -141,23 +146,23 @@ const AddArtist = ({edit}: {edit: AddArtistEditT}) => {
         ) : null}
 
         <tr>
-          <th>{addColon(l('Ended'))}</th>
+          <th>{addColonText(l('Ended'))}</th>
           <td>{yesNo(display.ended)}</td>
         </tr>
 
-        {display.ipi_codes && display.ipi_codes.length > 0 ? (
+        {display.ipi_codes?.length ? (
           display.ipi_codes.map(ipi => (
             <tr key={ipi}>
-              <th>{addColon(l('IPI code'))}</th>
+              <th>{addColonText(l('IPI code'))}</th>
               <td>{ipi}</td>
             </tr>
           ))
         ) : null}
 
-        {display.isni_codes && display.isni_codes.length > 0 ? (
+        {display.isni_codes?.length ? (
           display.isni_codes.map(isni => (
             <tr key={isni}>
-              <th>{addColon(l('ISNI code'))}</th>
+              <th>{addColonText(l('ISNI code'))}</th>
               <td>{formatIsni(isni)}</td>
             </tr>
           ))

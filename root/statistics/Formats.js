@@ -1,5 +1,5 @@
 /*
- * @flow
+ * @flow strict-local
  * Copyright (C) 2018 Shamroy Pellew
  * Copyright (C) 2018 MetaBrainz Foundation
  *
@@ -8,32 +8,36 @@
  * later version: http://www.gnu.org/licenses/gpl-2.0.txt
  */
 
-import React from 'react';
+import * as React from 'react';
 
 import {l_statistics as l} from '../static/scripts/common/i18n/statistics';
-import {withCatalystContext} from '../context';
 import loopParity from '../utility/loopParity';
 import LinkSearchableProperty from '../components/LinkSearchableProperty';
 
-import {formatCount, formatPercentage} from './utilities';
+import {formatCount, formatPercentage, TimelineLink} from './utilities';
 import StatisticsLayout from './StatisticsLayout';
 
-type FormatsStatsT = {|
+type FormatsStatsT = {
   +$c: CatalystContextT,
   +dateCollected: string,
   +formatStats: $ReadOnlyArray<FormatStatT>,
-  +stats: {[string]: number},
-|};
+  +stats: {[statName: string]: number},
+};
 
-type FormatStatT = {|
+type FormatStatT = {
   +entity: MediumFormatT | null,
   +medium_count: number,
   +medium_stat: string,
   +release_count: number,
   +release_stat: string,
-|};
+};
 
-const Formats = ({$c, dateCollected, formatStats, stats}: FormatsStatsT) => (
+const Formats = ({
+  $c,
+  dateCollected,
+  formatStats,
+  stats,
+}: FormatsStatsT): React.Element<typeof StatisticsLayout> => (
   <StatisticsLayout
     fullWidth
     page="formats"
@@ -59,9 +63,17 @@ const Formats = ({$c, dateCollected, formatStats, stats}: FormatsStatsT) => (
         <tr>
           <td />
           <td>{l('Total')}</td>
-          <td className="t">{formatCount($c, stats['count.release'])}</td>
+          <td className="t">
+            {formatCount($c, stats['count.release'])}
+            {' '}
+            <TimelineLink statName="count.release" />
+          </td>
           <td className="t">{formatPercentage($c, 1, 0)}</td>
-          <td className="t">{formatCount($c, stats['count.medium'])}</td>
+          <td className="t">
+            {formatCount($c, stats['count.medium'])}
+            {' '}
+            <TimelineLink statName="count.medium" />
+          </td>
           <td className="t">{formatPercentage($c, 1, 0)}</td>
         </tr>
         {formatStats.map((formatStat, index) => {
@@ -82,6 +94,12 @@ const Formats = ({$c, dateCollected, formatStats, stats}: FormatsStatsT) => (
               </td>
               <td className="t">
                 {formatCount($c, formatStat.release_count)}
+                {' '}
+                <TimelineLink
+                  statName={
+                    'count.release.format.' + (entity ? entity.id : 'null')
+                  }
+                />
               </td>
               <td className="t">
                 {formatPercentage(
@@ -92,6 +110,12 @@ const Formats = ({$c, dateCollected, formatStats, stats}: FormatsStatsT) => (
               </td>
               <td className="t">
                 {formatCount($c, formatStat.medium_count)}
+                {' '}
+                <TimelineLink
+                  statName={
+                    'count.medium.format.' + (entity ? entity.id : 'null')
+                  }
+                />
               </td>
               <td className="t">
                 {formatPercentage(
@@ -108,4 +132,4 @@ const Formats = ({$c, dateCollected, formatStats, stats}: FormatsStatsT) => (
   </StatisticsLayout>
 );
 
-export default withCatalystContext(Formats);
+export default Formats;

@@ -5,6 +5,7 @@ BEGIN { extends 'MusicBrainz::Server::Controller' }
 use Moose::Util qw( find_meta );
 use MusicBrainz::Server::Translation qw( l );
 use MusicBrainz::Server::Constants qw( entities_with );
+use MusicBrainz::Server::Entity::Util::JSON qw( to_json_array );
 
 sub lookup_handler {
     my ($name, $code) = @_;
@@ -14,11 +15,15 @@ sub lookup_handler {
         my $form = $c->form(other_lookup => 'OtherLookup');
         $form->field($name)->required(1);
 
-        if ($form->submitted_and_valid($c->req->query_params)) {
+        if ($c->form_submitted_and_valid($form, $c->req->query_params)) {
             $self->$code($c, $form->field($name)->value);
         }
         else {
-            $c->stash( template => 'otherlookup/index.tt' );
+            $c->stash(
+                current_view => 'Node',
+                component_path => 'otherlookup/OtherLookupIndex',
+                component_props => {form => $form->TO_JSON},
+            );
         }
     };
 
@@ -60,16 +65,7 @@ lookup_handler 'barcode' => sub {
 lookup_handler 'mbid' => sub {
     my ($self, $c, $gid) = @_;
 
-    for my $model (entities_with('mbid', take => 'model')) {
-        my $entity = $c->model($model)->get_by_gid($gid) or next;
-        $c->response->redirect(
-            $c->uri_for_action(
-                $c->controller($model)->action_for('show'),
-                [ $gid ]));
-        $c->detach;
-    }
-
-    $self->not_found($c);
+    $c->forward('/mbid/show', [$gid]);
 };
 
 lookup_handler 'url' => sub {
@@ -97,26 +93,8 @@ lookup_handler 'isrc' => sub {
 lookup_handler 'iswc' => sub {
     my ($self, $c, $iswc) = @_;
 
-    my @works = $c->model('Work')->find_by_iswc($iswc);
-    if (@works == 1) {
-        my $work = $works[0];
-        $c->response->redirect(
-            $c->uri_for_action(
-                $c->controller('Work')->action_for('show'),
-                [ $work->gid ]));
-        $c->detach;
-    }
-    elsif (@works > 1) {
-        $c->model('Work')->load_writers(@works);
-        $c->model('Work')->load_recording_artists(@works);
-        $c->stash(
-            works => \@works,
-            template => 'otherlookup/results-work.tt'
-        );
-    }
-    else {
-        $self->not_found($c);
-    }
+    $c->response->redirect($c->uri_for_action('/iswc/show', [ $iswc ]));
+    $c->detach;
 };
 
 lookup_handler 'artist-ipi' => sub {
@@ -200,8 +178,9 @@ lookup_handler 'freedbid' => sub {
     $c->model('ReleaseGroupType')->load(map { $_->release_group } @releases);
 
     $c->stash(
-        results => \@releases,
-        template => 'otherlookup/results-release.tt'
+        current_view => 'Node',
+        component_path => 'otherlookup/OtherLookupReleaseResults',
+        component_props => {results => to_json_array(\@releases)},
     )
 };
 
@@ -209,27 +188,22 @@ sub index : Path('')
 {
     my ($self, $c) = @_;
     my $form = $c->form( other_lookup => 'OtherLookup' );
+
+    $c->stash(
+        current_view => 'Node',
+        component_path => 'otherlookup/OtherLookupIndex',
+        component_props => {form => $form->TO_JSON},
+    );
 }
 
 1;
 
-=head1 LICENSE
+=head1 COPYRIGHT AND LICENSE
 
 Copyright (C) 2010 MetaBrainz Foundation
 
-This software is provided "as is", without warranty of any kind, express or
-implied, including  but not limited  to the warranties of  merchantability,
-fitness for a particular purpose and noninfringement. In no event shall the
-authors or  copyright  holders be  liable for any claim,  damages or  other
-liability, whether  in an  action of  contract, tort  or otherwise, arising
-from,  out of  or in  connection with  the software or  the  use  or  other
-dealings in the software.
-
-GPL - The GNU General Public License    http://www.gnu.org/licenses/gpl.txt
-Permits anyone the right to use and modify the software without limitations
-as long as proper  credits are given  and the original  and modified source
-code are included. Requires  that the final product, software derivate from
-the original  source or any  software  utilizing a GPL  component, such  as
-this, is also licensed under the GPL license.
+This file is part of MusicBrainz, the open internet music database,
+and is licensed under the GPL version 2, or (at your option) any
+later version: http://www.gnu.org/licenses/gpl-2.0.txt
 
 =cut

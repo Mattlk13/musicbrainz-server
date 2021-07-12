@@ -96,13 +96,20 @@ sub create_temporary_tables {
 
               PRIMARY KEY (instrument, release))
           ON COMMIT DELETE ROWS");
+
+    $sql->do(
+         "CREATE TEMPORARY TABLE tmp_sitemaps_work_recordings_count
+             (work INTEGER,
+              recordings_count INTEGER,
+              PRIMARY KEY (work))
+          ON COMMIT DELETE ROWS");
     $sql->commit;
 }
 
 sub fill_temporary_tables {
     my ($self, $sql) = @_;
 
-    my $is_official = "(EXISTS (SELECT TRUE FROM release where release.release_group = q.rg AND release.status = '1')
+    my $is_official = "(EXISTS (SELECT TRUE FROM release WHERE release.release_group = q.rg AND release.status = '1')
                         OR NOT EXISTS (SELECT 1 FROM release WHERE release.release_group = q.rg AND release.status IS NOT NULL))";
 
     # Release groups that will appear on the non-VA listings, per artist
@@ -205,6 +212,24 @@ sub fill_temporary_tables {
 
     log('Analyzing tmp_sitemaps_instrument_releases');
     $sql->do("ANALYZE tmp_sitemaps_instrument_releases");
+
+    # Recordings linked to works via performance / "recording of"
+    # relationships, but only where the number of recordings per work
+    # exceeds 100 (`DEFAULT_LOAD_PAGED_LIMIT`). We already output the
+    # first such 100 recordings on the work index page.
+    log('Filling tmp_sitemaps_work_recordings_count');
+    $sql->do("INSERT INTO tmp_sitemaps_work_recordings_count (work, recordings_count)
+                SELECT DISTINCT q.work, q.recordings_count FROM
+                    (SELECT lrw.entity1 AS work,
+                            count(lrw.entity0) OVER (PARTITION BY lrw.entity1) AS recordings_count
+                       FROM l_recording_work lrw
+                       JOIN link l ON l.id = lrw.link
+                      WHERE l.link_type = 278) q
+                 WHERE q.recordings_count > ?",
+             $MusicBrainz::Server::Data::Relationship::DEFAULT_LOAD_PAGED_LIMIT);
+
+    log('Analyzing tmp_sitemaps_work_recordings_count');
+    $sql->do("ANALYZE tmp_sitemaps_work_recordings_count");
 }
 
 sub drop_temporary_tables {
@@ -219,10 +244,10 @@ sub drop_temporary_tables {
                        artist_works
                        instrument_recordings
                        instrument_releases )) {
-        $sql->do(<<EOSQL);
-          SET client_min_messages TO WARNING;
-          DROP TABLE IF EXISTS tmp_sitemaps_$table;
-EOSQL
+        $sql->do(<<~"EOSQL");
+            SET client_min_messages TO WARNING;
+            DROP TABLE IF EXISTS tmp_sitemaps_$table;
+            EOSQL
     }
     $sql->commit;
 }
@@ -241,7 +266,7 @@ sub build_one_entity {
 
     # Find the counts in each potential batch of 50,000
     my $raw_batches = $sql->select_list_of_hashes(
-        "SELECT batch, count(id) from (SELECT id, ceil(id / ?::float) AS batch FROM $entity_type) q GROUP BY batch ORDER BY batch ASC",
+        "SELECT batch, count(id) FROM (SELECT id, ceil(id / ?::float) AS batch FROM $entity_type) q GROUP BY batch ORDER BY batch ASC",
         $MAX_SITEMAP_SIZE
     );
 
@@ -408,10 +433,10 @@ sub run {
     # `sitemaps.control` so that the incremental sitemap builds know what
     # changes to include.
     $sql->auto_commit(1);
-    $sql->do(<<'EOSQL');
-UPDATE sitemaps.control
-   SET overall_sitemaps_replication_sequence = last_processed_replication_sequence
-EOSQL
+    $sql->do(<<~'EOSQL');
+        UPDATE sitemaps.control
+        SET overall_sitemaps_replication_sequence = last_processed_replication_sequence
+        EOSQL
 
     # Finally, ping search engines (if the option is turned on) and finish.
     $self->ping_search_engines($c);
@@ -425,22 +450,12 @@ no Moose;
 
 1;
 
-=head1 COPYRIGHT
+=head1 COPYRIGHT AND LICENSE
 
 Copyright (C) 2014 MetaBrainz Foundation
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program; if not, write to the Free Software
-Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+This file is part of MusicBrainz, the open internet music database,
+and is licensed under the GPL version 2, or (at your option) any
+later version: http://www.gnu.org/licenses/gpl-2.0.txt
 
 =cut

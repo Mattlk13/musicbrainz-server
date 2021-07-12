@@ -5,6 +5,7 @@ use namespace::autoclean;
 use MooseX::Types::Moose qw( ArrayRef Int Str );
 use MooseX::Types::Structured qw( Dict );
 use MusicBrainz::Server::Constants qw( $EDIT_SET_TRACK_LENGTHS );
+use MusicBrainz::Server::Data::Utils qw( localized_note );
 use MusicBrainz::Server::Edit::Types qw( Nullable );
 use MusicBrainz::Server::Translation qw( N_l );
 
@@ -99,6 +100,7 @@ sub initialize {
     $self->c->model('Release')->load($medium);
     $self->c->model('ArtistCredit')->load($medium->release);
     $self->c->model('Track')->load_for_mediums($medium);
+    $self->c->model('Medium')->load_track_durations($medium);
 
     my $cdtoc = $self->c->model('CDTOC')->get_by_id($cdtoc_id);
 
@@ -130,6 +132,16 @@ sub accept {
         MusicBrainz::Server::Edit::Exceptions::FailedDependency->throw(
             'The medium to set track times for no longer exists. It may '.
             'have been merged or removed since this edit was entered.'
+        );
+    }
+
+    my $cdtoc_id = $self->data->{cdtoc}{id};
+    if (!$self->c->model('CDTOC')->get_by_id($cdtoc_id)) {
+        MusicBrainz::Server::Edit::Exceptions::FailedDependency->throw(
+            localized_note(
+                N_l('The CD TOC the track times were being set from ' .
+                    'has been removed since this edit was entered.')
+            )
         );
     }
 

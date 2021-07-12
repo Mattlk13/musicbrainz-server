@@ -8,48 +8,56 @@
  * later version: http://www.gnu.org/licenses/gpl-2.0.txt
  */
 
-import React from 'react';
+import * as React from 'react';
 
 import manifest from '../static/manifest';
 import {l_statistics as l} from '../static/scripts/common/i18n/statistics';
-import {withCatalystContext} from '../context';
 import loopParity from '../utility/loopParity';
 import LinkSearchableProperty from '../components/LinkSearchableProperty';
 
-import {formatCount} from './utilities';
+import {formatCount, TimelineLink} from './utilities';
 import StatisticsLayout from './StatisticsLayout';
 
-type LanguagesScriptsStatsT = {|
+type LanguagesScriptsStatsT = {
   +$c: CatalystContextT,
   +dateCollected: string,
   +languageStats: $ReadOnlyArray<LanguageStatT>,
   +scriptStats: $ReadOnlyArray<ScriptStatT>,
-|};
+};
 
-type LanguageStatT = {|
+type LanguageStatT = {
   +entity: LanguageT | null,
   +releases: number,
   +total: number,
   +works: number,
-|};
+};
 
-type ScriptStatT = {|
+type ScriptStatT = {
   +count: number,
   +entity: ScriptT | null,
-|};
+};
 
 const LanguagesScripts = ({
   $c,
   dateCollected,
   languageStats,
   scriptStats,
-}: LanguagesScriptsStatsT) => (
-  <StatisticsLayout fullWidth page="languages-scripts" title={l('Languages and Scripts')}>
+}: LanguagesScriptsStatsT): React.Element<typeof StatisticsLayout> => (
+  <StatisticsLayout
+    fullWidth
+    page="languages-scripts"
+    title={l('Languages and Scripts')}
+  >
     <p>
       {texp.l('Last updated: {date}', {date: dateCollected})}
     </p>
-    <p>{l('All other available languages and scripts have 0 releases and works.')}</p>
-    <div style={{display: 'inline-block', float: 'left', marginRight: '50px'}}>
+    <p>
+      {l(`All other available languages and scripts
+          have 0 releases and works.`)}
+    </p>
+    <div
+      style={{display: 'inline-block', float: 'left', marginRight: '50px'}}
+    >
       <h2 style={{marginTop: 0}}>{l('Languages')}</h2>
       <table className="tbl" id="languages-table">
         <thead>
@@ -78,20 +86,50 @@ const LanguagesScripts = ({
             languageStat.total > 0 ? (
               <tr className={loopParity(index)} key={'language' + index}>
                 <td className="t">{index + 1}</td>
-                <td>{languageStat.entity ? l_languages(languageStat.entity.name) : l('Unknown language')}</td>
-                <td className="t">
-                  {languageStat.entity && languageStat.entity.iso_code_3 ? (
-                    <LinkSearchableProperty entityType="release" searchField="lang" searchValue={languageStat.entity.iso_code_3} text={formatCount($c, languageStat.releases)} />
-                  ) : (
-                    formatCount($c, languageStat.releases)
-                  )}
+                <td>
+                  {languageStat.entity
+                    ? l_languages(languageStat.entity.name)
+                    : l('Unknown language')}
                 </td>
                 <td className="t">
                   {languageStat.entity && languageStat.entity.iso_code_3 ? (
-                    <LinkSearchableProperty entityType="work" searchField="lang" searchValue={languageStat.entity.iso_code_3} text={formatCount($c, languageStat.works)} />
+                    <LinkSearchableProperty
+                      entityType="release"
+                      searchField="lang"
+                      searchValue={languageStat.entity.iso_code_3}
+                      text={formatCount($c, languageStat.releases)}
+                    />
                   ) : (
                     formatCount($c, languageStat.releases)
                   )}
+                  {' '}
+                  <TimelineLink
+                    statName={
+                      'count.release.language.' + (
+                        languageStat.entity?.iso_code_3 ?? 'null'
+                      )
+                    }
+                  />
+                </td>
+                <td className="t">
+                  {languageStat.entity && languageStat.entity.iso_code_3 ? (
+                    <LinkSearchableProperty
+                      entityType="work"
+                      searchField="lang"
+                      searchValue={languageStat.entity.iso_code_3}
+                      text={formatCount($c, languageStat.works)}
+                    />
+                  ) : (
+                    formatCount($c, languageStat.works)
+                  )}
+                  {' '}
+                  <TimelineLink
+                    statName={
+                      'count.work.language.' + (
+                        languageStat.entity?.iso_code_3 ?? 'null'
+                      )
+                    }
+                  />
                 </td>
                 <td className="t">{formatCount($c, languageStat.total)}</td>
               </tr>
@@ -121,13 +159,30 @@ const LanguagesScripts = ({
             scriptStat.count > 0 ? (
               <tr className={loopParity(index)} key={'script' + index}>
                 <td className="t">{index + 1}</td>
-                <td>{scriptStat.entity ? l_scripts(scriptStat.entity.name) : l('Unknown script')}</td>
+                <td>
+                  {scriptStat.entity
+                    ? l_scripts(scriptStat.entity.name)
+                    : l('Unknown script')}
+                </td>
                 <td className="t">
                   {scriptStat.entity ? (
-                    <LinkSearchableProperty entityType="release" searchField="script" searchValue={scriptStat.entity.iso_code} text={formatCount($c, scriptStat.count)} />
+                    <LinkSearchableProperty
+                      entityType="release"
+                      searchField="script"
+                      searchValue={scriptStat.entity.iso_code}
+                      text={formatCount($c, scriptStat.count)}
+                    />
                   ) : (
                     formatCount($c, scriptStat.count)
                   )}
+                  {' '}
+                  <TimelineLink
+                    statName={
+                      'count.release.script.' + (
+                        scriptStat.entity?.iso_code ?? 'null'
+                      )
+                    }
+                  />
                 </td>
               </tr>
             ) : null
@@ -139,4 +194,4 @@ const LanguagesScripts = ({
   </StatisticsLayout>
 );
 
-export default withCatalystContext(LanguagesScripts);
+export default LanguagesScripts;

@@ -7,7 +7,7 @@ with 'MusicBrainz::Server::Report::ReleaseGroupReport',
 sub query {
     "
 
-SELECT q.entity AS release_group_id, row_number() OVER (ORDER BY musicbrainz_collate(release_group.name)) FROM (
+SELECT q.entity AS release_group_id, row_number() OVER (ORDER BY release_group.name COLLATE musicbrainz) FROM (
 
     SELECT link.link_type, lxx.entity0, lxx.entity1 AS entity
     FROM l_artist_release_group lxx
@@ -64,7 +64,7 @@ SELECT q.entity AS release_group_id, row_number() OVER (ORDER BY musicbrainz_col
     GROUP BY link.link_type, lxx.entity0, lxx.entity1 HAVING COUNT(*) > 1
 
 ) AS q
-JOIN release_group on q.entity = release_group.id
+JOIN release_group ON q.entity = release_group.id
 GROUP BY q.entity, release_group.name
 
     ";
@@ -74,22 +74,12 @@ __PACKAGE__->meta->make_immutable;
 no Moose;
 ;
 
-=head1 COPYRIGHT
+=head1 COPYRIGHT AND LICENSE
 
 Copyright (C) 2013 MetaBrainz Foundation
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program; if not, write to the Free Software
-Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+This file is part of MusicBrainz, the open internet music database,
+and is licensed under the GPL version 2, or (at your option) any
+later version: http://www.gnu.org/licenses/gpl-2.0.txt
 
 =cut

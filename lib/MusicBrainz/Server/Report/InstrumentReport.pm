@@ -1,5 +1,6 @@
 package MusicBrainz::Server::Report::InstrumentReport;
 use Moose::Role;
+use MusicBrainz::Server::Entity::Util::JSON qw( to_json_object );
 
 with 'MusicBrainz::Server::Report::QueryReport';
 
@@ -17,18 +18,19 @@ around inflate_rows => sub {
     return [
         map +{
             %$_,
-            instrument => $instruments->{ $_->{instrument_id} }
+            instrument => to_json_object($instruments->{ $_->{instrument_id} }),
         }, @$items
     ];
 };
 
 1;
 
-=head1 COPYRIGHT
+=head1 COPYRIGHT AND LICENSE
 
-This file is part of MusicBrainz, the open internet music database.
 Copyright (C) 2017 MetaBrainz Foundation
-Licensed under the GPL version 2, or (at your option) any later version:
-http://www.gnu.org/licenses/gpl-2.0.txt
+
+This file is part of MusicBrainz, the open internet music database,
+and is licensed under the GPL version 2, or (at your option) any
+later version: http://www.gnu.org/licenses/gpl-2.0.txt
 
 =cut

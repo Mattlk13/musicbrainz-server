@@ -1,5 +1,5 @@
 /*
- * @flow
+ * @flow strict
  * Copyright (C) 2018 MetaBrainz Foundation
  *
  * This file is part of MusicBrainz, the open internet music database,
@@ -11,20 +11,24 @@ import * as React from 'react';
 
 import WarningIcon from './WarningIcon';
 
-type Props = {|
+type Props = {
   +className?: string,
   +message: string,
-|};
+};
 
 const Warning = ({
   className,
   message,
   ...divProps
-}: Props) => (
-  <div className={'warning' + (className ? ' ' + className : '')} {...divProps}>
+}: Props): React.Element<'div'> => (
+  <div
+    className={'warning' + (nonEmpty(className) ? ' ' + className : '')}
+    {...divProps}
+  >
     <WarningIcon />
     <p>
       <strong>{addColon(l('Warning'))}</strong>
+      {' '}
       {message}
     </p>
   </div>

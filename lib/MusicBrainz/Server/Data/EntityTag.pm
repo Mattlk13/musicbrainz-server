@@ -2,11 +2,6 @@ package MusicBrainz::Server::Data::EntityTag;
 use Moose;
 use namespace::autoclean;
 
-use MusicBrainz::Server::Constants qw( %ENTITIES );
-
-# Readonly values can't be passed as query arguments, for some unknown reason.
-our @GENRES = @{ $ENTITIES{tag}{genres} };
-
 use MusicBrainz::Server::Data::Utils qw(
     boolean_to_json
     placeholders
@@ -33,10 +28,13 @@ has [qw( tag_table type )] => (
 sub find_tags {
     my ($self, $entity_id) = @_;
 
-    my $query = "SELECT tag.name, entity_tag.count FROM " . $self->tag_table . " entity_tag " .
-                "JOIN tag ON tag.id = entity_tag.tag " .
-                "WHERE " . $self->type . " = ?" .
-                "ORDER BY entity_tag.count DESC, musicbrainz_collate(tag.name)";
+    my $query = "SELECT tag.name, entity_tag.count,
+                        tag.id AS tag_id, genre.id AS genre_id
+                 FROM " . $self->tag_table . " entity_tag
+                 JOIN tag ON tag.id = entity_tag.tag
+                 LEFT JOIN genre ON tag.name = genre.name
+                 WHERE " . $self->type . " = ?
+                 ORDER BY entity_tag.count DESC, tag.name COLLATE musicbrainz";
 
     $self->query_to_list($query, [$entity_id]);
 }
@@ -53,58 +51,136 @@ sub find_tag_count
 sub find_top_tags
 {
     my ($self, $entity_id, $limit) = @_;
-    my $query = "SELECT tag.name, entity_tag.count FROM " . $self->tag_table . " entity_tag " .
-                "JOIN tag ON tag.id = entity_tag.tag " .
-                "WHERE " . $self->type . " = ? " .
-                "ORDER BY entity_tag.count DESC, musicbrainz_collate(tag.name) LIMIT ?";
-    $self->query_to_list($query, [$entity_id, $limit]);
+    my $query = "
+        SELECT name, count, tag_id, genre_id FROM ((
+            SELECT tag.name, entity_tag.count,
+                tag.id AS tag_id, genre.id AS genre_id
+            FROM " . $self->tag_table . " entity_tag
+            JOIN tag ON tag.id = entity_tag.tag
+            JOIN genre ON tag.name = genre.name
+            WHERE " .  $self->type . " = ?
+            ORDER BY entity_tag.count DESC, tag.name COLLATE musicbrainz
+            LIMIT ?
+        ) UNION (
+            SELECT tag.name, entity_tag.count,
+                tag.id AS tag_id, NULL AS genre_id
+            FROM " . $self->tag_table . " entity_tag
+            JOIN tag ON tag.id = entity_tag.tag
+            WHERE " .  $self->type . " = ?   
+            AND NOT EXISTS (
+                SELECT 1 FROM genre
+                WHERE genre.name = tag.name
+            )  
+            ORDER BY entity_tag.count DESC, tag.name COLLATE musicbrainz
+            LIMIT ?       
+        )) top_tags
+        ORDER BY count DESC, name COLLATE musicbrainz";
+    $self->query_to_list($query, [$entity_id, $limit, $entity_id, $limit]);
 }
 
 sub find_tags_for_entities
 {
-    my ($self, $genre_flag, @ids) = @_;
+    my ($self, @ids) = @_;
 
     return unless scalar @ids;
 
-    my $query = "SELECT tag.name, entity_tag.count,
-                        entity_tag.".$self->type." AS entity
+    my $query = "SELECT tag.id AS tag_id, tag.name, entity_tag.count,
+                        entity_tag." . $self->type . " AS entity
                  FROM " . $self->tag_table . " entity_tag
                  JOIN tag ON tag.id = entity_tag.tag
-                 WHERE " . $self->type . " IN (" . placeholders(@ids) . ")"
-                 . ($genre_flag ? " AND tag.name = any(?) " : " ") .
-                 "ORDER BY entity_tag.count DESC, musicbrainz_collate(tag.name)";
+                 WHERE " . $self->type . " IN (" . placeholders(@ids) . ")
+                 ORDER BY entity_tag.count DESC, tag.name COLLATE musicbrainz";
 
-    $self->query_to_list($query, [@ids, ($genre_flag ? \@GENRES : ())]);
+    $self->query_to_list($query, \@ids);
 }
 
 sub find_user_tags_for_entities
 {
-    my ($self, $user_id, $genre_flag, @ids) = @_;
+    my ($self, $user_id, @ids) = @_;
 
     return unless scalar @ids;
 
     my $type = $self->type;
     my $table = $self->tag_table . '_raw';
-    my $query = "SELECT entity_tag.tag as tag_id, $type AS entity, is_upvote
+    my $query = "SELECT entity_tag.tag AS tag_id, $type AS entity,
+                        tag.name AS tag_name, is_upvote
                  FROM $table entity_tag
                  JOIN tag ON tag.id = entity_tag.tag
                  WHERE editor = ?
-                 AND $type IN (" . placeholders(@ids) . ")"
-                 . ($genre_flag ? " AND tag.name = any(?) " : " ");
+                 AND $type IN (" . placeholders(@ids) . ")
+                 ORDER BY tag.name COLLATE musicbrainz";
 
-    my @tags = $self->query_to_list($query, [$user_id, @ids, ($genre_flag ? \@GENRES : ())], sub {
+    $self->query_to_list($query, [$user_id, @ids], sub {
         my ($model, $row) = @_;
         return MusicBrainz::Server::Entity::UserTag->new(
             tag_id => $row->{tag_id},
+            tag => MusicBrainz::Server::Entity::Tag->new(
+                id => $row->{tag_id},
+                name => $row->{tag_name},
+            ),
+            editor_id => $user_id,
+            entity_id => $row->{entity},
+            is_upvote => $row->{is_upvote},
+        );
+    });
+}
+
+sub find_genres_for_entities
+{
+    my ($self, @ids) = @_;
+
+    return unless scalar @ids;
+
+    my $query = "SELECT tag.id AS tag_id, tag.name, entity_tag.count,
+                        entity_tag." . $self->type . " AS entity, genre.id AS genre_id
+                 FROM " . $self->tag_table . " entity_tag
+                 JOIN tag ON tag.id = entity_tag.tag
+                 JOIN genre ON tag.name = genre.name
+                 WHERE " . $self->type . " IN (" . placeholders(@ids) . ")
+                 ORDER BY tag.name COLLATE musicbrainz";
+
+    my @tags = $self->query_to_list($query, \@ids);
+
+    $self->c->model('Genre')->load(map { $_->tag } @tags);
+
+    return @tags;
+}
+
+sub find_user_genres_for_entities
+{
+    my ($self, $user_id, @ids) = @_;
+
+    return unless scalar @ids;
+
+    my $type = $self->type;
+    my $table = $self->tag_table . '_raw';
+    my $query = "SELECT entity_tag.tag AS tag_id, $type AS entity,
+                        tag.name AS tag_name, genre.id AS genre_id,
+                        is_upvote
+                 FROM $table entity_tag
+                 JOIN tag ON tag.id = entity_tag.tag
+                 JOIN genre ON tag.name = genre.name
+                 WHERE editor = ?
+                 AND $type IN (" . placeholders(@ids) . ")
+                 ORDER BY tag.name COLLATE musicbrainz";
+
+    my @tags = $self->query_to_list($query, [$user_id, @ids], sub {
+        my ($model, $row) = @_;
+        return MusicBrainz::Server::Entity::UserTag->new(
+            tag_id => $row->{tag_id},
+            tag => MusicBrainz::Server::Entity::Tag->new(
+                genre_id => $row->{genre_id},
+                id => $row->{tag_id},
+                name => $row->{tag_name},
+            ),
             editor_id => $user_id,
             entity_id => $row->{entity},
             is_upvote => $row->{is_upvote},
         );
     });
 
-    $self->c->model('Tag')->load(@tags);
+    $self->c->model('Genre')->load(map { $_->tag } @tags);
 
-    @tags = sort { $a->tag->name cmp $b->tag->name } @tags;
     return @tags;
 }
 
@@ -114,7 +190,11 @@ sub _new_from_row
 
     my %init = (
         count => $row->{count},
-        tag => MusicBrainz::Server::Entity::Tag->new( name => $row->{name} ),
+        tag => MusicBrainz::Server::Entity::Tag->new(
+            genre_id => $row->{genre_id},
+            id => $row->{tag_id},
+            name => $row->{name},
+        ),
     );
 
     $init{entity_id} = $row->{entity} if $row->{entity};
@@ -147,16 +227,16 @@ sub merge {
     # FIXME: Due to the way DISTINCT ON works, if two entities have different
     # votes for the same tag by the same editor, the vote that remains on the
     # merge target is arbitrary. (ORDER BY doesn't work within the sub-select.)
-    $self->c->sql->do(<<"EOSQL", \@ids, $new_id);
-WITH deleted_tags AS (
-    DELETE FROM $assoc_table_raw
-     WHERE $entity_type = any(?)
- RETURNING editor, tag, is_upvote
-)
-INSERT INTO $assoc_table_raw ($entity_type, editor, tag, is_upvote)
-SELECT ?, s.editor, s.tag, s.is_upvote
-  FROM (SELECT DISTINCT ON (editor, tag) editor, tag, is_upvote FROM deleted_tags) s
-EOSQL
+    $self->c->sql->do(<<~"EOSQL", \@ids, $new_id);
+        WITH deleted_tags AS (
+            DELETE FROM $assoc_table_raw
+            WHERE $entity_type = any(?)
+            RETURNING editor, tag, is_upvote
+        )
+        INSERT INTO $assoc_table_raw ($entity_type, editor, tag, is_upvote)
+            SELECT ?, s.editor, s.tag, s.is_upvote
+            FROM (SELECT DISTINCT ON (editor, tag) editor, tag, is_upvote FROM deleted_tags) s
+        EOSQL
 
     $self->c->sql->do(
         "DELETE FROM $assoc_table WHERE $entity_type = any(?)",
@@ -347,37 +427,44 @@ sub find_user_tags {
     my $table_raw = "${table}_raw";
 
     my $query = qq{
-        SELECT tag, is_upvote, count AS aggregate_count FROM $table_raw
+        SELECT tag AS tag_id, tag.name AS tag_name, genre.id AS genre_id, is_upvote,
+               count AS aggregate_count FROM $table_raw
         JOIN $table USING (tag, $type)
+        JOIN tag ON tag.id = $table.tag
+        LEFT JOIN genre ON genre.name = tag.name
         WHERE editor = ? AND $type = ?
+        ORDER BY tag.name COLLATE musicbrainz
     };
 
-    my @tags = $self->query_to_list($query, [$user_id, $entity_id], sub {
+    $self->query_to_list($query, [$user_id, $entity_id], sub {
         my ($model, $row) = @_;
         return MusicBrainz::Server::Entity::UserTag->new(
-            tag_id => $row->{tag},
+            tag => MusicBrainz::Server::Entity::Tag->new(
+                genre_id => $row->{genre_id},
+                name => $row->{tag_name},
+                id => $row->{tag_id}
+            ),
+            tag_id => $row->{tag_id},
             editor_id => $user_id,
             is_upvote => $row->{is_upvote},
             aggregate_count => $row->{aggregate_count},
         );
     });
-
-    $self->c->model('Tag')->load(@tags);
-
-    @tags = sort { $a->tag->name cmp $b->tag->name } grep { $_->tag } @tags;
-    return @tags;
 }
 
 sub find_entities
 {
     my ($self, $tag_id, $limit, $offset) = @_;
     my $type = $self->type;
+    my $ordering_condition = $type eq 'artist'
+        ? 'sort_name COLLATE musicbrainz'
+        : 'name COLLATE musicbrainz';
     my $tag_table = $self->tag_table;
     my $query = "SELECT tt.count AS tt_count, " . $self->parent->_columns . "
                  FROM " . $self->parent->_table . "
                      JOIN $tag_table tt ON " . $self->parent->_id_column . " = tt.$type
                  WHERE tag = ?
-                 ORDER BY tt.count DESC, musicbrainz_collate(name), " . $self->parent->_id_column;
+                 ORDER BY tt.count DESC, $ordering_condition, " . $self->parent->_id_column;
     $self->query_to_list_limited($query, [$tag_id], $limit, $offset, sub {
         my ($model, $row) = @_;
 
@@ -392,18 +479,26 @@ sub find_entities
 
 sub find_editor_entities
 {
-    my ($self, $editor_id, $tag_id, $limit, $offset) = @_;
+    my ($self, $editor_id, $tag_id, $show_downvoted, $limit, $offset) = @_;
 
     my $type = $self->type;
-    my $tag_table = $self->tag_table;
+    my $tag_table = $self->tag_table . '_raw';
+    my $is_upvote = $show_downvoted ? 0 : 1;
 
-    my @tags = @{ $self->c->sql->select_single_column_array(
-        'SELECT ' . $type . ' FROM ' . $type . '_tag_raw
-          WHERE editor = ? AND tag = ?',
-        $editor_id, $tag_id) };
+    my $query = "SELECT " . $self->parent->_columns . "
+                 FROM " . $self->parent->_table . "
+                     JOIN $tag_table ttr ON " . $self->parent->_id_column . " = ttr.$type
+                 WHERE editor = ? AND tag = ? AND is_upvote = ?
+                 ORDER BY name COLLATE musicbrainz, " . $self->parent->_id_column;
+    $self->query_to_list_limited($query, [$editor_id, $tag_id, $is_upvote], $limit, $offset, sub {
+        my ($model, $row) = @_;
 
-    my $objs = $self->parent->get_by_ids_sorted_by_name(@tags);
-    return @$objs;
+        my $entity = $model->parent->_new_from_row($row);
+        return MusicBrainz::Server::Entity::UserTag->new(
+            entity_id => $entity->id,
+            entity => $entity,
+        );
+    });
 }
 
 no Moose;
@@ -419,24 +514,14 @@ MusicBrainz::Server::Data::EntityTag
 
 Delete tags for entities from @entity_ids.
 
-=head1 COPYRIGHT
+=head1 COPYRIGHT AND LICENSE
 
 Copyright (C) 2009 Oliver Charles
 Copyright (C) 2007,2009 Lukas Lalinsky
 Copyright (C) 2007 Robert Kaye
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program; if not, write to the Free Software
-Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+This file is part of MusicBrainz, the open internet music database,
+and is licensed under the GPL version 2, or (at your option) any
+later version: http://www.gnu.org/licenses/gpl-2.0.txt
 
 =cut

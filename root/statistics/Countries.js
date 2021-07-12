@@ -8,31 +8,34 @@
  * later version: http://www.gnu.org/licenses/gpl-2.0.txt
  */
 
-import React from 'react';
+import * as React from 'react';
 
 import manifest from '../static/manifest';
 import {l_statistics as l} from '../static/scripts/common/i18n/statistics';
 import EntityLink from '../static/scripts/common/components/EntityLink';
-import {withCatalystContext} from '../context';
 import loopParity from '../utility/loopParity';
 
-import {formatCount} from './utilities';
+import {formatCount, TimelineLink} from './utilities';
 import StatisticsLayout from './StatisticsLayout';
 
-type CountriesStatsT = {|
+type CountriesStatsT = {
   +$c: CatalystContextT,
   +countryStats: $ReadOnlyArray<CountryStatT>,
   +dateCollected: string,
-|};
+};
 
-type CountryStatT = {|
+type CountryStatT = {
   +artist_count: number,
   +entity: AreaT,
   +label_count: number,
   +release_count: number,
-|};
+};
 
-const Countries = ({$c, countryStats, dateCollected}: CountriesStatsT) => (
+const Countries = ({
+  $c,
+  countryStats,
+  dateCollected,
+}: CountriesStatsT): React.Element<typeof StatisticsLayout> => (
   <StatisticsLayout fullWidth page="countries" title={l('Countries')}>
     <p>
       {texp.l('Last updated: {date}',
@@ -91,6 +94,14 @@ const Countries = ({$c, countryStats, dateCollected}: CountriesStatsT) => (
                     subPath="artists"
                   />
                 ) : formatCount($c, countryStat.artist_count)}
+                {' '}
+                <TimelineLink
+                  statName={
+                    'count.artist.country.' + (hasCountryCode
+                      ? country.country_code
+                      : 'null')
+                  }
+                />
               </td>
               <td className="t">
                 {hasCountryCode ? (
@@ -101,6 +112,14 @@ const Countries = ({$c, countryStats, dateCollected}: CountriesStatsT) => (
                     subPath="releases"
                   />
                 ) : formatCount($c, countryStat.release_count)}
+                {' '}
+                <TimelineLink
+                  statName={
+                    'count.release.country.' + (hasCountryCode
+                      ? country.country_code
+                      : 'null')
+                  }
+                />
               </td>
               <td className="t">
                 {hasCountryCode ? (
@@ -110,6 +129,14 @@ const Countries = ({$c, countryStats, dateCollected}: CountriesStatsT) => (
                     subPath="labels"
                   />
                 ) : formatCount($c, countryStat.label_count)}
+                {' '}
+                <TimelineLink
+                  statName={
+                    'count.label.country.' + (hasCountryCode
+                      ? country.country_code
+                      : 'null')
+                  }
+                />
               </td>
               <td className="t">
                 {formatCount(
@@ -128,4 +155,4 @@ const Countries = ({$c, countryStats, dateCollected}: CountriesStatsT) => (
   </StatisticsLayout>
 );
 
-export default withCatalystContext(Countries);
+export default Countries;

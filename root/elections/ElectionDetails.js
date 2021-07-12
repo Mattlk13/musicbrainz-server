@@ -1,5 +1,5 @@
 /*
- * @flow
+ * @flow strict-local
  * Copyright (C) 2018 MetaBrainz Foundation
  *
  * This file is part of MusicBrainz, the open internet music database,
@@ -7,7 +7,7 @@
  * later version: http://www.gnu.org/licenses/gpl-2.0.txt
  */
 
-import React from 'react';
+import * as React from 'react';
 
 import EditorLink from '../static/scripts/common/components/EditorLink';
 import bracketed from '../static/scripts/common/utility/bracketed';
@@ -16,11 +16,11 @@ import {votesVisible} from '../utility/voting';
 import VotingPeriod from '../components/VotingPeriod';
 
 type PropsT = {
+  +$c: CatalystContextT,
   +election: AutoEditorElectionT,
-  +user?: EditorT,
 };
 
-const ElectionDetails = ({election, user}: PropsT) => (
+const ElectionDetails = ({$c, election}: PropsT): React.MixedElement => (
   <>
     <h2>{l('Details')}</h2>
     <table className="properties">
@@ -48,7 +48,7 @@ const ElectionDetails = ({election, user}: PropsT) => (
             : '-'}
         </td>
       </tr>
-      {votesVisible(election, user)
+      {votesVisible(election, $c.user)
         ? (
           <>
             <tr>
@@ -76,10 +76,10 @@ const ElectionDetails = ({election, user}: PropsT) => (
       <tr>
         <th>{lp('Status:', 'election status')}</th>
         <td>
-          {election.is_open && election.open_time
+          {election.is_open && nonEmpty(election.open_time)
             ? (
               texp.lp(election.status_name, 'autoeditor election status', {
-                date: formatUserDate(user, election.open_time),
+                date: formatUserDate($c, election.open_time),
               })
             ) : null}
 
@@ -93,8 +93,8 @@ const ElectionDetails = ({election, user}: PropsT) => (
                 {' '}
                 {bracketed(
                   <VotingPeriod
+                    $c={$c}
                     closingDate={election.current_expiration_time}
-                    user={user}
                   />,
                 )}
               </>
@@ -102,11 +102,11 @@ const ElectionDetails = ({election, user}: PropsT) => (
 
           {election.is_closed
             ? (
-              election.close_time
+              nonEmpty(election.close_time)
                 ? (
                   texp.lp(election.status_name, 'autoeditor election status',
                           {
-                            date: formatUserDate(user, election.close_time),
+                            date: formatUserDate($c, election.close_time),
                           })
                 ) : (
                   lp(election.status_name_short,

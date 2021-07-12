@@ -4,7 +4,8 @@ BEGIN { extends 'Catalyst::Controller'; }
 
 use DBDefs;
 use HTTP::Status qw( :constants );
-use List::UtilsBy qw( uniq_by );
+use List::MoreUtils qw( uniq );
+use MusicBrainz::Server::Constants qw( %ENTITIES );
 use MusicBrainz::Server::Data::Utils qw( type_to_model model_to_type object_to_ids );
 use MusicBrainz::Server::Validation qw( is_guid is_nat );
 use MusicBrainz::Server::WebService::Format;
@@ -12,6 +13,7 @@ use MusicBrainz::Server::WebService::JSONSerializer;
 use MusicBrainz::Server::WebService::XMLSerializer;
 use Readonly;
 use Scalar::Util qw( looks_like_number );
+use List::Util qw( sum );
 use List::UtilsBy qw( partition_by );
 use Try::Tiny;
 
@@ -103,9 +105,19 @@ sub method_not_allowed : Private {
     ));
 }
 
+sub not_implemented : Private
+{
+    my ($self, $c) = @_;
+
+    $c->res->status(501);
+    $c->res->content_type($c->stash->{serializer}->mime_type . '; charset=utf-8');
+    $c->res->body($c->stash->{serializer}->output_error("This hasn't been implemented yet."));
+}
+
 sub begin : Private {
     my ($self, $c) = @_;
 
+    $c->stash->{current_view} = 'WS';
     $c->stash->{serializer} = $self->get_serialization($c);
 }
 
@@ -208,14 +220,9 @@ sub _tags
     my @todo = grep { $c->stash->{inc}->$_ } qw( tags user_tags genres user_genres );
 
     for my $type (@todo) {
-        # This is a hack but it seems pointless to create a dupe
-        # find_genres_for_entities, etc.
-        my $genre_flag = $type =~ /genres$/ ? 1 : 0;
-        my $massaged_type = $type =~ s/genre/tag/gr;
-        my $find_method = 'find_' . $massaged_type . '_for_entities';
+        my $find_method = 'find_' . $type . '_for_entities';
         my @tags = $model->tags->$find_method(
                         ($type =~ /^user_/ ? $c->user->id : ()),
-                        $genre_flag,
                         map { $_->id } @$entities);
 
         my %tags_by_entity = partition_by { $_->entity_id } @tags;
@@ -309,6 +316,33 @@ sub make_list
     };
 }
 
+=head2 limit_releases_by_tracks
+
+Truncates a list of releases such that the entire list doesn't contain more
+than C<DBDefs::WS_TRACK_LIMIT> tracks in total (but returns at least one
+release). The idea is to limit browse queries that contain an excessive number
+of tracks when C<inc=recordings> is specified.
+
+Note: This mutates the passed-in array reference C<$releases>.
+
+=cut
+
+sub limit_releases_by_tracks {
+    my ($self, $c, $releases) = @_;
+
+    my $track_count = 0;
+    my $release_count = 0;
+
+    for my $release (@{$releases}) {
+        $c->model('Medium')->load_for_releases($release);
+        $track_count += (sum map { $_->track_count } $release->all_mediums) // 0;
+        last if $track_count > DBDefs->WS_TRACK_LIMIT && $release_count > 0;
+        $release_count++;
+    }
+
+    @$releases = @$releases[0 .. ($release_count - 1)];
+}
+
 sub linked_artists
 {
     my ($self, $c, $stash, $artists) = @_;
@@ -381,11 +415,10 @@ sub linked_recordings
 
         my @acns = map { $_->artist_credit->all_names } @$recordings;
         $c->model('Artist')->load(@acns);
+        my @artists = uniq map { $_->artist } @acns;
+        $c->model('ArtistType')->load(@artists);
 
-        $self->linked_artists(
-            $c, $stash,
-            [ uniq_by { $_->id } map { $_->artist } @acns ]
-        );
+        $self->linked_artists($c, $stash, \@artists);
     }
 
     $self->_tags_and_ratings($c, 'Recording', $recordings, $stash);
@@ -402,7 +435,6 @@ sub linked_releases
 
     $c->model('Language')->load(@$releases);
     $c->model('Script')->load(@$releases);
-    $c->model('Release')->load_release_events(@$releases);
 
     my @mediums;
     if ($c->stash->{inc}->media || $c->stash->{inc}->recordings)
@@ -427,6 +459,10 @@ sub linked_releases
     if ($c->stash->{inc}->artist_credits)
     {
         $c->model('ArtistCredit')->load(@$releases);
+
+        my @acns = map { $_->artist_credit->all_names } @$releases;
+        $c->model('Artist')->load(@acns);
+        $c->model('ArtistType')->load(map { $_->artist } @acns);
     }
 
     $self->_tags($c, 'Release', $releases, $stash);
@@ -445,11 +481,10 @@ sub linked_release_groups
 
         my @acns = map { $_->artist_credit->all_names } @$release_groups;
         $c->model('Artist')->load(@acns);
+        my @artists = uniq map { $_->artist } @acns;
+        $c->model('ArtistType')->load(@artists);
 
-        $self->linked_artists(
-            $c, $stash,
-            [uniq_by { $_->id } map { $_->artist } @acns],
-        );
+        $self->linked_artists($c, $stash, \@artists);
     }
 
     $self->_tags_and_ratings($c, 'ReleaseGroup', $release_groups, $stash);
@@ -536,16 +571,37 @@ sub load_relationships {
         my $types = $c->stash->{inc}->get_rel_types();
         my @rels = $c->model('Relationship')->load_subset($types, @for);
 
+        my @entities_with_rels = @for;
+
         my @works =
+            uniq
             map { $_->target }
             grep { $_->target_type eq 'work' }
             map { $_->all_relationships } @for;
 
         if ($c->stash->{inc}->work_level_rels)
         {
-            $c->model('Relationship')->load_subset($types, @works);
+            push(@entities_with_rels, @works); 
+            # Avoid returning recording-work relationships for other recordings
+            $c->model('Relationship')->load_subset_cardinal($types, @works);
         }
         $self->linked_works($c, $stash, \@works);
+
+        my %rels_by_target_type =
+            partition_by { $_->target_type }
+            map { $_->all_relationships } @entities_with_rels;
+
+        for my $target_type (keys %rels_by_target_type) {
+            my $rels = $rels_by_target_type{$target_type};
+            if ($ENTITIES{$target_type}->{type} && $ENTITIES{$target_type}->{type}{simple}) {
+                $c->model(type_to_model($target_type) . 'Type')->load(
+                    map { $_->target } @$rels,
+                );
+            }
+            if ($target_type eq 'place') {
+                $c->model('AreaType')->load(map { $_->area } map { $_->target } @$rels);
+            }
+        }
 
         my $collect_works = sub {
             my $relationship = shift;
@@ -572,24 +628,14 @@ sub load_relationships {
 no Moose;
 1;
 
-=head1 COPYRIGHT
+=head1 COPYRIGHT AND LICENSE
 
 Copyright (C) 2010 MetaBrainz Foundation
 Copyright (C) 2009 Lukas Lalinsky
 Copyright (C) 2009 Robert Kaye
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program; if not, write to the Free Software
-Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+This file is part of MusicBrainz, the open internet music database,
+and is licensed under the GPL version 2, or (at your option) any
+later version: http://www.gnu.org/licenses/gpl-2.0.txt
 
 =cut

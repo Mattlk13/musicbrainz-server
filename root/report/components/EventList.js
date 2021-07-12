@@ -1,5 +1,5 @@
 /*
- * @flow
+ * @flow strict-local
  * Copyright (C) 2018 MetaBrainz Foundation
  *
  * This file is part of MusicBrainz, the open internet music database,
@@ -10,69 +10,85 @@
 import * as React from 'react';
 
 import PaginatedResults from '../../components/PaginatedResults';
-import EntityLink from '../../static/scripts/common/components/EntityLink';
-import loopParity from '../../utility/loopParity';
-import formatDatePeriod
-  from '../../static/scripts/common/utility/formatDatePeriod';
-import ArtistRoles from '../../static/scripts/common/components/ArtistRoles';
-import EventLocations from '../../static/scripts/common/components/EventLocations';
+import Table from '../../components/Table';
+import {
+  defineArtistRolesColumn,
+  defineDatePeriodColumn,
+  defineEntityColumn,
+  defineLocationColumn,
+  defineTextColumn,
+} from '../../utility/tableColumns';
 import type {ReportEventT} from '../types';
+
+type Props = {
+  +items: $ReadOnlyArray<ReportEventT>,
+  +pager: PagerT,
+};
 
 const EventList = ({
   items,
   pager,
-}: {items: $ReadOnlyArray<ReportEventT>, pager: PagerT}) => (
-  <PaginatedResults pager={pager}>
-    <table className="tbl">
-      <thead>
-        <tr>
-          <th>{l('Event')}</th>
-          <th>{l('Type')}</th>
-          <th>{l('Artists')}</th>
-          <th>{l('Location')}</th>
-          <th>{l('Date')}</th>
-          <th>{l('Time')}</th>
-        </tr>
-      </thead>
-      <tbody>
-        {items.map((item, index) => {
-          const event = item.event;
-          return (
-            <tr className={loopParity(index)} key={item.event_id}>
-              {event ? (
-                <>
-                  <td>
-                    <EntityLink
-                      entity={event}
-                      showDisambiguation
-                      showEventDate={false}
-                    />
-                  </td>
-                  <td>
-                    {event.typeName
-                      ? lp_attributes(event.typeName, 'event_type')
-                      : null}
-                  </td>
-                  <td>
-                    <ArtistRoles relations={event.performers} />
-                  </td>
-                  <td>
-                    <EventLocations event={event} />
-                  </td>
-                  <td>{formatDatePeriod(event)}</td>
-                  <td>{event.time}</td>
-                </>
-              ) : (
-                <td colSpan="6">
-                  {l('This event no longer exists.')}
-                </td>
-              )}
-            </tr>
+}: Props): React.Element<typeof PaginatedResults> => {
+  const existingEventItems = items.reduce((result, item) => {
+    if (item.event != null) {
+      result.push(item);
+    }
+    return result;
+  }, []);
+
+  const columns = React.useMemo(
+    () => {
+      const nameColumn = defineEntityColumn<ReportEventT>({
+        columnName: 'event',
+        descriptive: false, // since dates have their own column
+        getEntity: result => result.event ?? null,
+        title: l('Event'),
+      });
+      const typeColumn = defineTextColumn<ReportEventT>({
+        columnName: 'type',
+        getText: result => {
+          const typeName = result.event?.typeName;
+          return (nonEmpty(typeName)
+            ? lp_attributes(typeName, 'event_type')
+            : ''
           );
-        })}
-      </tbody>
-    </table>
-  </PaginatedResults>
-);
+        },
+        title: l('Type'),
+      });
+      const artistsColumn = defineArtistRolesColumn<ReportEventT>({
+        columnName: 'performers',
+        getRoles: result => result.event?.performers ?? [],
+        title: l('Artists'),
+      });
+      const locationColumn = defineLocationColumn<ReportEventT>({
+        getEntity: result => result.event ?? null,
+      });
+      const timeColumn = defineTextColumn<ReportEventT>({
+        columnName: 'time',
+        getText: result => result.event?.time ?? '',
+        title: l('Time'),
+      });
+      const dateColumn = defineDatePeriodColumn<ReportEventT>({
+        getEntity: result => result.event ?? null,
+      });
+
+      return [
+        nameColumn,
+        typeColumn,
+        artistsColumn,
+        locationColumn,
+        dateColumn,
+        timeColumn,
+      ];
+    },
+    [],
+  );
+
+  return (
+    <PaginatedResults pager={pager}>
+      <Table columns={columns} data={existingEventItems} />
+    </PaginatedResults>
+  );
+};
 
 export default EventList;

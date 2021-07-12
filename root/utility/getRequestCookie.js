@@ -1,5 +1,5 @@
 /*
- * @flow
+ * @flow strict
  * Copyright (C) 2018 MetaBrainz Foundation
  *
  * This file is part of MusicBrainz, the open internet music database,
@@ -15,8 +15,8 @@ const parseCookie = require('../static/scripts/common/utility/parseCookie');
 function getRequestCookie(
   req /*: CatalystRequestContextT */,
   name /*: string */,
-  defaultValue /*: mixed */ = undefined,
-) {
+  defaultValue /*: string */ = '',
+) /*: string */ {
   const headers = req.headers;
   const cookie = (
     headers.cookie ||

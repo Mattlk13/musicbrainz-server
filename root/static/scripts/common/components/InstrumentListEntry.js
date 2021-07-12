@@ -1,5 +1,5 @@
 /*
- * @flow
+ * @flow strict-local
  * Copyright (C) 2019 MetaBrainz Foundation
  *
  * This file is part of MusicBrainz, the open internet music database,
@@ -9,32 +9,32 @@
 
 import * as React from 'react';
 
-import {withCatalystContext} from '../../../../context';
 import loopParity from '../../../../utility/loopParity';
 import expand2react from '../i18n/expand2react';
 
 import DescriptiveLink from './DescriptiveLink';
 
-type InstrumentListRowProps = {|
+type InstrumentListRowProps = {
   +$c: CatalystContextT,
   +checkboxes?: string,
   +instrument: InstrumentT,
-|};
+};
 
-type InstrumentListEntryProps = {|
+type InstrumentListEntryProps = {
+  +$c: CatalystContextT,
   +checkboxes?: string,
   +index: number,
   +instrument: InstrumentT,
   +score?: number,
-|};
+};
 
-const InstrumentListRow = withCatalystContext(({
+const InstrumentListRow = ({
   $c,
   checkboxes,
   instrument,
 }: InstrumentListRowProps) => (
   <>
-    {$c.user_exists && checkboxes ? (
+    {$c.user && nonEmpty(checkboxes) ? (
       <td>
         <input
           name={checkboxes}
@@ -47,7 +47,7 @@ const InstrumentListRow = withCatalystContext(({
       <DescriptiveLink entity={instrument} />
     </td>
     <td>
-      {instrument.typeName
+      {nonEmpty(instrument.typeName)
         ? lp_attributes(instrument.typeName, 'instrument_type')
         : null}
     </td>
@@ -57,16 +57,18 @@ const InstrumentListRow = withCatalystContext(({
         : null}
     </td>
   </>
-));
+);
 
 const InstrumentListEntry = ({
+  $c,
   checkboxes,
   index,
   instrument,
   score,
-}: InstrumentListEntryProps) => (
-  <tr className={loopParity(index)} data-score={score || null}>
+}: InstrumentListEntryProps): React.Element<'tr'> => (
+  <tr className={loopParity(index)} data-score={score ?? null}>
     <InstrumentListRow
+      $c={$c}
       checkboxes={checkboxes}
       instrument={instrument}
     />

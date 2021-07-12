@@ -6,7 +6,14 @@
  * later version: http://www.gnu.org/licenses/gpl-2.0.txt
  */
 
-const DBDefs = require('../root/static/scripts/common/DBDefs');
+let WEBPACK_MODE = process.env.WEBPACK_MODE;
+if (typeof WEBPACK_MODE === 'undefined') {
+  if (process.env.NODE_ENV === 'production') {
+    WEBPACK_MODE = 'production';
+  } else {
+    WEBPACK_MODE = 'development';
+  }
+}
 
 module.exports = {
   dirs: require('./dirs'),
@@ -21,5 +28,6 @@ module.exports = {
     'scripts',
     'statistics',
   ],
-  PUBLIC_PATH: DBDefs.STATIC_RESOURCES_LOCATION + '/',
+  PRODUCTION_MODE: WEBPACK_MODE === 'production',
+  WEBPACK_MODE: WEBPACK_MODE,
 };

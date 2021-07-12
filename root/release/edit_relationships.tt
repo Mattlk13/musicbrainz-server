@@ -1,10 +1,11 @@
-[%- WRAPPER 'layout.tt' full_width=1 title=l('Edit Relationships: {release}', {release => release.name}) gettext_domains=['attributes', 'countries', 'instruments', 'instrument_descriptions', 'languages', 'relationships'] -%]
+[%- WRAPPER 'layout.tt' full_width=1 title=l('Edit Relationships: {release}', {release => release.name}) -%]
     [% script_manifest('edit.js') %]
 
     [% PROCESS 'components/relationship-editor.tt' %]
 
     <div id="content" class="rel-editor" data-bind="delegatedHandler: 'click'">
-      [%- React.embed(c, 'release/ReleaseHeader', { release => release, page => 'edit_relationships' }) -%]
+      [%- release_json_obj = React.to_json_object(release) -%]
+      [%- React.embed(c, 'release/ReleaseHeader', { release => release_json_obj, page => 'edit-relationships' }) -%]
 
       <p>
         [% l('Relationships highlighted <span class="rel-edit">yellow</span> will be edited,
@@ -16,9 +17,11 @@
 
       <p>[% l('To use the batch tools, select some recordings or works using the checkboxes.') %]</p>
 
-      <!-- ko if: source.mediums().length -->
+      <p>[% l('Please read {relationships_doc|our guidelines for relationships} if you haven’t already.', { relationships_doc => { href => doc_link('Style/Relationships'), target => '_blank' } }) %]</p>
+
       <h2>[% l('Track Relationships') %]</h2>
 
+      <!-- ko if: source.mediums().length -->
       <table id="batch-tools" data-bind="with: checkboxes">
         <tr>
           <td>
@@ -61,12 +64,25 @@
           <tr class="subh">
             <td></td>
             <td colspan="2">
-              <input type="checkbox" class="medium-recordings">
-              <!-- ko text: positionName --><!-- /ko -->
+              <!-- ko ifnot: tracks.length === 0 -->
+                <input type="checkbox" class="medium-recordings">
+              <!-- /ko -->
+              <span data-bind="html: positionName"></span>
             </td>
-            <td><input type="checkbox" class="medium-works"></td>
+            <td>
+              <!-- ko ifnot: tracks.length === 0 -->
+                <input type="checkbox" class="medium-works">
+              <!-- /ko -->
+            </td>
           </tr>
-          <!-- ko template: {name: 'template.track', foreach: tracks} --><!-- /ko -->
+          <!-- ko if: tracks.length === 0 -->
+            <tr>
+              <td colspan="4">[% l('The tracklist for this medium is unknown.') %]</td>
+            </tr>
+          <!-- /ko -->
+          <!-- ko if: tracks.length > 0 -->
+            <!-- ko template: {name: 'template.track', foreach: tracks} --><!-- /ko -->
+          <!-- /ko -->
         </tbody>
       </table>
       <!-- /ko -->
@@ -75,6 +91,12 @@
         <span class="loading-message">[% l('Loading...') %]</span>
       </p>
 
+      <p data-bind="ifnot: loadingRelease">
+          <!-- ko if: !source.mediums().length -->
+            [% l('We have no information about this release’s media and tracklist.') %]
+          <!-- /ko -->
+      </p>
+      
       <h2>[% l('Release Relationships') %]</h2>
 
       <div id="release-rels" class="ars">

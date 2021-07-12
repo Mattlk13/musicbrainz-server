@@ -25,7 +25,7 @@ sub get_by_ids
     my ($self, @ids) = @_;
     my $artist_columns = $self->c->model('Artist')->_columns;
     my $query = "SELECT artist, artist_credit_name.name AS ac_name, join_phrase, artist_credit, " .
-                $artist_columns . ", ac.edits_pending " .
+                $artist_columns . ", ac.edits_pending AS ac_edits_pending " .
                 "FROM artist_credit_name " .
                 "JOIN artist ON artist.id=artist_credit_name.artist " .
                 "JOIN artist_credit ac ON ac.id = artist_credit_name.artist_credit " .
@@ -39,7 +39,7 @@ sub get_by_ids
         $counts{$id} //= 0;
         $result{$id} //= MusicBrainz::Server::Entity::ArtistCredit->new(
             id => $id,
-            edits_pending => $row->{edits_pending},
+            edits_pending => $row->{ac_edits_pending},
         );
 
         my $acn = MusicBrainz::Server::Entity::ArtistCreditName->new(
@@ -162,7 +162,7 @@ sub find_or_insert
     my ($self, $artist_credit) = @_;
 
     for my $name (@{ $artist_credit->{names} }) {
-        $name->{join_phrase} = sanitize($name->{join_phrase} // '');
+        $name->{join_phrase} = sanitize($name->{join_phrase});
     }
 
     my ($id, $name, $positions, $credits, $artists, $join_phrases) =
@@ -358,22 +358,12 @@ sub related_entities {
 __PACKAGE__->meta->make_immutable;
 1;
 
-=head1 COPYRIGHT
+=head1 COPYRIGHT AND LICENSE
 
 Copyright (C) 2009 Lukas Lalinsky
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program; if not, write to the Free Software
-Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+This file is part of MusicBrainz, the open internet music database,
+and is licensed under the GPL version 2, or (at your option) any
+later version: http://www.gnu.org/licenses/gpl-2.0.txt
 
 =cut

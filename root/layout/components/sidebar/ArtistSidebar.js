@@ -1,5 +1,5 @@
 /*
- * @flow
+ * @flow strict-local
  * Copyright (C) 2018 MetaBrainz Foundation
  *
  * This file is part of MusicBrainz, the open internet music database,
@@ -7,20 +7,24 @@
  * later version: http://www.gnu.org/licenses/gpl-2.0.txt
  */
 
-import React from 'react';
+import * as React from 'react';
 
+import {CatalystContext} from '../../../context';
 import {
   artistBeginAreaLabel,
   artistBeginLabel,
   artistEndAreaLabel,
   artistEndLabel,
 } from '../../../artist/utils';
-import {withCatalystContext} from '../../../context';
-import CommonsImage from '../../../static/scripts/common/components/CommonsImage';
-import DescriptiveLink from '../../../static/scripts/common/components/DescriptiveLink';
+import CommonsImage
+  from '../../../static/scripts/common/components/CommonsImage';
+import DescriptiveLink
+  from '../../../static/scripts/common/components/DescriptiveLink';
 import entityHref from '../../../static/scripts/common/utility/entityHref';
-import isSpecialPurposeArtist from '../../../static/scripts/common/utility/isSpecialPurposeArtist';
+import isSpecialPurpose
+  from '../../../static/scripts/common/utility/isSpecialPurpose';
 import * as age from '../../../utility/age';
+import isFutureDate from '../../../utility/isFutureDate';
 import ExternalLinks from '../ExternalLinks';
 
 import AnnotationLinks from './AnnotationLinks';
@@ -39,15 +43,21 @@ import SidebarTags from './SidebarTags';
 import SidebarType from './SidebarType';
 import SubscriptionLinks from './SubscriptionLinks';
 
-type Props = {|
-  +$c: CatalystContextT,
+type Props = {
   +artist: ArtistT,
-|};
+};
 
-const ArtistSidebar = ({$c, artist}: Props) => {
+const ArtistSidebar = ({artist}: Props): React.Element<'div'> => {
+  const $c = React.useContext(CatalystContext);
   const artistAge = age.age(artist);
   const gid = encodeURIComponent(artist.gid);
-  const isSpecialPurpose = isSpecialPurposeArtist(artist);
+  const isSpecialPurposeArtist = isSpecialPurpose(artist);
+  const {
+    area,
+    begin_area: beginArea,
+    end_area: endArea,
+    gender,
+  } = artist;
 
   return (
     <div id="sidebar">
@@ -69,9 +79,9 @@ const ArtistSidebar = ({$c, artist}: Props) => {
 
         <SidebarType entity={artist} typeType="artist_type" />
 
-        {artist.gender ? (
+        {gender ? (
           <SidebarProperty className="gender" label={l('Gender:')}>
-            {l(artist.gender.name)}
+            {lp_attributes(gender.name, 'gender')}
           </SidebarProperty>
         ) : null}
 
@@ -81,27 +91,33 @@ const ArtistSidebar = ({$c, artist}: Props) => {
           label={artistBeginLabel(artist.typeID)}
         />
 
-        {artist.begin_area ? (
-          <SidebarProperty className="begin_area" label={artistBeginAreaLabel(artist.typeID)}>
-            <DescriptiveLink entity={artist.begin_area} />
+        {beginArea ? (
+          <SidebarProperty
+            className="begin_area"
+            label={artistBeginAreaLabel(artist.typeID)}
+          >
+            <DescriptiveLink entity={beginArea} />
           </SidebarProperty>
         ) : null}
 
         <SidebarEndDate
           age={artistAge}
           entity={artist}
-          label={artistEndLabel(artist.typeID)}
+          label={artistEndLabel(artist.typeID, isFutureDate(artist.end_date))}
         />
 
-        {artist.end_area ? (
-          <SidebarProperty className="end_area" label={artistEndAreaLabel(artist.typeID)}>
-            <DescriptiveLink entity={artist.end_area} />
+        {endArea ? (
+          <SidebarProperty
+            className="end_area"
+            label={artistEndAreaLabel(artist.typeID)}
+          >
+            <DescriptiveLink entity={endArea} />
           </SidebarProperty>
         ) : null}
 
-        {artist.area ? (
+        {area ? (
           <SidebarProperty className="area" label={l('Area:')}>
-            <DescriptiveLink entity={artist.area} />
+            <DescriptiveLink entity={area} />
           </SidebarProperty>
         ) : null}
 
@@ -112,17 +128,12 @@ const ArtistSidebar = ({$c, artist}: Props) => {
 
       <SidebarRating entity={artist} />
 
-      <SidebarTags
-        aggregatedTags={$c.stash.top_tags}
-        entity={artist}
-        more={!!$c.stash.more_tags}
-        userTags={$c.stash.user_tags}
-      />
+      <SidebarTags entity={artist} />
 
       <ExternalLinks empty entity={artist} />
 
       <EditLinks entity={artist}>
-        {isSpecialPurpose ? null : (
+        {isSpecialPurposeArtist ? null : (
           <>
             <li>
               <a href={`/release-group/create?artist=${gid}`}>
@@ -160,14 +171,18 @@ const ArtistSidebar = ({$c, artist}: Props) => {
           </>
         )}
 
-        {isSpecialPurpose ? null : <AnnotationLinks entity={artist} />}
+        {isSpecialPurposeArtist ? null : (
+          <AnnotationLinks entity={artist} />
+        )}
 
         <MergeLink entity={artist} />
 
         <li className="separator" role="separator" />
       </EditLinks>
 
-      {isSpecialPurpose ? null : <SubscriptionLinks entity={artist} />}
+      {isSpecialPurposeArtist ? null : (
+        <SubscriptionLinks entity={artist} />
+      )}
 
       <CollectionLinks entity={artist} />
 
@@ -178,4 +193,4 @@ const ArtistSidebar = ({$c, artist}: Props) => {
   );
 };
 
-export default withCatalystContext(ArtistSidebar);
+export default ArtistSidebar;

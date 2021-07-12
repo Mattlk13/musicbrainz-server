@@ -5,6 +5,7 @@ use List::AllUtils qw( uniq );
 use List::UtilsBy qw( uniq_by );
 
 extends 'MusicBrainz::Server::WebService::Serializer::JSON::LD';
+with 'MusicBrainz::Server::WebService::Serializer::JSON::LD::Role::Genre';
 with 'MusicBrainz::Server::WebService::Serializer::JSON::LD::Role::GID';
 with 'MusicBrainz::Server::WebService::Serializer::JSON::LD::Role::Name';
 with 'MusicBrainz::Server::WebService::Serializer::JSON::LD::Role::Length';
@@ -100,9 +101,10 @@ sub medium_format {
     # case of it not being one of these few formats. I'm not sure of the
     # best mitigation for either problem.
     my $name;
+    my $parent_format_id = $format->parent ? $format->parent->id : $format->parent_id;
     if ($name = $map{$format->id}) {
         return "http://schema.org/${name}Format";
-    } elsif ($name = $map{$format->parent ? $format->parent->id : $format->parent_id}) {
+    } elsif ($parent_format_id && ($name = $map{$parent_format_id})) {
         return "http://schema.org/${name}Format";
     }
 }
@@ -111,23 +113,13 @@ __PACKAGE__->meta->make_immutable;
 no Moose;
 1;
 
-=head1 COPYRIGHT
+=head1 COPYRIGHT AND LICENSE
 
 Copyright (C) 2014 MetaBrainz Foundation
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program; if not, write to the Free Software
-Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+This file is part of MusicBrainz, the open internet music database,
+and is licensed under the GPL version 2, or (at your option) any
+later version: http://www.gnu.org/licenses/gpl-2.0.txt
 
 =cut
 

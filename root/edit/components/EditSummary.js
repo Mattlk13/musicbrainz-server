@@ -1,5 +1,5 @@
 /*
- * @flow
+ * @flow strict-local
  * Copyright (C) 2018 MetaBrainz Foundation
  *
  * This file is part of MusicBrainz, the open internet music database,
@@ -13,8 +13,7 @@ import {
   EDIT_STATUS_OPEN,
   EDIT_STATUS_APPLIED,
 } from '../../constants';
-import {withCatalystContext} from '../../context';
-import * as DBDefs from '../../static/scripts/common/DBDefs';
+import DBDefs from '../../static/scripts/common/DBDefs';
 import {
   editorMayAddNote,
   editorMayApprove,
@@ -25,13 +24,17 @@ import returnUri from '../../utility/returnUri';
 
 import Vote from './Vote';
 
-type Props = {|
+type Props = {
   +$c: CatalystContextT,
-  +edit: EditT,
+  +edit: {...EditT, +id: number},
   +index: number,
-|};
+};
 
-const EditSummary = ({$c, edit, index}: Props) => {
+const EditSummary = ({
+  $c,
+  edit,
+  index,
+}: Props): React.Element<typeof React.Fragment> => {
   const user = $c.user;
   const mayAddNote = editorMayAddNote(edit, user);
   const mayApprove = editorMayApprove(edit, user);
@@ -39,15 +42,18 @@ const EditSummary = ({$c, edit, index}: Props) => {
 
   return (
     <>
-      {edit.status !== EDIT_STATUS_OPEN && edit.status !== EDIT_STATUS_APPLIED ? (
-        <div className="edit-status">
-          {getEditStatusName(edit)}
-        </div>
-      ) : null}
+      {edit.status !== EDIT_STATUS_OPEN &&
+        edit.status !== EDIT_STATUS_APPLIED ? (
+          <div className="edit-status">
+            {getEditStatusName(edit)}
+          </div>
+        ) : null}
 
-      <Vote edit={edit} index={index} summary />
+      <Vote $c={$c} edit={edit} index={index} summary />
 
-      {!DBDefs.DB_READ_ONLY && (mayAddNote || mayApprove || mayCancel) ? (
+      {($c.user && !DBDefs.DB_READ_ONLY &&
+        (mayAddNote || mayApprove || mayCancel)
+      ) ? (
         <div className="cancel-edit buttons">
           {mayAddNote ? (
             <a className="positive edit-note-toggle">{l('Add Note')}</a>
@@ -56,7 +62,7 @@ const EditSummary = ({$c, edit, index}: Props) => {
           {mayApprove ? (
             <a
               className="positive"
-              href={returnUri($c, `/edit/${edit.id}/approve`, 'returnto')}
+              href={returnUri($c, `/edit/${edit.id}/approve`)}
             >
               {l('Approve edit')}
             </a>
@@ -65,26 +71,32 @@ const EditSummary = ({$c, edit, index}: Props) => {
           {mayCancel ? (
             <a
               className="negative"
-              href={returnUri($c, `/edit/${edit.id}/cancel`, 'returnto')}
+              href={returnUri($c, `/edit/${edit.id}/cancel`)}
             >
               {l('Cancel edit')}
             </a>
           ) : null}
 
-          {edit.status === EDIT_STATUS_OPEN && DBDefs.DB_STAGING_TESTING_FEATURES ? (
-            <>
-              <a className="positive" href={`/test/accept-edit/${edit.id}`}>
-                {l('Accept edit')}
-              </a>
-              <a className="negative" href={`/test/reject-edit/${edit.id}`}>
-                {l('Reject edit')}
-              </a>
-            </>
-          ) : null}
-        </div>
-      ) : null}
+          {edit.status === EDIT_STATUS_OPEN &&
+            DBDefs.DB_STAGING_TESTING_FEATURES ? (
+              <>
+                <a
+                  className="positive"
+                  href={`/test/accept-edit/${edit.id}`}
+                >
+                  {l('Accept edit')}
+                </a>
+                <a
+                  className="negative"
+                  href={`/test/reject-edit/${edit.id}`}
+                >
+                  {l('Reject edit')}
+                </a>
+              </>
+            ) : null}
+        </div>) : null}
     </>
   );
 };
 
-export default withCatalystContext(EditSummary);
+export default EditSummary;

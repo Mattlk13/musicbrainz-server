@@ -1,5 +1,6 @@
 package MusicBrainz::Server::Controller::User;
 use Moose;
+use Moose::Util qw( find_meta );
 
 BEGIN { extends 'MusicBrainz::Server::Controller' };
 
@@ -10,8 +11,10 @@ use Encode;
 use HTTP::Status qw( :constants );
 use List::Util 'sum';
 use MusicBrainz::Server::Authentication::User;
+use MusicBrainz::Server::ControllerUtils::JSON qw( serialize_pager );
 use MusicBrainz::Server::ControllerUtils::SSL qw( ensure_ssl );
-use MusicBrainz::Server::Data::Utils qw( type_to_model );
+use MusicBrainz::Server::Data::Utils qw( boolean_to_json type_to_model );
+use MusicBrainz::Server::Entity::Util::JSON qw( to_json_array to_json_object );
 use MusicBrainz::Server::Log qw( log_debug );
 use MusicBrainz::Server::Translation qw( l ln );
 use Try::Tiny;
@@ -26,6 +29,7 @@ use MusicBrainz::Server::Constants qw(
     $LOCATION_EDITOR_FLAG
     $BANNER_EDITOR_FLAG
     $ACCOUNT_ADMIN_FLAG
+    %ENTITIES
     entities_with
 );
 
@@ -33,12 +37,6 @@ with 'MusicBrainz::Server::Controller::Role::Load' => {
     entity_name => 'user',
     model => 'Editor'
 };
-
-__PACKAGE__->config(
-    paging_limit => 25,
-);
-
-use Try::Tiny;
 
 =head1 NAME
 
@@ -103,43 +101,86 @@ sub _perform_login {
     }
 }
 
+# Corresponds to AccountLayoutUserT in root/components/UserAccountLayout.js
+sub serialize_user {
+    my ($self, $user) = @_;
+
+    my $preferences = $user->preferences;
+    return {
+        deleted => boolean_to_json($user->deleted),
+        entityType => 'editor',
+        gravatar => $user->gravatar,
+        id => 0 + $user->id,
+        is_limited => boolean_to_json($user->is_limited),
+        name => $user->name,
+        preferences => {
+            public_ratings => boolean_to_json($preferences->public_ratings),
+            public_subscriptions => boolean_to_json($preferences->public_subscriptions),
+            public_tags => boolean_to_json($preferences->public_tags),
+        },
+    };
+}
+
 sub do_login : Private
 {
     my ($self, $c) = @_;
+
+    my $post_params;
+    my %login_params;
+
+    if ($c->form_posted) {
+        $post_params = $c->req->body_params;
+
+        for my $param (qw( username password remember_me csrf_token csrf_session_key )) {
+            if (exists $post_params->{$param}) {
+                $login_params{$param} = delete $post_params->{$param};
+            }
+        }
+    }
+
     return 1 if $c->user_exists;
 
     my $form = $c->form(form => 'User::Login');
-    my $redirect = $c->req->query_params->{uri} // $c->relative_uri;
 
-    if ($c->form_posted && $form->process(params => $c->req->params))
-    {
-        if ($self->_perform_login($c, $form->field("username")->value, $form->field("password")->value)) {
+    if (%login_params && $c->form_submitted_and_valid($form, \%login_params)) {
+        my $username = $form->field('username')->value;
+        if (
+            $self->_perform_login(
+                $c,
+                $username,
+                $form->field('password')->value,
+            )
+        ) {
             if ($form->field('remember_me')->value) {
-                $self->_renew_login_cookie($c, $form->field('username')->value);
+                $self->_renew_login_cookie($c, $username);
             }
-
-            # Logged in OK
-            $c->response->redirect($redirect);
-            $c->detach;
+            return;
         }
     }
 
     # Form not even posted
     ensure_ssl($c);
 
-    $c->stash(
-        login_action => $c->req->uri_with({ uri => $redirect }),
-        template => 'user/login.tt',
-        login_form => $form
-    );
+    # These may not be set if the original action doesn't have the
+    # SecureForm attribute.
+    $c->set_csp_headers;
 
-    $c->stash->{required_login} = 1
-        unless exists $c->stash->{required_login};
+    $c->stash(
+        current_view => 'Node',
+        component_path => 'user/Login',
+        component_props => {
+            loginAction => '' . $c->relative_uri,
+            loginForm => $form->TO_JSON,
+            isLoginBad => boolean_to_json($c->stash->{bad_login}),
+            isLoginRequired => boolean_to_json($c->stash->{required_login} // 1),
+            postParameters => ((defined $post_params && scalar(%$post_params)) ? $post_params : undef),
+        },
+    );
 
     $c->detach;
 }
 
-sub login : Path('/login') ForbiddenOnSlaves RequireSSL
+sub login : Path('/login') ForbiddenOnSlaves RequireSSL SecureForm
 {
     my ($self, $c) = @_;
 
@@ -151,6 +192,10 @@ sub login : Path('/login') ForbiddenOnSlaves RequireSSL
 
     $c->stash( required_login => 0 );
     $c->forward('/user/do_login');
+
+    # Logged in OK
+    $c->redirect_back(fallback => $c->relative_uri);
+    $c->detach;
 }
 
 sub logout : Path('/logout')
@@ -163,7 +208,7 @@ sub logout : Path('/logout')
         $c->delete_session;
     }
 
-    $self->redirect_back($c, '/logout', '/');
+    $c->redirect_back;
 }
 
 sub cookie_login : Private
@@ -217,7 +262,9 @@ sub _renew_login_cookie
         name => 'remember_me',
         value => $token
             ? encode('utf-8', join("\t", $cookie_version, $normalized_name, $token))
-            : ''
+            : '',
+        samesite => 'Lax',
+        $c->req->secure ? (secure => 1) : (),
     };
 }
 
@@ -247,10 +294,13 @@ sub _check_for_confirmed_email {
 
     unless ($c->user->has_confirmed_email_address) {
         $c->stash(
-            title    => l('Send Email'),
-            message  => l('You cannot contact other users because you have not {url|confirmed your email address}.',
-                          {url => $c->uri_for_action('/account/resend_verification')}),
-            template => 'user/message.tt',
+            component_path  => 'user/UserMessage',
+            component_props => {
+                title    => l('Send Email'),
+                message  => l('You cannot contact other users because you have not {url|verified your email address}.',
+                            {url => $c->uri_for_action('/account/resend_verification')}),
+            },
+            current_view    => 'Node',
         );
         $c->detach;
     }
@@ -262,17 +312,20 @@ Allows users to contact other users via email
 
 =cut
 
-sub contact : Chained('load') RequireAuth HiddenOnSlaves
+sub contact : Chained('load') RequireAuth HiddenOnSlaves SecureForm
 {
     my ($self, $c) = @_;
 
     my $editor = $c->stash->{user};
     unless ($editor->email) {
         $c->stash(
-            title    => l('Send Email'),
-            message  => l('The editor {name} has no email address attached to their account.',
-                         { name => $editor->name }),
-            template => 'user/message.tt',
+            component_path  => 'user/UserMessage',
+            component_props => {
+                title    => l('Send Email'),
+                message  => l('The editor {name} has no email address attached to their account.',
+                            { name => $editor->name }),
+            },
+            current_view    => 'Node',
         );
         $c->detach;
     }
@@ -280,12 +333,23 @@ sub contact : Chained('load') RequireAuth HiddenOnSlaves
     _check_for_confirmed_email($c);
 
     if (exists $c->req->params->{sent}) {
-        $c->stash( template => 'user/email_sent.tt' );
+        $c->stash(
+            component_path  => 'user/UserMessage',
+            component_props => {
+                title    => l('Email Sent'),
+                message  => l("Your email has been successfully sent! Click {link|here} to continue to {user}'s profile.",
+                            {
+                                link => $c->uri_for_action('/user/profile', [ $editor->name ]),
+                                user => $editor->name
+                            }),
+            },
+            current_view    => 'Node',
+        );
         $c->detach;
     }
 
     my $form = $c->form( form => 'User::Contact' );
-    if ($c->form_posted && $form->process( params => $c->req->params )) {
+    if ($c->form_posted_and_valid($form)) {
 
         my $result;
         try {
@@ -314,7 +378,6 @@ sub collections : Chained('load') PathPart('collections')
 
     my $user = $c->stash->{user};
     my $viewing_own_profile = $c->stash->{viewing_own_profile};
-    my $no_collections = 1;
 
     my ($collections) = $c->model('Collection')->find_by({
         editor_id => $user->id,
@@ -323,33 +386,48 @@ sub collections : Chained('load') PathPart('collections')
     $c->model('Collection')->load_entity_count(@$collections);
     $c->model('CollectionType')->load(@$collections);
 
+    my %collections_by_entity_type;
     for my $collection (@$collections) {
         $c->model('Editor')->load_for_collection($collection);
         if ($c->user_exists) {
-            $collection->{'subscribed'} =
-                $c->model('Collection')->subscription->check_subscription($c->user->id, $collection->id);
+            $collection->subscribed(
+                $c->model('Collection')->subscription->check_subscription($c->user->id, $collection->id),
+            );
         }
-        push @{ $c->stash->{collections}{$collection->type->item_entity_type} }, $collection;
+        push @{ $collections_by_entity_type{$collection->type->item_entity_type} },
+            $collection->TO_JSON;
     }
-
-    $no_collections = 0 if ($no_collections && @$collections);
 
     my ($collaborative_collections) = $c->model('Collection')->find_by({
         collaborator_id => $user->id,
+        show_private => $c->user_exists ? $c->user->id : undef,
     });
     $c->model('Collection')->load_entity_count(@$collaborative_collections);
     $c->model('CollectionType')->load(@$collaborative_collections);
 
+    my %collaborative_collections_by_entity_type;
     for my $collection (@$collaborative_collections) {
         $c->model('Editor')->load_for_collection($collection);
         if ($c->user_exists) {
-            $collection->{'subscribed'} =
-                $c->model('Collection')->subscription->check_subscription($c->user->id, $collection->id);
+            $collection->subscribed(
+                $c->model('Collection')->subscription->check_subscription($c->user->id, $collection->id),
+            );
         }
-        push @{ $c->stash->{collaborative_collections}{$collection->type->item_entity_type} }, $collection;
+        push @{ $collaborative_collections_by_entity_type{$collection->type->item_entity_type} },
+            $collection->TO_JSON;
     }
 
-    $c->stash(user => $user, no_collections => $no_collections);
+    my %props = (
+        user                     => $self->serialize_user($user),
+        ownCollections           => \%collections_by_entity_type,
+        collaborativeCollections => \%collaborative_collections_by_entity_type,
+    );
+
+    $c->stash(
+        component_path  => 'user/UserCollections',
+        component_props => \%props,
+        current_view    => 'Node',
+    );
 }
 
 sub profile : Chained('load') PathPart('') HiddenOnSlaves
@@ -366,11 +444,33 @@ sub profile : Chained('load') PathPart('') HiddenOnSlaves
     $c->model('Gender')->load($user);
     $c->model('EditorLanguage')->load_for_editor($user);
 
+    my $edit_stats = $c->model('Editor')->various_edit_counts($user->id);
+    $edit_stats->{last_day_count} = $c->model('Editor')->last_24h_edit_count($user->id);
+    my $added_entities = $c->model('Editor')->added_entities_counts($user->id);
+
+    my @ip_hashes;
+    if ($c->user_exists && $c->user->is_account_admin && !(
+            DBDefs->DB_STAGING_SERVER &&
+            DBDefs->DB_STAGING_SERVER_SANITIZED))
+    {
+        my $store = $c->model('MB')->context->store;
+        @ip_hashes = $store->set_members('userips:' . $user->id);
+    }
+
+    my %props = (
+        editStats       => $edit_stats,
+        ipHashes        => \@ip_hashes,
+        subscribed      => $c->stash->{subscribed},
+        subscriberCount => $c->stash->{subscriber_count},
+        user            => $c->unsanitized_editor_json($user),
+        votes           => $c->stash->{votes},
+        addedEntities   => $added_entities,
+    );
+
     $c->stash(
-        user     => $user,
-        template => 'user/profile.tt',
-        last_day_count => $c->model('Editor')->last_24h_edit_count($user->id),
-        %{ $c->model('Editor')->various_edit_counts($user->id) },
+        component_path  => 'user/UserProfile',
+        component_props => \%props,
+        current_view    => 'Node',
     );
 }
 
@@ -437,6 +537,7 @@ sub tags : Chained('load') PathPart('tags')
     my ($self, $c) = @_;
 
     my $user = $c->stash->{user};
+    my $show_downvoted = $c->req->params->{show_downvoted} ? 1 : 0;
 
     if (!defined $c->user || $c->user->id != $user->id)
     {
@@ -445,49 +546,120 @@ sub tags : Chained('load') PathPart('tags')
             unless $user->preferences->public_tags;
     }
 
-    my $tags = $c->model('Editor')->get_tags($user);
-    my @display_tags = grep { !$_->{tag}->is_genre_tag } @{ $tags->{tags} };
-    my @display_genres = grep { $_->{tag}->is_genre_tag } @{ $tags->{tags} };
+    my $tags = $c->model('Editor')->get_tags($user, $show_downvoted);
+    my @display_tags = map +{
+        %{$_},
+        tag => to_json_object($_->{tag}),
+    }, grep { !$_->{tag}->genre_id } @{ $tags->{tags} };
+    my @display_genres = map +{
+        %{$_},
+        tag => to_json_object($_->{tag}),
+    }, grep { $_->{tag}->genre_id } @{ $tags->{tags} };
+
+    my %props = (
+        showDownvoted => boolean_to_json($show_downvoted),
+        tags => to_json_array(\@display_tags),
+        genres => to_json_array(\@display_genres),
+        user => $self->serialize_user($user),
+    );
 
     $c->stash(
-        user => $user,
-        display_tags => \@display_tags,
-        display_genres => \@display_genres,
-        tag_max_count => sum(map { $_->{count} } @{ $tags->{tags} }),
-        template => 'user/tags.tt',
+        component_path  => 'user/UserTagList',
+        component_props => \%props,
+        current_view    => 'Node',
     );
 }
 
-sub tag : Chained('load') PathPart('tag') Args(1)
+sub load_tag : Chained('load') PathPart('tag') CaptureArgs(1)
 {
     my ($self, $c, $tag_name) = @_;
+    $c->stash->{tag} = $c->model('Tag')->get_by_name($tag_name);
+    $c->stash->{tag_name} = $tag_name;
+}
+
+sub tag : Chained('load_tag') PathPart('')
+{
+    my ($self, $c) = @_;
     my $user = $c->stash->{user};
-    my $tag = $c->model('Tag')->get_by_name($tag_name);
-    my %tags = ();
+    my $tag = $c->stash->{tag};
+    my $show_downvoted = $c->req->params->{show_downvoted} ? 1 : 0;
+    my %tagged_entities;
     my $tag_in_use = 0;
-    my @entities_with_tags = sort { $a cmp $b } entities_with('tags');
 
     # Determine whether this tag exists in the database
     if ($tag) {
-        %tags = map {
-            $_ => [ $c->model(type_to_model($_))
-                        ->tags->find_editor_entities($user->id, $tag->id)
-                    ]
-        } @entities_with_tags;
+        %tagged_entities = map {
+            my ($entities, $total) = $c->model(type_to_model($_))->tags->find_editor_entities(
+                $user->id, $tag->id, $show_downvoted, 10, 0);
+            $c->model('ArtistCredit')->load(map { $_->entity } @$entities);
 
-        foreach my $entity_tags (values %tags) {
-            $tag_in_use = 1 if @$entity_tags;
-        }
+            ("$_" => {
+                count => $total,
+                tags => [map +{
+                    entity => to_json_object($_->{entity}),
+                    entity_id => $_->{entity_id},
+                }, @$entities],
+            })
+        } entities_with('tags');
     }
-    $c->model('ArtistCredit')->load(map { @$_ } values %tags);
+
+    my %props = (
+        showDownvoted => boolean_to_json($show_downvoted),
+        tag => to_json_object($tag // MusicBrainz::Server::Entity::Tag->new(
+            name => $c->stash->{tag_name},
+        )),
+        taggedEntities => \%tagged_entities,
+        user => $self->serialize_user($user),
+    );
 
     $c->stash(
-        tag_name => $tag_name,
-        tags => \%tags,
-        tag_in_use => $tag_in_use,
-        entities_with_tags => \@entities_with_tags
+        component_path  => 'user/UserTag',
+        component_props => \%props,
+        current_view    => 'Node',
     );
 }
+
+map {
+    my $entity_type = $_;
+    my $entity_properties = $ENTITIES{$entity_type};
+    my $url = $entity_properties->{url};
+
+    my $method = sub {
+        my ($self, $c) = @_;
+
+        my $tag = $c->stash->{tag};
+        my $show_downvoted = $c->req->params->{show_downvoted} ? 1 : 0;
+
+        my $entity_tags = $self->_load_paged($c, sub {
+            return ([], 0) unless $tag;
+            return $c->model($entity_properties->{model})->tags->find_editor_entities(
+                $c->stash->{user}->id, $c->stash->{tag}->id, $show_downvoted, shift, shift);
+        });
+        $c->model('ArtistCredit')->load(map { $_->entity } @$entity_tags) if $entity_properties->{artist_credits};
+
+        $c->stash(
+            current_view => 'Node',
+            component_path => 'user/UserTagEntity',
+            component_props => {
+                %{$c->stash->{component_props}},
+                entityTags => [map +{
+                    entity => to_json_object($_->{entity}),
+                    entity_id => $_->{entity_id},
+                }, @$entity_tags],
+                entityType => $entity_type,
+                pager => serialize_pager($c->stash->{pager}),
+                showDownvoted => boolean_to_json($show_downvoted),
+                tag => to_json_object($tag // MusicBrainz::Server::Entity::Tag->new(
+                    name => $c->stash->{tag_name},
+                )),
+                user => $self->serialize_user($c->stash->{user}),
+            },
+        );
+    };
+
+    find_meta(__PACKAGE__)->add_method($entity_type . '_tag' => $method);
+    find_meta(__PACKAGE__)->register_method_attributes($method, ["Chained('load_tag')", "PathPart('$url')"]);
+} entities_with('tags');
 
 sub privileged : Path('/privileged')
 {
@@ -510,13 +682,13 @@ sub privileged : Path('/privileged')
     $c->model('Editor')->load_preferences(@account_admins);
 
     my %props = (
-        bots => [ @bots ],
-        autoEditors => [ @auto_editors ],
-        transclusionEditors => [ @transclusion_editors ],
-        relationshipEditors => [ @relationship_editors ],
-        locationEditors => [ @location_editors ],
-        bannerEditors => [ @banner_editors ],
-        accountAdmins => [ @account_admins ],
+        bots => to_json_array(\@bots),
+        autoEditors => to_json_array(\@auto_editors),
+        transclusionEditors => to_json_array(\@transclusion_editors),
+        relationshipEditors => to_json_array(\@relationship_editors),
+        locationEditors => to_json_array(\@location_editors),
+        bannerEditors => to_json_array(\@banner_editors),
+        accountAdmins => to_json_array(\@account_admins),
     );
 
     $c->stash(
@@ -526,7 +698,7 @@ sub privileged : Path('/privileged')
     );
 }
 
-sub report : Chained('load') RequireAuth HiddenOnSlaves {
+sub report : Chained('load') RequireAuth HiddenOnSlaves SecureForm {
     my ($self, $c) = @_;
 
     my $reporter = $c->user;
@@ -546,12 +718,12 @@ sub report : Chained('load') RequireAuth HiddenOnSlaves {
         current_view => 'Node',
         component_path => 'user/ReportUser',
         component_props => {
-            form => $form,
-            user => $reported_user,
+            form => $form->TO_JSON,
+            user => $self->serialize_user($reported_user),
         },
     );
 
-    if ($c->form_posted && $form->process(params => $c->req->params)) {
+    if ($c->form_posted_and_valid($form)) {
         my $result;
         try {
             $result = $c->model('Email')->send_editor_report(
@@ -560,6 +732,7 @@ sub report : Chained('load') RequireAuth HiddenOnSlaves {
                 reason          => $form->value->{reason},
                 message         => $form->value->{message},
                 reveal_address  => $form->value->{reveal_address},
+                send_to_self    => $form->value->{send_to_self},
             );
         } catch {
             log_debug { "Couldn't send email: $_" } $_;
@@ -576,23 +749,13 @@ sub report : Chained('load') RequireAuth HiddenOnSlaves {
 
 1;
 
-=head1 COPYRIGHT
+=head1 COPYRIGHT AND LICENSE
 
 Copyright (C) 2009 Oliver Charles
 Copyright (C) 2009 Lukas Lalinsky
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program; if not, write to the Free Software
-Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+This file is part of MusicBrainz, the open internet music database,
+and is licensed under the GPL version 2, or (at your option) any
+later version: http://www.gnu.org/licenses/gpl-2.0.txt
 
 =cut

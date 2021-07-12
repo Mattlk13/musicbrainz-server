@@ -1,6 +1,7 @@
 package t::MusicBrainz::Server::Edit::Relationship::Delete;
 use Test::Routine;
 use Test::More;
+use Test::Fatal;
 
 with 't::Edit';
 with 't::Context';
@@ -135,7 +136,7 @@ test 'Entities load correctly after being merged (MBS-2477)' => sub {
     $c->model('Artist')->merge(4, [3]);
     $c->model('Edit')->load_all($edit);
 
-    is($edit->display_data->{relationship}{entity0}->gid, '75a40343-ff6e-45d6-a5d2-110388d34858');
+    is($edit->display_data->{relationship}{entity0_id}, 4);
 };
 
 test 'Deleting a release-url relationship' => sub {
@@ -156,6 +157,28 @@ test 'Deleting a release-url relationship' => sub {
 
     $c->model('Edit')->accept($edit);
     is($edit->status, $STATUS_APPLIED);
+};
+
+test 'Deleting an example relationship fails' => sub {
+    my $test = shift;
+    my $c = $test->c;
+
+    MusicBrainz::Server::Test->prepare_test_database($c, '+edit_relationship_delete');
+
+    my $relationship = _get_relationship($c, 'artist', 'url', 2);
+    my $edit = $c->model('Edit')->create(
+        edit_type => $EDIT_RELATIONSHIP_DELETE,
+        editor => $c->model('Editor')->get_by_id(1),
+        type0 => 'artist',
+        type1 => 'url',
+        relationship => $relationship,
+    );
+
+    my $exception = exception { $edit->accept };
+
+    isa_ok $exception, 'MusicBrainz::Server::Edit::Exceptions::GeneralError';
+    like $exception->message, qr{would remove a relationship that is set as an example},
+        'Error message mentions removing an example';
 };
 
 sub _get_relationship {

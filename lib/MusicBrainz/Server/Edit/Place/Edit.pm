@@ -7,6 +7,7 @@ use MusicBrainz::Server::Constants qw(
     $EDIT_PLACE_EDIT
 );
 use MusicBrainz::Server::Constants qw( :edit_status );
+use MusicBrainz::Server::Data::Utils qw( boolean_to_json );
 use MusicBrainz::Server::Edit::Types qw( CoordinateHash Nullable PartialDateHash );
 use MusicBrainz::Server::Edit::Utils qw(
     changed_relations
@@ -17,6 +18,7 @@ use MusicBrainz::Server::Edit::Utils qw(
     merge_partial_date
 );
 use MusicBrainz::Server::Entity::PartialDate;
+use MusicBrainz::Server::Entity::Util::JSON qw( to_json_object );
 use MusicBrainz::Server::Translation qw( N_l );
 use MusicBrainz::Server::Validation qw( normalise_strings );
 
@@ -49,13 +51,13 @@ sub change_fields
 {
     return Dict[
         name        => Optional[Str],
-        comment     => Nullable[Str],
+        comment     => Optional[Str],
         type_id     => Nullable[Int],
-        address     => Nullable[Str],
+        address     => Optional[Str],
         area_id     => Nullable[Int],
         coordinates => Nullable[CoordinateHash],
-        begin_date  => Nullable[PartialDateHash],
-        end_date    => Nullable[PartialDateHash],
+        begin_date  => Optional[PartialDateHash],
+        end_date    => Optional[PartialDateHash],
         ended       => Optional[Bool],
     ];
 }
@@ -100,28 +102,46 @@ sub build_display_data
 
     my $data = changed_display_data($self->data, $loaded, %map);
 
-    $data->{place} = $loaded->{Place}{ $self->data->{entity}{id} }
-        || Place->new( name => $self->data->{entity}{name} );
+    $data->{place} = to_json_object(
+        $loaded->{Place}{ $self->data->{entity}{id} } ||
+        Place->new( name => $self->data->{entity}{name} )
+    );
 
     for my $side (qw( old new )) {
-        $data->{area}{$side} //= Area->new()
+        $data->{area}{$side} = to_json_object($data->{area}{$side} // Area->new())
             if defined $self->data->{$side}{area_id};
     }
 
     for my $date_prop (qw( begin_date end_date )) {
         if (exists $self->data->{new}{$date_prop}) {
             $data->{$date_prop} = {
-                new => PartialDate->new($self->data->{new}{$date_prop}),
-                old => PartialDate->new($self->data->{old}{$date_prop}),
+                new => to_json_object(PartialDate->new($self->data->{new}{$date_prop})),
+                old => to_json_object(PartialDate->new($self->data->{old}{$date_prop})),
             };
         }
     }
 
     if (exists $self->data->{new}{coordinates}) {
         $data->{coordinates} = {
-            new => defined $self->data->{new}{coordinates} ? Coordinates->new($self->data->{new}{coordinates}) : '',
-            old => defined $self->data->{old}{coordinates} ? Coordinates->new($self->data->{old}{coordinates}) : '',
+            new => defined $self->data->{new}{coordinates}
+                ? to_json_object(Coordinates->new($self->data->{new}{coordinates}))
+                : undef,
+            old => defined $self->data->{old}{coordinates}
+                ? to_json_object(Coordinates->new($self->data->{old}{coordinates}))
+                : undef,
         };
+    }
+
+    if (exists $self->data->{new}{ended}) {
+        $data->{ended} = {
+            new => boolean_to_json($self->data->{new}{ended}),
+            old => boolean_to_json($self->data->{old}{ended}),
+        };
+    }
+
+    if (exists $data->{type}) {
+        $data->{type}{old} = to_json_object($data->{type}{old});
+        $data->{type}{new} = to_json_object($data->{type}{new});
     }
 
     return $data;
@@ -165,6 +185,8 @@ sub _edit_hash {
     my ($self, $data) = @_;
     return $self->merge_changes;
 }
+
+sub edit_template_react { "EditPlace" }
 
 around extract_property => sub {
     my ($orig, $self) = splice(@_, 0, 2);
@@ -214,22 +236,12 @@ __PACKAGE__->meta->make_immutable;
 no Moose;
 1;
 
-=head1 LICENSE
+=head1 COPYRIGHT AND LICENSE
 
 Copyright (C) 2013 MetaBrainz Foundation
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program; if not, write to the Free Software
-Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+This file is part of MusicBrainz, the open internet music database,
+and is licensed under the GPL version 2, or (at your option) any
+later version: http://www.gnu.org/licenses/gpl-2.0.txt
 
 =cut

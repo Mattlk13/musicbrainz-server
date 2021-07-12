@@ -17,13 +17,17 @@ my $c = $test->c;
 
 MusicBrainz::Server::Test->prepare_test_database($c, '+webservice');
 MusicBrainz::Server::Test->prepare_test_database($c, '+webservice_annotation');
-MusicBrainz::Server::Test->prepare_test_database($c, <<'EOSQL');
-INSERT INTO release_tag (count, release, tag) VALUES (1, 123054, 114);
-INSERT INTO editor (id, name, password, ha1, email, email_confirm_date) VALUES (15412, 'editor', '{CLEARTEXT}mb', 'be88da857f697a78656b1307f89f90ab', 'foo@example.com', now());
-INSERT INTO editor_collection (id, gid, editor, name, public, type) VALUES (14933, 'f34c079d-374e-4436-9448-da92dedef3cd', 15412, 'My Collection', TRUE, 1);
-INSERT INTO editor_collection (id, gid, editor, name, public, type) VALUES (14934, '5e8dd65f-7d52-4d6e-93f6-f84651e137ca', 15412, 'My Private Collection', FALSE, 1);
-INSERT INTO editor_collection_release (collection, release) VALUES (14933, 123054), (14934, 123054);
-EOSQL
+MusicBrainz::Server::Test->prepare_test_database($c, <<~'EOSQL');
+    INSERT INTO release_tag (count, release, tag) VALUES (1, 123054, 114);
+    INSERT INTO editor (id, name, password, ha1, email, email_confirm_date)
+        VALUES (15412, 'editor', '{CLEARTEXT}mb', 'be88da857f697a78656b1307f89f90ab', 'foo@example.com', now());
+    INSERT INTO editor_collection (id, gid, editor, name, public, type)
+        VALUES (14933, 'f34c079d-374e-4436-9448-da92dedef3cd', 15412, 'My Collection', TRUE, 1);
+    INSERT INTO editor_collection (id, gid, editor, name, public, type)
+        VALUES (14934, '5e8dd65f-7d52-4d6e-93f6-f84651e137ca', 15412, 'My Private Collection', FALSE, 1);
+    INSERT INTO editor_collection_release (collection, release)
+        VALUES (14933, 123054), (14934, 123054);
+    EOSQL
 
 ws_test 'basic release lookup',
     '/release/b3b7e934-445b-4c68-a097-730c6a6d47e6' =>
@@ -32,7 +36,7 @@ ws_test 'basic release lookup',
     <release id="b3b7e934-445b-4c68-a097-730c6a6d47e6">
         <title>Summer Reggae! Rainbow</title>
         <status id="41121bb9-3413-3818-8a9a-9742318349aa">Pseudo-Release</status>
-        <quality>normal</quality>
+        <quality>high</quality>
         <text-representation>
             <language>jpn</language>
             <script>Latn</script>
@@ -142,7 +146,7 @@ ws_test 'basic release with tags',
     <release id="b3b7e934-445b-4c68-a097-730c6a6d47e6">
         <title>Summer Reggae! Rainbow</title>
         <status id="41121bb9-3413-3818-8a9a-9742318349aa">Pseudo-Release</status>
-        <quality>normal</quality>
+        <quality>high</quality>
         <text-representation>
             <language>jpn</language>
             <script>Latn</script>
@@ -182,7 +186,7 @@ ws_test 'basic release with collections',
     <release id="b3b7e934-445b-4c68-a097-730c6a6d47e6">
         <title>Summer Reggae! Rainbow</title>
         <status id="41121bb9-3413-3818-8a9a-9742318349aa">Pseudo-Release</status>
-        <quality>normal</quality>
+        <quality>high</quality>
         <text-representation>
             <language>jpn</language>
             <script>Latn</script>
@@ -226,7 +230,7 @@ ws_test 'basic release with private collections',
     <release id="b3b7e934-445b-4c68-a097-730c6a6d47e6">
         <title>Summer Reggae! Rainbow</title>
         <status id="41121bb9-3413-3818-8a9a-9742318349aa">Pseudo-Release</status>
-        <quality>normal</quality>
+        <quality>high</quality>
         <text-representation>
             <language>jpn</language>
             <script>Latn</script>
@@ -282,7 +286,7 @@ ws_test 'release lookup with artists + aliases',
         </text-representation>
         <artist-credit>
             <name-credit>
-                <artist id="22dd2db3-88ea-4428-a7a8-5cd3acf23175">
+                <artist id="22dd2db3-88ea-4428-a7a8-5cd3acf23175" type="Group" type-id="e431f5f6-b5d2-343d-8b36-72607fffb74b">
                     <name>m-flo</name><sort-name>m-flo</sort-name>
                     <alias-list count="6">
                         <alias sort-name="m-flow">m-flow</alias>
@@ -351,7 +355,7 @@ ws_test 'release lookup with labels, recordings and tags',
         <label-info-list count="1">
             <label-info>
                 <catalog-number>RZCD-45118</catalog-number>
-                <label id="72a46579-e9a0-405a-8ee1-e6e6b63b8212">
+                <label id="72a46579-e9a0-405a-8ee1-e6e6b63b8212" type="Original Production" type-id="7aaa37fe-2def-3476-b359-80245850062d">
                     <name>rhythm zone</name><sort-name>rhythm zone</sort-name>
                 </label>
             </label-info>
@@ -366,6 +370,7 @@ ws_test 'release lookup with labels, recordings and tags',
                         <length>243000</length>
                         <recording id="0cf3008f-e246-428f-abc1-35f87d584d60">
                             <title>the Love Bug</title><length>243000</length>
+                            <first-release-date>2004-03-17</first-release-date>
                             <tag-list>
                                 <tag count="1"><name>kpop</name></tag>
                             </tag-list>
@@ -376,6 +381,7 @@ ws_test 'release lookup with labels, recordings and tags',
                         <length>222000</length>
                         <recording id="84c98ebf-5d40-4a29-b7b2-0e9c26d9061d">
                             <title>the Love Bug (Big Bug NYC remix)</title><length>222000</length>
+                            <first-release-date>2004-03-17</first-release-date>
                             <tag-list>
                                 <tag count="1"><name>jpop</name></tag>
                             </tag-list>
@@ -386,6 +392,7 @@ ws_test 'release lookup with labels, recordings and tags',
                         <length>333000</length>
                         <recording id="3f33fc37-43d0-44dc-bfd6-60efd38810c5">
                             <title>the Love Bug (cover)</title><length>333000</length>
+                            <first-release-date>2004-03-17</first-release-date>
                             <tag-list>
                                 <tag count="1"><name>c-pop</name></tag>
                             </tag-list>
@@ -403,8 +410,8 @@ ws_test 'release lookup with labels, recordings and tags',
     </release>
 </metadata>';
 
-ws_test 'release lookup with release-groups',
-    '/release/aff4a693-5970-4e2e-bd46-e2ee49c22de7?inc=artist-credits+release-groups' =>
+ws_test 'release lookup with release-groups and ratings',
+    '/release/aff4a693-5970-4e2e-bd46-e2ee49c22de7?inc=artist-credits+release-groups+ratings' =>
     '<?xml version="1.0" encoding="UTF-8"?>
 <metadata xmlns="http://musicbrainz.org/ns/mmd-2.0#">
     <release id="aff4a693-5970-4e2e-bd46-e2ee49c22de7">
@@ -417,9 +424,10 @@ ws_test 'release lookup with release-groups',
         </text-representation>
         <artist-credit>
             <name-credit>
-                <artist id="22dd2db3-88ea-4428-a7a8-5cd3acf23175">
+                <artist id="22dd2db3-88ea-4428-a7a8-5cd3acf23175" type="Group" type-id="e431f5f6-b5d2-343d-8b36-72607fffb74b">
                     <name>m-flo</name>
                     <sort-name>m-flo</sort-name>
+                    <rating votes-count="3">3</rating>
                 </artist>
             </name-credit>
         </artist-credit>
@@ -429,12 +437,14 @@ ws_test 'release lookup with release-groups',
             <primary-type id="d6038452-8ee0-3f68-affc-2de9a1ede0b9">Single</primary-type>
             <artist-credit>
                 <name-credit>
-                    <artist id="22dd2db3-88ea-4428-a7a8-5cd3acf23175">
+                    <artist id="22dd2db3-88ea-4428-a7a8-5cd3acf23175" type="Group" type-id="e431f5f6-b5d2-343d-8b36-72607fffb74b">
                         <name>m-flo</name>
                         <sort-name>m-flo</sort-name>
+                        <rating votes-count="3">3</rating>
                     </artist>
                 </name-credit>
             </artist-credit>
+            <rating votes-count="2">5</rating>
         </release-group>
         <date>2004-03-17</date>
         <country>JP</country>
@@ -461,14 +471,14 @@ ws_test 'release lookup with release-groups',
     </release>
 </metadata>';
 
-ws_test 'release lookup with discids and puids',
-    '/release/b3b7e934-445b-4c68-a097-730c6a6d47e6?inc=discids+puids+recordings' =>
+ws_test 'release lookup with discids and recordings',
+    '/release/b3b7e934-445b-4c68-a097-730c6a6d47e6?inc=discids+recordings' =>
     '<?xml version="1.0" encoding="UTF-8"?>
 <metadata xmlns="http://musicbrainz.org/ns/mmd-2.0#">
     <release id="b3b7e934-445b-4c68-a097-730c6a6d47e6">
         <title>Summer Reggae! Rainbow</title>
         <status id="41121bb9-3413-3818-8a9a-9742318349aa">Pseudo-Release</status>
-        <quality>normal</quality>
+        <quality>high</quality>
         <text-representation>
             <language>jpn</language>
             <script>Latn</script>
@@ -507,18 +517,21 @@ ws_test 'release lookup with discids and puids',
                         <position>1</position><number>1</number><title>Summer Reggae! Rainbow</title><length>296026</length>
                         <recording id="162630d9-36d2-4a8d-ade1-1c77440b34e7">
                             <title>サマーれげぇ!レインボー</title><length>296026</length>
+                            <first-release-date>2001-07-04</first-release-date>
                         </recording>
                     </track>
                     <track id="c7c21691-6f85-3ec7-9b08-e431c3b310a5">
                         <position>2</position><number>2</number><title>Hello! Mata Aou Ne (7nin Matsuri version)</title><length>213106</length>
                         <recording id="487cac92-eed5-4efa-8563-c9a818079b9a">
                             <title>HELLO! また会おうね (7人祭 version)</title><length>213106</length>
+                            <first-release-date>2001-07-04</first-release-date>
                         </recording>
                     </track>
                     <track id="e436c057-ca19-36c6-9f1e-dc4ada2604b0">
                         <position>3</position><number>3</number><title>Summer Reggae! Rainbow (Instrumental)</title><length>292800</length>
                         <recording id="eb818aa4-d472-4d2b-b1a9-7fe5f1c7d26e">
                             <title>サマーれげぇ!レインボー (instrumental)</title><length>292800</length>
+                            <first-release-date>2001-07-04</first-release-date>
                         </recording>
                     </track>
                 </track-list>
@@ -531,6 +544,50 @@ ws_test 'release lookup with discids and puids',
             <back>false</back>
         </cover-art-archive>
     </release>
+</metadata>';
+
+ws_test 'release lookup, no tracks',
+    '/release/b3b7e934-445b-4c68-a097-730c6a6d47e7?inc=recordings' =>
+    '<?xml version="1.0" encoding="UTF-8"?>
+<metadata xmlns="http://musicbrainz.org/ns/mmd-2.0#">
+    <release id="b3b7e934-445b-4c68-a097-730c6a6d47e7">
+        <title>Testy</title>
+        <status id="41121bb9-3413-3818-8a9a-9742318349aa">Pseudo-Release</status>
+        <quality>normal</quality>
+        <text-representation>
+            <language>jpn</language>
+            <script>Latn</script>
+        </text-representation>
+        <date>2001-07-04</date>
+        <country>JP</country>
+        <release-event-list count="1">
+            <release-event>
+                <date>2001-07-04</date>
+                <area id="2db42837-c832-3c27-b4a3-08198f75693c">
+                    <name>Japan</name>
+                    <sort-name>Japan</sort-name>
+                    <iso-3166-1-code-list>
+                        <iso-3166-1-code>JP</iso-3166-1-code>
+                    </iso-3166-1-code-list>
+                </area>
+            </release-event>
+        </release-event-list>
+        <barcode>4942463511227</barcode>
+        <asin>B00005LA6G</asin>
+        <cover-art-archive>
+            <artwork>false</artwork>
+            <count>0</count>
+            <front>false</front>
+            <back>false</back>
+        </cover-art-archive>
+        <medium-list count="1">
+          <medium>
+            <position>1</position>
+            <format id="9712d52a-4509-3d4b-a1a2-67c88c643e31">CD</format>
+            <track-list count="0" />
+          </medium>
+        </medium-list>
+      </release>
 </metadata>';
 
 ws_test 'release lookup, barcode is NULL',
@@ -645,7 +702,7 @@ ws_test 'release lookup, relation attributes',
                 <attribute-list>
                     <attribute type-id="e0039285-6667-4f94-80d6-aa6520c6d359">executive</attribute>
                 </attribute-list>
-                <artist id="4d5ec626-2251-4bb1-b62a-f24f471e3f2c">
+                <artist id="4d5ec626-2251-4bb1-b62a-f24f471e3f2c" type="Person" type-id="b6e035f4-3ce9-331c-97df-83397230b0df">
                     <name>이수만</name>
                     <sort-name>Lee, Soo-Man</sort-name>
                 </artist>
@@ -654,6 +711,7 @@ ws_test 'release lookup, relation attributes',
         <relation-list target-type="release">
             <relation type="transl-tracklisting" type-id="fc399d47-23a7-4c28-bfcf-0607a562b644">
                 <target>757a1723-3769-4298-89cd-48d31177852a</target>
+                <direction>forward</direction>
                 <release id="757a1723-3769-4298-89cd-48d31177852a">
                     <title>LOVE &amp; HONESTY</title>
                     <quality>normal</quality>
@@ -694,7 +752,7 @@ ws_test 'release lookup, related artists have no tags',
     </text-representation>
     <artist-credit>
       <name-credit>
-        <artist id="3088b672-fba9-4b4b-8ae0-dce13babfbb4">
+        <artist id="3088b672-fba9-4b4b-8ae0-dce13babfbb4" type="Group" type-id="e431f5f6-b5d2-343d-8b36-72607fffb74b">
           <name>Plone</name><sort-name>Plone</sort-name>
           <tag-list>
             <tag count="1">
@@ -749,12 +807,14 @@ ws_test 'release lookup, related artists have no tags',
               <title>On My Bus</title><length>267560</length>
               <relation-list target-type="artist">
                 <relation type-id="5c0ceac3-feb4-41f0-868d-dc06f6e27fc0" type="producer">
-                  <target>3088b672-fba9-4b4b-8ae0-dce13babfbb4</target><direction>backward</direction>
-                  <artist id="3088b672-fba9-4b4b-8ae0-dce13babfbb4">
+                  <target>3088b672-fba9-4b4b-8ae0-dce13babfbb4</target>
+                  <direction>backward</direction>
+                  <artist id="3088b672-fba9-4b4b-8ae0-dce13babfbb4" type="Group" type-id="e431f5f6-b5d2-343d-8b36-72607fffb74b">
                     <name>Plone</name><sort-name>Plone</sort-name>
                   </artist>
                 </relation>
               </relation-list>
+              <first-release-date>1999-09-13</first-release-date>
             </recording>
           </track>
           <track id="f38b8e31-a10d-3973-8c1f-10923ee61adc">
@@ -763,12 +823,14 @@ ws_test 'release lookup, related artists have no tags',
               <title>Top &amp; Low Rent</title><length>230506</length>
               <relation-list target-type="artist">
                 <relation type-id="5c0ceac3-feb4-41f0-868d-dc06f6e27fc0" type="producer">
-                  <target>3088b672-fba9-4b4b-8ae0-dce13babfbb4</target><direction>backward</direction>
-                  <artist id="3088b672-fba9-4b4b-8ae0-dce13babfbb4">
+                  <target>3088b672-fba9-4b4b-8ae0-dce13babfbb4</target>
+                  <direction>backward</direction>
+                  <artist id="3088b672-fba9-4b4b-8ae0-dce13babfbb4" type="Group" type-id="e431f5f6-b5d2-343d-8b36-72607fffb74b">
                     <name>Plone</name><sort-name>Plone</sort-name>
                   </artist>
                 </relation>
               </relation-list>
+              <first-release-date>1999-09-13</first-release-date>
             </recording>
           </track>
           <track id="d17bed32-940a-3fcc-9210-a5d7c516b4bb">
@@ -777,12 +839,14 @@ ws_test 'release lookup, related artists have no tags',
               <title>Plock</title><length>237133</length>
               <relation-list target-type="artist">
                 <relation type-id="5c0ceac3-feb4-41f0-868d-dc06f6e27fc0" type="producer">
-                  <target>3088b672-fba9-4b4b-8ae0-dce13babfbb4</target><direction>backward</direction>
-                  <artist id="3088b672-fba9-4b4b-8ae0-dce13babfbb4">
+                  <target>3088b672-fba9-4b4b-8ae0-dce13babfbb4</target>
+                  <direction>backward</direction>
+                  <artist id="3088b672-fba9-4b4b-8ae0-dce13babfbb4" type="Group" type-id="e431f5f6-b5d2-343d-8b36-72607fffb74b">
                     <name>Plone</name><sort-name>Plone</sort-name>
                   </artist>
                 </relation>
               </relation-list>
+              <first-release-date>1999-09-13</first-release-date>
             </recording>
           </track>
           <track id="001bc675-ba25-32bc-9914-d5d9e22c3c44">
@@ -791,12 +855,14 @@ ws_test 'release lookup, related artists have no tags',
               <title>Marbles</title><length>229826</length>
               <relation-list target-type="artist">
                 <relation type-id="5c0ceac3-feb4-41f0-868d-dc06f6e27fc0" type="producer">
-                  <target>3088b672-fba9-4b4b-8ae0-dce13babfbb4</target><direction>backward</direction>
-                  <artist id="3088b672-fba9-4b4b-8ae0-dce13babfbb4">
+                  <target>3088b672-fba9-4b4b-8ae0-dce13babfbb4</target>
+                  <direction>backward</direction>
+                  <artist id="3088b672-fba9-4b4b-8ae0-dce13babfbb4" type="Group" type-id="e431f5f6-b5d2-343d-8b36-72607fffb74b">
                     <name>Plone</name><sort-name>Plone</sort-name>
                   </artist>
                 </relation>
               </relation-list>
+              <first-release-date>1999-09-13</first-release-date>
             </recording>
           </track>
           <track id="c009176f-ff26-3f5f-bd16-46cede30ebe6">
@@ -805,12 +871,14 @@ ws_test 'release lookup, related artists have no tags',
               <title>Busy Working</title><length>217440</length>
               <relation-list target-type="artist">
                 <relation type-id="5c0ceac3-feb4-41f0-868d-dc06f6e27fc0" type="producer">
-                  <target>3088b672-fba9-4b4b-8ae0-dce13babfbb4</target><direction>backward</direction>
-                  <artist id="3088b672-fba9-4b4b-8ae0-dce13babfbb4">
+                  <target>3088b672-fba9-4b4b-8ae0-dce13babfbb4</target>
+                  <direction>backward</direction>
+                  <artist id="3088b672-fba9-4b4b-8ae0-dce13babfbb4" type="Group" type-id="e431f5f6-b5d2-343d-8b36-72607fffb74b">
                     <name>Plone</name><sort-name>Plone</sort-name>
                   </artist>
                 </relation>
               </relation-list>
+              <first-release-date>1999-09-13</first-release-date>
             </recording>
           </track>
           <track id="70454e43-b39b-3ca7-8c50-ae235b5ef358">
@@ -819,12 +887,14 @@ ws_test 'release lookup, related artists have no tags',
               <title>The Greek Alphabet</title><length>227293</length>
               <relation-list target-type="artist">
                 <relation type-id="5c0ceac3-feb4-41f0-868d-dc06f6e27fc0" type="producer">
-                  <target>3088b672-fba9-4b4b-8ae0-dce13babfbb4</target><direction>backward</direction>
-                  <artist id="3088b672-fba9-4b4b-8ae0-dce13babfbb4">
+                  <target>3088b672-fba9-4b4b-8ae0-dce13babfbb4</target>
+                  <direction>backward</direction>
+                  <artist id="3088b672-fba9-4b4b-8ae0-dce13babfbb4" type="Group" type-id="e431f5f6-b5d2-343d-8b36-72607fffb74b">
                     <name>Plone</name><sort-name>Plone</sort-name>
                   </artist>
                 </relation>
               </relation-list>
+              <first-release-date>1999-09-13</first-release-date>
             </recording>
           </track>
           <track id="1b5da50c-e20f-3762-839c-5a0eea89d6a5">
@@ -833,12 +903,14 @@ ws_test 'release lookup, related artists have no tags',
               <title>Press a Key</title><length>244506</length>
               <relation-list target-type="artist">
                 <relation type-id="5c0ceac3-feb4-41f0-868d-dc06f6e27fc0" type="producer">
-                  <target>3088b672-fba9-4b4b-8ae0-dce13babfbb4</target><direction>backward</direction>
-                  <artist id="3088b672-fba9-4b4b-8ae0-dce13babfbb4">
+                  <target>3088b672-fba9-4b4b-8ae0-dce13babfbb4</target>
+                  <direction>backward</direction>
+                  <artist id="3088b672-fba9-4b4b-8ae0-dce13babfbb4" type="Group" type-id="e431f5f6-b5d2-343d-8b36-72607fffb74b">
                     <name>Plone</name><sort-name>Plone</sort-name>
                   </artist>
                 </relation>
               </relation-list>
+              <first-release-date>1999-09-13</first-release-date>
             </recording>
           </track>
           <track id="f1b5bd23-ad01-3c0c-a49a-cf8e99088369">
@@ -847,12 +919,14 @@ ws_test 'release lookup, related artists have no tags',
               <title>Bibi Plone</title><length>173960</length>
               <relation-list target-type="artist">
                 <relation type-id="5c0ceac3-feb4-41f0-868d-dc06f6e27fc0" type="producer">
-                  <target>3088b672-fba9-4b4b-8ae0-dce13babfbb4</target><direction>backward</direction>
-                  <artist id="3088b672-fba9-4b4b-8ae0-dce13babfbb4">
+                  <target>3088b672-fba9-4b4b-8ae0-dce13babfbb4</target>
+                  <direction>backward</direction>
+                  <artist id="3088b672-fba9-4b4b-8ae0-dce13babfbb4" type="Group" type-id="e431f5f6-b5d2-343d-8b36-72607fffb74b">
                     <name>Plone</name><sort-name>Plone</sort-name>
                   </artist>
                 </relation>
               </relation-list>
+              <first-release-date>1999-09-13</first-release-date>
             </recording>
           </track>
           <track id="928f2274-5694-35f9-92da-a1fc565867cf">
@@ -861,12 +935,14 @@ ws_test 'release lookup, related artists have no tags',
               <title>Be Rude to Your School</title><length>208706</length>
               <relation-list target-type="artist">
                 <relation type-id="5c0ceac3-feb4-41f0-868d-dc06f6e27fc0" type="producer">
-                  <target>3088b672-fba9-4b4b-8ae0-dce13babfbb4</target><direction>backward</direction>
-                  <artist id="3088b672-fba9-4b4b-8ae0-dce13babfbb4">
+                  <target>3088b672-fba9-4b4b-8ae0-dce13babfbb4</target>
+                  <direction>backward</direction>
+                  <artist id="3088b672-fba9-4b4b-8ae0-dce13babfbb4" type="Group" type-id="e431f5f6-b5d2-343d-8b36-72607fffb74b">
                     <name>Plone</name><sort-name>Plone</sort-name>
                   </artist>
                 </relation>
               </relation-list>
+              <first-release-date>1999-09-13</first-release-date>
             </recording>
           </track>
           <track id="40727388-237d-34b2-8a3a-288878e5c883">
@@ -875,12 +951,14 @@ ws_test 'release lookup, related artists have no tags',
               <title>Summer Plays Out</title><length>320067</length>
               <relation-list target-type="artist">
                 <relation type-id="5c0ceac3-feb4-41f0-868d-dc06f6e27fc0" type="producer">
-                  <target>3088b672-fba9-4b4b-8ae0-dce13babfbb4</target><direction>backward</direction>
-                  <artist id="3088b672-fba9-4b4b-8ae0-dce13babfbb4">
+                  <target>3088b672-fba9-4b4b-8ae0-dce13babfbb4</target>
+                  <direction>backward</direction>
+                  <artist id="3088b672-fba9-4b4b-8ae0-dce13babfbb4" type="Group" type-id="e431f5f6-b5d2-343d-8b36-72607fffb74b">
                     <name>Plone</name><sort-name>Plone</sort-name>
                   </artist>
                 </relation>
               </relation-list>
+              <first-release-date>1999-09-13</first-release-date>
             </recording>
           </track>
         </track-list>
@@ -888,8 +966,9 @@ ws_test 'release lookup, related artists have no tags',
     </medium-list>
     <relation-list target-type="artist">
       <relation type-id="307e95dd-88b5-419b-8223-b146d4a0d439" type="design/illustration">
-        <target>3088b672-fba9-4b4b-8ae0-dce13babfbb4</target><direction>backward</direction>
-        <artist id="3088b672-fba9-4b4b-8ae0-dce13babfbb4">
+        <target>3088b672-fba9-4b4b-8ae0-dce13babfbb4</target>
+        <direction>backward</direction>
+        <artist id="3088b672-fba9-4b4b-8ae0-dce13babfbb4" type="Group" type-id="e431f5f6-b5d2-343d-8b36-72607fffb74b">
           <name>Plone</name><sort-name>Plone</sort-name>
         </artist>
       </relation>
@@ -910,7 +989,7 @@ ws_test 'release lookup, track artists have no aliases',
     </text-representation>
     <artist-credit>
       <name-credit>
-        <artist id="22dd2db3-88ea-4428-a7a8-5cd3acf23175">
+        <artist id="22dd2db3-88ea-4428-a7a8-5cd3acf23175" type="Group" type-id="e431f5f6-b5d2-343d-8b36-72607fffb74b">
           <name>m-flo</name><sort-name>m-flo</sort-name>
           <alias-list count="6">
             <alias sort-name="m-flow">m-flow</alias><alias sort-name="mediarite-flow crew">mediarite-flow crew</alias><alias sort-name="meteorite-flow crew">meteorite-flow crew</alias><alias sort-name="mflo">mflo</alias><alias sort-name="えむふろう">えむふろう</alias><alias sort-name="エムフロウ">エムフロウ</alias>
@@ -945,7 +1024,7 @@ ws_test 'release lookup, track artists have no aliases',
               <title>the Love Bug</title><length>243000</length>
               <artist-credit>
                 <name-credit joinphrase="♥">
-                  <artist id="22dd2db3-88ea-4428-a7a8-5cd3acf23175">
+                  <artist id="22dd2db3-88ea-4428-a7a8-5cd3acf23175" type="Group" type-id="e431f5f6-b5d2-343d-8b36-72607fffb74b">
                     <name>m-flo</name><sort-name>m-flo</sort-name>
                     <alias-list count="6">
                       <alias sort-name="m-flow">m-flow</alias><alias sort-name="mediarite-flow crew">mediarite-flow crew</alias><alias sort-name="meteorite-flow crew">meteorite-flow crew</alias><alias sort-name="mflo">mflo</alias><alias sort-name="えむふろう">えむふろう</alias><alias sort-name="エムフロウ">エムフロウ</alias>
@@ -953,7 +1032,7 @@ ws_test 'release lookup, track artists have no aliases',
                   </artist>
                 </name-credit>
                 <name-credit>
-                  <artist id="a16d1433-ba89-4f72-a47b-a370add0bb55">
+                  <artist id="a16d1433-ba89-4f72-a47b-a370add0bb55" type="Person" type-id="b6e035f4-3ce9-331c-97df-83397230b0df">
                     <name>BoA</name><sort-name>BoA</sort-name>
                     <alias-list count="5">
                       <alias sort-name="Beat of Angel">Beat of Angel</alias>
@@ -967,27 +1046,31 @@ ws_test 'release lookup, track artists have no aliases',
               </artist-credit>
               <relation-list target-type="artist">
                 <relation type-id="5c0ceac3-feb4-41f0-868d-dc06f6e27fc0" type="producer">
-                  <target>22dd2db3-88ea-4428-a7a8-5cd3acf23175</target><direction>backward</direction>
-                  <artist id="22dd2db3-88ea-4428-a7a8-5cd3acf23175">
+                  <target>22dd2db3-88ea-4428-a7a8-5cd3acf23175</target>
+                  <direction>backward</direction>
+                  <artist id="22dd2db3-88ea-4428-a7a8-5cd3acf23175" type="Group" type-id="e431f5f6-b5d2-343d-8b36-72607fffb74b">
                     <name>m-flo</name><sort-name>m-flo</sort-name>
                   </artist>
                 </relation>
                 <relation type-id="36c50022-44e0-488d-994b-33f11d20301e" type="programming">
-                  <target>22dd2db3-88ea-4428-a7a8-5cd3acf23175</target><direction>backward</direction>
-                  <artist id="22dd2db3-88ea-4428-a7a8-5cd3acf23175">
+                  <target>22dd2db3-88ea-4428-a7a8-5cd3acf23175</target>
+                  <direction>backward</direction>
+                  <artist id="22dd2db3-88ea-4428-a7a8-5cd3acf23175" type="Group" type-id="e431f5f6-b5d2-343d-8b36-72607fffb74b">
                     <name>m-flo</name><sort-name>m-flo</sort-name>
                   </artist>
                 </relation>
                 <relation type-id="0fdbe3c6-7700-4a31-ae54-b53f06ae1cfa" type="vocal">
-                  <target>a16d1433-ba89-4f72-a47b-a370add0bb55</target><direction>backward</direction>
+                  <target>a16d1433-ba89-4f72-a47b-a370add0bb55</target>
+                  <direction>backward</direction>
                   <attribute-list>
                     <attribute type-id="b3045913-62ac-433e-9211-ac683cdf6b5c">guest</attribute>
                   </attribute-list>
-                  <artist id="a16d1433-ba89-4f72-a47b-a370add0bb55">
+                  <artist id="a16d1433-ba89-4f72-a47b-a370add0bb55" type="Person" type-id="b6e035f4-3ce9-331c-97df-83397230b0df">
                     <name>BoA</name><sort-name>BoA</sort-name>
                   </artist>
                 </relation>
               </relation-list>
+              <first-release-date>2004-03-17</first-release-date>
             </recording>
           </track>
           <track id="2519283c-93d9-30de-a0ba-75f99ca25604">
@@ -996,7 +1079,7 @@ ws_test 'release lookup, track artists have no aliases',
               <title>the Love Bug (Big Bug NYC remix)</title><length>222000</length>
               <artist-credit>
                 <name-credit joinphrase="♥">
-                  <artist id="22dd2db3-88ea-4428-a7a8-5cd3acf23175">
+                  <artist id="22dd2db3-88ea-4428-a7a8-5cd3acf23175" type="Group" type-id="e431f5f6-b5d2-343d-8b36-72607fffb74b">
                     <name>m-flo</name><sort-name>m-flo</sort-name>
                     <alias-list count="6">
                       <alias sort-name="m-flow">m-flow</alias><alias sort-name="mediarite-flow crew">mediarite-flow crew</alias><alias sort-name="meteorite-flow crew">meteorite-flow crew</alias><alias sort-name="mflo">mflo</alias><alias sort-name="えむふろう">えむふろう</alias><alias sort-name="エムフロウ">エムフロウ</alias>
@@ -1004,7 +1087,7 @@ ws_test 'release lookup, track artists have no aliases',
                   </artist>
                 </name-credit>
                 <name-credit>
-                  <artist id="a16d1433-ba89-4f72-a47b-a370add0bb55">
+                  <artist id="a16d1433-ba89-4f72-a47b-a370add0bb55" type="Person" type-id="b6e035f4-3ce9-331c-97df-83397230b0df">
                     <name>BoA</name><sort-name>BoA</sort-name>
                     <alias-list count="5">
                       <alias sort-name="Beat of Angel">Beat of Angel</alias>
@@ -1016,6 +1099,7 @@ ws_test 'release lookup, track artists have no aliases',
                   </artist>
                 </name-credit>
               </artist-credit>
+              <first-release-date>2004-03-17</first-release-date>
             </recording>
           </track>
           <track id="4ffc18f0-96cc-3e1f-8192-cf0d0c489beb">
@@ -1029,6 +1113,7 @@ ws_test 'release lookup, track artists have no aliases',
                   </artist>
                 </name-credit>
               </artist-credit>
+              <first-release-date>2004-03-17</first-release-date>
             </recording>
           </track>
         </track-list>
@@ -1051,7 +1136,7 @@ ws_test 'release lookup, tags are not duplicated for artists that are both relea
     </text-representation>
     <artist-credit>
       <name-credit>
-        <artist id="3088b672-fba9-4b4b-8ae0-dce13babfbb4">
+        <artist id="3088b672-fba9-4b4b-8ae0-dce13babfbb4" type="Group" type-id="e431f5f6-b5d2-343d-8b36-72607fffb74b">
           <name>Plone</name>
           <sort-name>Plone</sort-name>
           <tag-list>
@@ -1116,7 +1201,7 @@ ws_test 'release lookup, tags are not duplicated for artists that are both relea
               <length>267560</length>
               <artist-credit>
                 <name-credit>
-                  <artist id="3088b672-fba9-4b4b-8ae0-dce13babfbb4">
+                  <artist id="3088b672-fba9-4b4b-8ae0-dce13babfbb4" type="Group" type-id="e431f5f6-b5d2-343d-8b36-72607fffb74b">
                     <name>Plone</name>
                     <sort-name>Plone</sort-name>
                     <tag-list>
@@ -1145,6 +1230,7 @@ ws_test 'release lookup, tags are not duplicated for artists that are both relea
                   </artist>
                 </name-credit>
               </artist-credit>
+              <first-release-date>1999-09-13</first-release-date>
             </recording>
           </track>
           <track id="f38b8e31-a10d-3973-8c1f-10923ee61adc">
@@ -1156,7 +1242,7 @@ ws_test 'release lookup, tags are not duplicated for artists that are both relea
               <length>230506</length>
               <artist-credit>
                 <name-credit>
-                  <artist id="3088b672-fba9-4b4b-8ae0-dce13babfbb4">
+                  <artist id="3088b672-fba9-4b4b-8ae0-dce13babfbb4" type="Group" type-id="e431f5f6-b5d2-343d-8b36-72607fffb74b">
                     <name>Plone</name>
                     <sort-name>Plone</sort-name>
                     <tag-list>
@@ -1185,6 +1271,7 @@ ws_test 'release lookup, tags are not duplicated for artists that are both relea
                   </artist>
                 </name-credit>
               </artist-credit>
+              <first-release-date>1999-09-13</first-release-date>
             </recording>
           </track>
           <track id="d17bed32-940a-3fcc-9210-a5d7c516b4bb">
@@ -1196,7 +1283,7 @@ ws_test 'release lookup, tags are not duplicated for artists that are both relea
               <length>237133</length>
               <artist-credit>
                 <name-credit>
-                  <artist id="3088b672-fba9-4b4b-8ae0-dce13babfbb4">
+                  <artist id="3088b672-fba9-4b4b-8ae0-dce13babfbb4" type="Group" type-id="e431f5f6-b5d2-343d-8b36-72607fffb74b">
                     <name>Plone</name>
                     <sort-name>Plone</sort-name>
                     <tag-list>
@@ -1225,6 +1312,7 @@ ws_test 'release lookup, tags are not duplicated for artists that are both relea
                   </artist>
                 </name-credit>
               </artist-credit>
+              <first-release-date>1999-09-13</first-release-date>
             </recording>
           </track>
           <track id="001bc675-ba25-32bc-9914-d5d9e22c3c44">
@@ -1236,7 +1324,7 @@ ws_test 'release lookup, tags are not duplicated for artists that are both relea
               <length>229826</length>
               <artist-credit>
                 <name-credit>
-                  <artist id="3088b672-fba9-4b4b-8ae0-dce13babfbb4">
+                  <artist id="3088b672-fba9-4b4b-8ae0-dce13babfbb4" type="Group" type-id="e431f5f6-b5d2-343d-8b36-72607fffb74b">
                     <name>Plone</name>
                     <sort-name>Plone</sort-name>
                     <tag-list>
@@ -1265,6 +1353,7 @@ ws_test 'release lookup, tags are not duplicated for artists that are both relea
                   </artist>
                 </name-credit>
               </artist-credit>
+              <first-release-date>1999-09-13</first-release-date>
             </recording>
           </track>
           <track id="c009176f-ff26-3f5f-bd16-46cede30ebe6">
@@ -1276,7 +1365,7 @@ ws_test 'release lookup, tags are not duplicated for artists that are both relea
               <length>217440</length>
               <artist-credit>
                 <name-credit>
-                  <artist id="3088b672-fba9-4b4b-8ae0-dce13babfbb4">
+                  <artist id="3088b672-fba9-4b4b-8ae0-dce13babfbb4" type="Group" type-id="e431f5f6-b5d2-343d-8b36-72607fffb74b">
                     <name>Plone</name>
                     <sort-name>Plone</sort-name>
                     <tag-list>
@@ -1305,6 +1394,7 @@ ws_test 'release lookup, tags are not duplicated for artists that are both relea
                   </artist>
                 </name-credit>
               </artist-credit>
+              <first-release-date>1999-09-13</first-release-date>
             </recording>
           </track>
           <track id="70454e43-b39b-3ca7-8c50-ae235b5ef358">
@@ -1316,7 +1406,7 @@ ws_test 'release lookup, tags are not duplicated for artists that are both relea
               <length>227293</length>
               <artist-credit>
                 <name-credit>
-                  <artist id="3088b672-fba9-4b4b-8ae0-dce13babfbb4">
+                  <artist id="3088b672-fba9-4b4b-8ae0-dce13babfbb4" type="Group" type-id="e431f5f6-b5d2-343d-8b36-72607fffb74b">
                     <name>Plone</name>
                     <sort-name>Plone</sort-name>
                     <tag-list>
@@ -1345,6 +1435,7 @@ ws_test 'release lookup, tags are not duplicated for artists that are both relea
                   </artist>
                 </name-credit>
               </artist-credit>
+              <first-release-date>1999-09-13</first-release-date>
             </recording>
           </track>
           <track id="1b5da50c-e20f-3762-839c-5a0eea89d6a5">
@@ -1356,7 +1447,7 @@ ws_test 'release lookup, tags are not duplicated for artists that are both relea
               <length>244506</length>
               <artist-credit>
                 <name-credit>
-                  <artist id="3088b672-fba9-4b4b-8ae0-dce13babfbb4">
+                  <artist id="3088b672-fba9-4b4b-8ae0-dce13babfbb4" type="Group" type-id="e431f5f6-b5d2-343d-8b36-72607fffb74b">
                     <name>Plone</name>
                     <sort-name>Plone</sort-name>
                     <tag-list>
@@ -1385,6 +1476,7 @@ ws_test 'release lookup, tags are not duplicated for artists that are both relea
                   </artist>
                 </name-credit>
               </artist-credit>
+              <first-release-date>1999-09-13</first-release-date>
             </recording>
           </track>
           <track id="f1b5bd23-ad01-3c0c-a49a-cf8e99088369">
@@ -1396,7 +1488,7 @@ ws_test 'release lookup, tags are not duplicated for artists that are both relea
               <length>173960</length>
               <artist-credit>
                 <name-credit>
-                  <artist id="3088b672-fba9-4b4b-8ae0-dce13babfbb4">
+                  <artist id="3088b672-fba9-4b4b-8ae0-dce13babfbb4" type="Group" type-id="e431f5f6-b5d2-343d-8b36-72607fffb74b">
                     <name>Plone</name>
                     <sort-name>Plone</sort-name>
                     <tag-list>
@@ -1425,6 +1517,7 @@ ws_test 'release lookup, tags are not duplicated for artists that are both relea
                   </artist>
                 </name-credit>
               </artist-credit>
+              <first-release-date>1999-09-13</first-release-date>
             </recording>
           </track>
           <track id="928f2274-5694-35f9-92da-a1fc565867cf">
@@ -1436,7 +1529,7 @@ ws_test 'release lookup, tags are not duplicated for artists that are both relea
               <length>208706</length>
               <artist-credit>
                 <name-credit>
-                  <artist id="3088b672-fba9-4b4b-8ae0-dce13babfbb4">
+                  <artist id="3088b672-fba9-4b4b-8ae0-dce13babfbb4" type="Group" type-id="e431f5f6-b5d2-343d-8b36-72607fffb74b">
                     <name>Plone</name>
                     <sort-name>Plone</sort-name>
                     <tag-list>
@@ -1465,6 +1558,7 @@ ws_test 'release lookup, tags are not duplicated for artists that are both relea
                   </artist>
                 </name-credit>
               </artist-credit>
+              <first-release-date>1999-09-13</first-release-date>
             </recording>
           </track>
           <track id="40727388-237d-34b2-8a3a-288878e5c883">
@@ -1476,7 +1570,7 @@ ws_test 'release lookup, tags are not duplicated for artists that are both relea
               <length>320067</length>
               <artist-credit>
                 <name-credit>
-                  <artist id="3088b672-fba9-4b4b-8ae0-dce13babfbb4">
+                  <artist id="3088b672-fba9-4b4b-8ae0-dce13babfbb4" type="Group" type-id="e431f5f6-b5d2-343d-8b36-72607fffb74b">
                     <name>Plone</name>
                     <sort-name>Plone</sort-name>
                     <tag-list>
@@ -1505,6 +1599,7 @@ ws_test 'release lookup, tags are not duplicated for artists that are both relea
                   </artist>
                 </name-credit>
               </artist-credit>
+              <first-release-date>1999-09-13</first-release-date>
             </recording>
           </track>
         </track-list>
@@ -1527,7 +1622,7 @@ ws_test 'release lookup, pregap track',
     </text-representation>
     <artist-credit>
       <name-credit>
-        <artist id="38c5cdab-5d6d-43d1-85b0-dac41bde186e">
+        <artist id="38c5cdab-5d6d-43d1-85b0-dac41bde186e" type="Group" type-id="e431f5f6-b5d2-343d-8b36-72607fffb74b">
           <name>Blind Melon</name>
           <sort-name>Blind Melon</sort-name>
         </artist>
@@ -1553,7 +1648,7 @@ ws_test 'release lookup, pregap track',
             <length>128000</length>
             <artist-credit>
               <name-credit>
-                <artist id="38c5cdab-5d6d-43d1-85b0-dac41bde186e">
+                <artist id="38c5cdab-5d6d-43d1-85b0-dac41bde186e" type="Group" type-id="e431f5f6-b5d2-343d-8b36-72607fffb74b">
                   <name>Blind Melon</name>
                   <sort-name>Blind Melon</sort-name>
                 </artist>
@@ -1572,7 +1667,7 @@ ws_test 'release lookup, pregap track',
               <length>211133</length>
               <artist-credit>
                 <name-credit>
-                  <artist id="38c5cdab-5d6d-43d1-85b0-dac41bde186e">
+                  <artist id="38c5cdab-5d6d-43d1-85b0-dac41bde186e" type="Group" type-id="e431f5f6-b5d2-343d-8b36-72607fffb74b">
                     <name>Blind Melon</name>
                     <sort-name>Blind Melon</sort-name>
                   </artist>
@@ -1589,7 +1684,7 @@ ws_test 'release lookup, pregap track',
               <length>240400</length>
               <artist-credit>
                 <name-credit>
-                  <artist id="38c5cdab-5d6d-43d1-85b0-dac41bde186e">
+                  <artist id="38c5cdab-5d6d-43d1-85b0-dac41bde186e" type="Group" type-id="e431f5f6-b5d2-343d-8b36-72607fffb74b">
                     <name>Blind Melon</name>
                     <sort-name>Blind Melon</sort-name>
                   </artist>
@@ -1620,7 +1715,7 @@ test 'MBS-7914' => sub {
     <quality>normal</quality>
     <artist-credit>
       <name-credit>
-        <artist id="8d610e51-64b4-4654-b8df-064b0fb7a9d9">
+        <artist id="8d610e51-64b4-4654-b8df-064b0fb7a9d9" type="Person" type-id="b6e035f4-3ce9-331c-97df-83397230b0df">
           <name>Gustav Mahler</name>
           <sort-name>Mahler, Gustav</sort-name>
           <alias-list count="1">
@@ -1644,7 +1739,7 @@ test 'MBS-7914' => sub {
             <number>1</number>
             <artist-credit>
               <name-credit>
-                <artist id="8d610e51-64b4-4654-b8df-064b0fb7a9d9">
+                <artist id="8d610e51-64b4-4654-b8df-064b0fb7a9d9" type="Person" type-id="b6e035f4-3ce9-331c-97df-83397230b0df">
                   <name>Gustav Mahler</name>
                   <sort-name>Mahler, Gustav</sort-name>
                   <alias-list count="1">
@@ -1657,7 +1752,7 @@ test 'MBS-7914' => sub {
               <title>Symphony no. 2 in C minor: I. Allegro maestoso</title>
               <artist-credit>
                 <name-credit>
-                  <artist id="509c772e-1164-4457-8d09-0553cfa77d64">
+                  <artist id="509c772e-1164-4457-8d09-0553cfa77d64" type="Orchestra" type-id="a0b36c92-3eb1-3839-a4f9-4799823f54a5">
                     <name>Chicago Symphony Orchestra</name>
                     <sort-name>Chicago Symphony Orchestra</sort-name>
                     <alias-list count="1">

@@ -1,5 +1,5 @@
 /*
- * @flow
+ * @flow strict-local
  * Copyright (C) 2018 MetaBrainz Foundation
  *
  * This file is part of MusicBrainz, the open internet music database,
@@ -7,12 +7,16 @@
  * later version: http://www.gnu.org/licenses/gpl-2.0.txt
  */
 
-import React from 'react';
+import * as React from 'react';
 
-import {withCatalystContext} from '../../context';
 import ArtistListEntry
   from '../../static/scripts/common/components/ArtistListEntry';
-import type {InlineResultsPropsT, ResultsPropsWithContextT} from '../types';
+import {isEditingEnabled}
+  from '../../static/scripts/common/utility/privileges';
+import type {
+  InlineResultsPropsWithContextT,
+  ResultsPropsWithContextT,
+} from '../types';
 
 import PaginatedSearchResults from './PaginatedSearchResults';
 import ResultsLayout from './ResultsLayout';
@@ -37,9 +41,10 @@ export const ArtistResultsInline = ({
   pager,
   query,
   results,
-}: InlineResultsPropsT<ArtistT>) => (
+}: InlineResultsPropsWithContextT<ArtistT>):
+React.Element<typeof PaginatedSearchResults> => (
   <PaginatedSearchResults
-    buildResult={buildResult}
+    buildResult={(result, index) => buildResult(result, index)}
     columns={
       <>
         <th>{l('Name')}</th>
@@ -66,14 +71,15 @@ const ArtistResults = ({
   pager,
   query,
   results,
-}: ResultsPropsWithContextT<ArtistT>) => (
+}: ResultsPropsWithContextT<ArtistT>):
+React.Element<typeof ResultsLayout> => (
   <ResultsLayout form={form} lastUpdated={lastUpdated}>
     <ArtistResultsInline
       pager={pager}
       query={query}
       results={results}
     />
-    {$c.user && !$c.user.is_editing_disabled ? (
+    {isEditingEnabled($c.user) ? (
       <p>
         {exp.l('Alternatively, you may {uri|add a new artist}.', {
           uri: '/artist/create?edit-artist.name=' + encodeURIComponent(query),
@@ -83,4 +89,4 @@ const ArtistResults = ({
   </ResultsLayout>
 );
 
-export default withCatalystContext(ArtistResults);
+export default ArtistResults;

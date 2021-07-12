@@ -7,6 +7,8 @@ use Digest::SHA qw(sha1_base64);
 use JSON;
 use List::MoreUtils qw( uniq );
 use MusicBrainz::Server::ControllerUtils::JSON qw( serialize_pager );
+use MusicBrainz::Server::Data::Utils qw( boolean_to_json );
+use MusicBrainz::Server::Entity::Util::JSON qw( to_json_array );
 use MusicBrainz::Server::Form::Utils qw(
     build_grouped_options
     language_options
@@ -170,7 +172,7 @@ sub _send_password_reset_email
     };
 }
 
-sub lost_password : Path('/lost-password') ForbiddenOnSlaves
+sub lost_password : Path('/lost-password') ForbiddenOnSlaves SecureForm
 {
     my ($self, $c) = @_;
 
@@ -183,8 +185,7 @@ sub lost_password : Path('/lost-password') ForbiddenOnSlaves
     }
 
     my $form = $c->form( form => 'User::LostPassword' );
-
-    if ($c->form_posted && $form->submitted_and_valid($c->req->params)) {
+    if ($c->form_posted_and_valid($form)) {
         my $username = $form->field('username')->value;
         my $email = $form->field('email')->value;
 
@@ -214,13 +215,13 @@ sub lost_password : Path('/lost-password') ForbiddenOnSlaves
         current_view => 'Node',
         component_path => 'account/LostPassword',
         component_props => {
-            form => $form,
+            form => $form->TO_JSON,
         },
     );
     $c->detach;
 }
 
-sub reset_password : Path('/reset-password') ForbiddenOnSlaves DenyWhenReadonly
+sub reset_password : Path('/reset-password') ForbiddenOnSlaves DenyWhenReadonly SecureForm
 {
     my ($self, $c) = @_;
 
@@ -287,8 +288,7 @@ sub reset_password : Path('/reset-password') ForbiddenOnSlaves DenyWhenReadonly
 
     my $form = $c->form( form => 'User::ResetPassword' );
 
-    if ($c->form_posted && $form->submitted_and_valid($c->req->params)) {
-
+    if ($c->form_posted_and_valid($form)) {
         my $password = $form->field('password')->value;
         $c->model('Editor')->update_password($editor->name, $password);
 
@@ -303,7 +303,7 @@ sub reset_password : Path('/reset-password') ForbiddenOnSlaves DenyWhenReadonly
     $c->stash->{form} = $form;
 }
 
-sub lost_username : Path('/lost-username') ForbiddenOnSlaves
+sub lost_username : Path('/lost-username') ForbiddenOnSlaves SecureForm
 {
     my ($self, $c) = @_;
 
@@ -317,7 +317,7 @@ sub lost_username : Path('/lost-username') ForbiddenOnSlaves
 
     my $form = $c->form( form => 'User::LostUsername' );
 
-    if ($c->form_posted && $form->submitted_and_valid($c->req->params)) {
+    if ($c->form_posted_and_valid($form)) {
         my $email = $form->field('email')->value;
 
         my @editors = $c->model('Editor')->find_by_email($email);
@@ -338,7 +338,7 @@ sub lost_username : Path('/lost-username') ForbiddenOnSlaves
         current_view => 'Node',
         component_path => 'account/LostUsername',
         component_props => {
-            form => $form,
+            form => $form->TO_JSON,
         },
     );
     $c->detach;
@@ -351,7 +351,7 @@ request is received), update the profile data in the database.
 
 =cut
 
-sub edit : Local RequireAuth DenyWhenReadonly {
+sub edit : Local RequireAuth DenyWhenReadonly SecureForm {
     my ($self, $c) = @_;
 
     my $editor = $c->model('Editor')->get_by_id($c->user->id);
@@ -374,7 +374,7 @@ sub edit : Local RequireAuth DenyWhenReadonly {
         },
     );
 
-    if ($c->form_posted && $form->process( params => $c->req->params )) {
+    if ($c->form_posted_and_valid($form)) {
         my $old_username = $editor->name;
         my $new_username = $form->field('username')->value;
 
@@ -423,7 +423,7 @@ sub edit : Local RequireAuth DenyWhenReadonly {
             current_view => 'Node',
             component_path => 'account/EditProfile',
             component_props => {
-                form => $form,
+                form => $form->TO_JSON,
                 language_options => {
                     grouped => JSON::true,
                     options => build_grouped_options($c, language_options($c, 'editor')),
@@ -443,7 +443,7 @@ when use to update the database data when we receive a valid POST request.
 
 =cut
 
-sub change_password : Path('/account/change-password') RequireSSL DenyWhenReadonly
+sub change_password : Path('/account/change-password') RequireSSL DenyWhenReadonly SecureForm
 {
     my ($self, $c) = @_;
 
@@ -465,7 +465,7 @@ sub change_password : Path('/account/change-password') RequireSSL DenyWhenReadon
         }
     );
 
-    if ($c->form_posted && $form->submitted_and_valid($c->req->params)) {
+    if ($c->form_posted_and_valid($form)) {
         my $password = $form->field('password')->value;
         $c->model('Editor')->update_password(
             $form->field('username')->value, $password);
@@ -481,7 +481,7 @@ Change the users preferences
 
 =cut
 
-sub preferences : Path('/account/preferences') RequireAuth DenyWhenReadonly
+sub preferences : Path('/account/preferences') RequireAuth DenyWhenReadonly SecureForm
 {
     my ($self, $c) = @_;
 
@@ -498,8 +498,7 @@ sub preferences : Path('/account/preferences') RequireAuth DenyWhenReadonly
 
     my $form = $c->form( form => 'User::Preferences', item => $editor->preferences );
 
-    if ($c->form_posted &&
-        $form->process( params => $c->req->params )) {
+    if ($c->form_posted_and_valid($form)) {
         $c->model('Editor')->save_preferences($editor, $form->values);
 
         $c->user->preferences($editor->preferences);
@@ -512,7 +511,7 @@ sub preferences : Path('/account/preferences') RequireAuth DenyWhenReadonly
             current_view => 'Node',
             component_path => 'account/Preferences',
             component_props => {
-                form => $form,
+                form => $form->TO_JSON,
                 timezone_options => {
                     grouped => JSON::false,
                     options => [ map { {
@@ -534,7 +533,7 @@ new user.
 
 =cut
 
-sub register : Path('/register') ForbiddenOnSlaves RequireSSL DenyWhenReadonly
+sub register : Path('/register') ForbiddenOnSlaves RequireSSL DenyWhenReadonly SecureForm
 {
     my ($self, $c) = @_;
 
@@ -551,8 +550,7 @@ sub register : Path('/register') ForbiddenOnSlaves RequireSSL DenyWhenReadonly
                        defined DBDefs->RECAPTCHA_PUBLIC_KEY &&
                        defined DBDefs->RECAPTCHA_PRIVATE_KEY);
 
-    if ($c->form_posted && $form->submitted_and_valid($c->req->params)) {
-
+    if ($c->form_posted_and_valid($form)) {
         my $valid = 0;
         if ($use_captcha)
         {
@@ -584,10 +582,7 @@ sub register : Path('/register') ForbiddenOnSlaves RequireSSL DenyWhenReadonly
             my $user = MusicBrainz::Server::Authentication::User->new_from_editor($editor);
             $c->set_authenticated($user);
 
-            my $redirect = defined $c->req->query_params->{uri}
-              ? $c->req->query_params->{uri}
-              : $c->uri_for_action('/user/profile', [ $user->name ]);
-
+            my $redirect = $c->req->query_params->{returnto} // '';
             if ($redirect =~ /^\/discourse\/sso/) {
                 $c->stash(
                     current_view => 'Node',
@@ -599,7 +594,9 @@ sub register : Path('/register') ForbiddenOnSlaves RequireSSL DenyWhenReadonly
                 $c->detach;
             }
 
-            $c->response->redirect($redirect);
+            $c->redirect_back(
+                fallback => $c->uri_for_action('/user/profile', [ $user->name ]),
+            );
             $c->detach;
         }
         else
@@ -622,7 +619,7 @@ sub register : Path('/register') ForbiddenOnSlaves RequireSSL DenyWhenReadonly
 
 =head2 resend_verification
 
-Send out an email allowing users to confirm their email address, from the web
+Send out an email allowing users to verify their email address, from the web
 
 =cut
 
@@ -639,7 +636,7 @@ sub resend_verification : Path('/account/resend-verification') ForbiddenOnSlaves
 
 =head2 _send_confirmation_email
 
-Send out an email allowing users to confirm their email address
+Send out an email allowing users to verify their email address
 
 =cut
 
@@ -655,17 +652,27 @@ sub _send_confirmation_email
         chk    => $self->_checksum($email, $editor->id, $time),
     });
 
+    my $email_in_use = $c->model('Editor')->is_email_used_elsewhere($email, $editor->id);
+
     try {
-        $c->model('Email')->send_email_verification(
-            email             => $email,
-            verification_link => $verification_link,
-            ip                => $c->req->address,
-            editor            => $editor
-        );
+        if ($email_in_use) {
+            $c->model('Email')->send_email_in_use(
+                email             => $email,
+                ip                => $c->req->address,
+                editor            => $editor
+            );            
+        } else {
+            $c->model('Email')->send_email_verification(
+                email             => $email,
+                verification_link => $verification_link,
+                ip                => $c->req->address,
+                editor            => $editor
+            );
+        }
     }
     catch {
         $c->flash->{message} = l(
-            '<strong>We were unable to send a confirmation email to you.</strong><br/>Please confirm that you have entered a valid ' .
+            '<strong>We were unable to send a verification email to you.</strong><br/>Please confirm that you have entered a valid ' .
             'address by editing your {settings|account settings}. If the problem still persists, please contact us at ' .
             '{mail|support@musicbrainz.org}.',
             {
@@ -689,12 +696,15 @@ sub donation : Local RequireAuth HiddenOnSlaves
     my $result = $c->model('Editor')->donation_check($c->user);
     $c->detach('/error_500') unless $result;
 
+    # If nag is 0, don't nag - if 1 or -1 then nag
+    my $nag = $result->{nag} != 0;
+
     $c->stash(
         current_view => 'Node',
         component_path => 'account/Donation',
         component_props => {
             days => sprintf("%.0f", $result->{days}),
-            nag => $result->{nag} > 0,
+            nag => boolean_to_json($nag),
         }
     );
 }
@@ -718,20 +728,20 @@ sub applications : Path('/account/applications') RequireAuth RequireSSL
         current_view => 'Node',
         component_path => 'account/applications/Index.js',
         component_props => {
-            applications => $applications,
+            applications => to_json_array($applications),
             appsPager => serialize_pager($c->stash->{apps_pager}),
-            tokens => $tokens,
+            tokens => to_json_array($tokens),
             tokensPager => serialize_pager($c->stash->{tokens_pager}),
         },
     );
 }
 
-sub revoke_application_access : Path('/account/applications/revoke-access') Args(2) RequireAuth DenyWhenReadonly
+sub revoke_application_access : Path('/account/applications/revoke-access') Args(2) RequireAuth DenyWhenReadonly SecureForm
 {
     my ($self, $c, $application_id, $scope) = @_;
 
-    my $form = $c->form( form => 'SubmitCancel' );
-    if ($c->form_posted && $form->submitted_and_valid($c->req->params)) {
+    my $form = $c->form( form => 'Confirm' );
+    if ($c->form_posted_and_valid($form)) {
         if ($form->field('cancel')->input) {
             $c->response->redirect($c->uri_for_action('/account/applications'));
             $c->detach;
@@ -747,19 +757,19 @@ sub revoke_application_access : Path('/account/applications/revoke-access') Args
             current_view => 'Node',
             component_path => 'account/applications/RevokeAccess',
             component_props => {
-                form => $form,
+                form => $form->TO_JSON,
             },
         );
         $c->detach;
     }
 }
 
-sub register_application : Path('/account/applications/register') RequireAuth RequireSSL DenyWhenReadonly
+sub register_application : Path('/account/applications/register') RequireAuth RequireSSL DenyWhenReadonly SecureForm
 {
     my ($self, $c) = @_;
 
     my $form = $c->form( form => 'Application' );
-    if ($c->form_posted && $form->submitted_and_valid($c->req->params)) {
+    if ($c->form_posted_and_valid($form)) {
         $c->model('MB')->with_transaction(sub {
             $c->model('Application')->insert({
                 owner_id => $c->user->id,
@@ -774,14 +784,14 @@ sub register_application : Path('/account/applications/register') RequireAuth Re
             current_view => 'Node',
             component_path => 'account/applications/Register',
             component_props => {
-                form => $form,
+                form => $form->TO_JSON,
             },
         );
         $c->detach;
     }
 }
 
-sub edit_application : Path('/account/applications/edit') Args(1) RequireAuth RequireSSL DenyWhenReadonly
+sub edit_application : Path('/account/applications/edit') Args(1) RequireAuth RequireSSL DenyWhenReadonly SecureForm
 {
     my ($self, $c, $id) = @_;
 
@@ -792,7 +802,7 @@ sub edit_application : Path('/account/applications/edit') Args(1) RequireAuth Re
     $c->stash( application => $application );
 
     my $form = $c->form( form => 'Application', init_object => $application );
-    if ($c->form_posted && $form->submitted_and_valid($c->req->params) && $form->field('oauth_type')->value eq $application->oauth_type) {
+    if ($c->form_posted_and_valid($form) && $form->field('oauth_type')->value eq $application->oauth_type) {
         $c->model('MB')->with_transaction(sub {
             $c->model('Application')->update($application->id, {
                 name => $form->field('name')->value,
@@ -807,14 +817,14 @@ sub edit_application : Path('/account/applications/edit') Args(1) RequireAuth Re
             current_view => 'Node',
             component_path => 'account/applications/Edit',
             component_props => {
-                form => $form,
+                form => $form->TO_JSON,
             },
         );
         $c->detach;
     }
 }
 
-sub remove_application : Path('/account/applications/remove') Args(1) RequireAuth RequireSSL DenyWhenReadonly
+sub remove_application : Path('/account/applications/remove') Args(1) RequireAuth RequireSSL DenyWhenReadonly SecureForm
 {
     my ($self, $c, $id) = @_;
 
@@ -822,8 +832,8 @@ sub remove_application : Path('/account/applications/remove') Args(1) RequireAut
     $c->detach('/error_404')
         unless defined $application && $application->owner_id == $c->user->id;
 
-    my $form = $c->form( form => 'SubmitCancel' );
-    if ($c->form_posted && $form->submitted_and_valid($c->req->params)) {
+    my $form = $c->form( form => 'Confirm' );
+    if ($c->form_posted_and_valid($form)) {
         if ($form->field('cancel')->input) {
             $c->response->redirect($c->uri_for_action('/account/applications'));
             $c->detach;
@@ -839,7 +849,7 @@ sub remove_application : Path('/account/applications/remove') Args(1) RequireAut
             current_view => 'Node',
             component_path => 'account/applications/Remove',
             component_props => {
-                form => $form,
+                form => $form->TO_JSON,
             },
         );
         $c->detach;
@@ -849,22 +859,12 @@ sub remove_application : Path('/account/applications/remove') Args(1) RequireAut
 __PACKAGE__->meta->make_immutable;
 1;
 
-=head1 COPYRIGHT
+=head1 COPYRIGHT AND LICENSE
 
 Copyright (C) 2010 MetaBrainz Foundation
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program; if not, write to the Free Software
-Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+This file is part of MusicBrainz, the open internet music database,
+and is licensed under the GPL version 2, or (at your option) any
+later version: http://www.gnu.org/licenses/gpl-2.0.txt
 
 =cut

@@ -7,6 +7,7 @@ use DBDefs;
 use List::Util qw( first );
 use LWP::UserAgent;
 use MusicBrainz::Server::Test;
+use MusicBrainz::Server::Constants qw( :direction );
 
 use aliased 'MusicBrainz::Server::Entity::Link';
 use aliased 'MusicBrainz::Server::Entity::LinkType';
@@ -82,13 +83,13 @@ test 'Can update release_meta for ASINs with no artwork' => sub {
     my $c = $test->c;
 
     MusicBrainz::Server::Test->prepare_test_database($test->c, '+release');
-    $c->sql->do(<<'EOSQL');
-INSERT INTO url (id, gid, url)
-VALUES (1, 'fbf96576-1c9c-4676-bb7d-7b9d3173edb8', 'http://www.amazon.co.uk/gp/product/B000057QPT');
+    $c->sql->do(<<~'EOSQL');
+        INSERT INTO url (id, gid, url)
+            VALUES (1, 'fbf96576-1c9c-4676-bb7d-7b9d3173edb8', 'http://www.amazon.co.uk/gp/product/B000057QPT');
 
-INSERT INTO link (id, link_type) VALUES (1, 77);
-INSERT INTO l_release_url (entity0, entity1, link) VALUES (1, 1, 1);
-EOSQL
+        INSERT INTO link (id, link_type) VALUES (1, 77);
+        INSERT INTO l_release_url (entity0, entity1, link) VALUES (1, 1, 1);
+        EOSQL
 
     my $release = $c->model('Release')->get_by_id(1);
     $c->model('Relationship')->load_subset([ 'url' ], $release);
@@ -139,6 +140,7 @@ sub make_release
 {
     my ($type, $url) = @_;
     my $release = Release->new( name => 'Test release' );
+    my $url = URL->new( url => $url );
     $release->add_relationship(
         Relationship->new(
             link => Link->new(
@@ -146,10 +148,12 @@ sub make_release
                     name => $type
                 ),
             ),
-            entity1 => URL->new(
-                url => $url,
-            ),
-            direction => $MusicBrainz::Server::Entity::Relationship::DIRECTION_FORWARD,
+            entity1 => $url,
+            source => $release,
+            target => $url,
+            source_type => 'release',
+            target_type => 'url',
+            direction => $DIRECTION_FORWARD,
         )
     );
 

@@ -1,12 +1,15 @@
 package MusicBrainz::Server::Entity::Release;
 use Moose;
 
+use List::AllUtils qw( any );
 use List::MoreUtils qw( uniq );
 use MusicBrainz::Server::Entity::Barcode;
 use MusicBrainz::Server::Entity::Types;
-use MusicBrainz::Server::Translation qw( l );
+use MusicBrainz::Server::Translation qw( l lp );
 
+use MusicBrainz::Server::Data::Utils qw( boolean_to_json );
 use MusicBrainz::Server::Entity::Util::MediumFormat qw( combined_medium_format_name );
+use MusicBrainz::Server::Entity::Util::JSON qw( to_json_array to_json_object );
 
 extends 'MusicBrainz::Server::Entity::CoreEntity';
 with 'MusicBrainz::Server::Entity::Role::Taggable';
@@ -143,6 +146,12 @@ has 'mediums' => (
     }
 );
 
+has 'mediums_loaded' => (
+    is => 'rw',
+    isa => 'Bool',
+    default => 0,
+);
+
 has events => (
     is => 'rw',
     isa => 'ArrayRef[ReleaseEvent]',
@@ -173,7 +182,7 @@ sub combined_format_name
     my ($self) = @_;
     my @mediums = @{$self->mediums};
     return "" if !@mediums;
-    return combined_medium_format_name(map { $_->l_format_name() || l('(unknown)') } @mediums );
+    return combined_medium_format_name(map { $_->l_format_name() || lp('(unknown)', 'medium format') } @mediums );
 }
 
 has [qw( cover_art_url info_url amazon_asin amazon_store )] => (
@@ -193,7 +202,15 @@ has 'cover_art_presence' => (
 );
 
 sub may_have_cover_art {
-    return shift->cover_art_presence ne 'darkened';
+    my $cover_art_presence = shift->cover_art_presence;
+
+    return !defined $cover_art_presence || $cover_art_presence ne 'darkened';
+}
+
+sub may_have_discids {
+    my $self = shift;
+
+    return any { $_->may_have_discids } $self->all_mediums;
 }
 
 sub find_medium_for_recording {
@@ -261,14 +278,16 @@ around TO_JSON => sub {
         %{ $self->$orig },
         barcode     => $self->barcode->code,
         languageID  => $self->language_id,
-        language    => $self->language,
+        language    => to_json_object($self->language),
         packagingID => $self->packaging_id,
         scriptID    => $self->script_id,
-        script      => $self->script,
+        script      => to_json_object($self->script),
         statusID    => $self->status_id,
-        status      => $self->status,
+        status      => to_json_object($self->status),
         cover_art_presence => $self->cover_art_presence,
         cover_art_url => $self->cover_art_url,
+        may_have_cover_art => boolean_to_json($self->may_have_cover_art),
+        may_have_discids => boolean_to_json($self->may_have_discids),
     };
 
     if (my $language = $self->language) {
@@ -292,15 +311,15 @@ around TO_JSON => sub {
     }
 
     if ($self->all_events) {
-        $data->{events} = [map { $_->TO_JSON } $self->all_events];
+        $data->{events} = to_json_array($self->events);
     }
 
     if ($self->all_labels) {
-        $data->{labels} = [map { $_->TO_JSON } $self->all_labels];
+        $data->{labels} = to_json_array($self->labels);
     }
 
-    if ($self->all_mediums) {
-        $data->{mediums} = [map { $_->TO_JSON } $self->all_mediums];
+    if ($self->mediums_loaded) {
+        $data->{mediums} = to_json_array($self->mediums);
         $data->{combined_format_name} = $self->combined_format_name;
         $data->{combined_track_count} = $self->combined_track_count;
     }
@@ -317,22 +336,12 @@ __PACKAGE__->meta->make_immutable;
 no Moose;
 1;
 
-=head1 COPYRIGHT
+=head1 COPYRIGHT AND LICENSE
 
 Copyright (C) 2009 Lukas Lalinsky
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program; if not, write to the Free Software
-Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+This file is part of MusicBrainz, the open internet music database,
+and is licensed under the GPL version 2, or (at your option) any
+later version: http://www.gnu.org/licenses/gpl-2.0.txt
 
 =cut

@@ -1,5 +1,8 @@
 package MusicBrainz::Server::Controller::Admin::Attributes;
 use Moose;
+use MusicBrainz::Server::Entity::Util::JSON qw( to_json_array );
+
+use MusicBrainz::Server::Translation qw( l ln );
 
 no if $] >= 5.018, warnings => "experimental::smartmatch";
 
@@ -60,11 +63,14 @@ sub attribute_index : Chained('attribute_base') PathPart('') RequireAuth(account
     $c->stash(
         current_view => 'Node',
         component_path => $component_path,
-        component_props => {attributes => \@attr, model => $model}
+        component_props => {
+            attributes => to_json_array(\@attr),
+            model => $model,
+        }
     );
 }
 
-sub create : Chained('attribute_base') RequireAuth(account_admin) {
+sub create : Chained('attribute_base') RequireAuth(account_admin) SecureForm {
     my ($self, $c) = @_;
     my $model = $c->stash->{model};
 
@@ -75,7 +81,7 @@ sub create : Chained('attribute_base') RequireAuth(account_admin) {
     my $form_name = $forms{$model} // "Admin::Attributes";
     my $form = $c->form( form => $form_name );
 
-    if ($c->form_posted && $form->process( params => $c->req->params )) {
+    if ($c->form_posted_and_valid($form)) {
         $c->model('MB')->with_transaction(sub {
             $c->model($model)->insert({ map { $_->name => $_->value } $form->edit_fields });
         });
@@ -85,7 +91,7 @@ sub create : Chained('attribute_base') RequireAuth(account_admin) {
     }
 }
 
-sub edit : Chained('attribute_base') Args(1) RequireAuth(account_admin) {
+sub edit : Chained('attribute_base') Args(1) RequireAuth(account_admin) SecureForm {
     my ($self, $c, $id) = @_;
     my $model = $c->stash->{model};
     my $attr = $c->model($model)->get_by_id($id);
@@ -97,7 +103,7 @@ sub edit : Chained('attribute_base') Args(1) RequireAuth(account_admin) {
     my $form_name = $forms{$model} // "Admin::Attributes";
     my $form = $c->form( form => $form_name, init_object => $attr );
 
-    if ($c->form_posted && $form->process( params => $c->req->params )) {
+    if ($c->form_posted_and_valid($form)) {
         $c->model('MB')->with_transaction(sub {
             $c->model($model)->update($id, { map { $_->name => $_->value } $form->edit_fields });
         });
@@ -107,19 +113,37 @@ sub edit : Chained('attribute_base') Args(1) RequireAuth(account_admin) {
     }
 }
 
-sub delete : Chained('attribute_base') Args(1) RequireAuth(account_admin) {
+sub delete : Chained('attribute_base') Args(1) RequireAuth(account_admin) SecureForm {
     my ($self, $c, $id) = @_;
     my $model = $c->stash->{model};
     my $attr = $c->model($model)->get_by_id($id);
-    my $form = $c->form(form => 'Confirm');
+    my $form = $c->form(form => 'SecureConfirm');
     $c->stash->{attribute} = $attr;
 
     if ($c->model($model)->in_use($id)) {
-        $c->stash->{template} = 'admin/attributes/in_use.tt';
+        my $error_message = l('You cannot remove the attribute "{name}" because it is still in use.', { name => $attr->name });
+
+        $c->stash(
+            current_view => 'Node',
+            component_path => 'admin/attributes/CannotRemoveAttribute',
+            component_props => {message => $error_message}
+        );
+        
         $c->detach;
     }
 
-    if ($c->form_posted && $form->process( params => $c->req->params )) {
+    if ($c->model($model)->has_children($id)) {
+        my $error_message = l('You cannot remove the attribute “{name}” because it is the parent of other attributes.', { name => $attr->name });
+
+        $c->stash(
+            current_view => 'Node',
+            component_path => 'admin/attributes/CannotRemoveAttribute',
+            component_props => {message => $error_message}
+        );
+        
+        $c->detach;
+    }
+    if ($c->form_posted_and_valid($form)) {
         $c->model('MB')->with_transaction(sub {
             $c->model($model)->delete($id);
         });
@@ -131,22 +155,12 @@ sub delete : Chained('attribute_base') Args(1) RequireAuth(account_admin) {
 
 1;
 
-=head1 COPYRIGHT
+=head1 COPYRIGHT AND LICENSE
 
 Copyright (C) 2014 MetaBrainz Foundation
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program; if not, write to the Free Software
-Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+This file is part of MusicBrainz, the open internet music database,
+and is licensed under the GPL version 2, or (at your option) any
+later version: http://www.gnu.org/licenses/gpl-2.0.txt
 
 =cut

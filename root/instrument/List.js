@@ -1,5 +1,5 @@
 /*
- * @flow
+ * @flow strict-local
  * Copyright (C) 2018 Shamroy Pellew
  *
  * This file is part of MusicBrainz, the open internet music database,
@@ -7,19 +7,19 @@
  * later version: http://www.gnu.org/licenses/gpl-2.0.txt
  */
 
-import React from 'react';
+import * as React from 'react';
 
 import Layout from '../layout';
 import EntityLink from '../static/scripts/common/components/EntityLink';
 import expand2react from '../static/scripts/common/i18n/expand2react';
 
-type PropsT = {|
+type PropsT = {
   +instrument_types: $ReadOnlyArray<InstrumentTypeT>,
-  +instruments_by_type: {|
-    +[number]: $ReadOnlyArray<InstrumentT>,
+  +instruments_by_type: {
+    +[typeId: number]: $ReadOnlyArray<InstrumentT>,
     +unknown: $ReadOnlyArray<InstrumentT>,
-  |},
-|};
+  },
+};
 
 const Instrument = ({instrument}) => (
   <li>
@@ -38,7 +38,7 @@ const Instrument = ({instrument}) => (
 const InstrumentList = ({
   instrument_types: instrumentTypes,
   instruments_by_type: instrumentsByType,
-}: PropsT) => {
+}: PropsT): React.Element<typeof Layout> => {
   const unknown = instrumentsByType.unknown;
 
   return (
@@ -55,7 +55,7 @@ const InstrumentList = ({
             </ul>
           </React.Fragment>
         ))}
-        {(unknown && unknown.length)
+        {unknown?.length
           ? (
             <>
               <h2>{l('Unclassified instrument')}</h2>
@@ -68,9 +68,11 @@ const InstrumentList = ({
           )
           : null}
         <p>
-          {exp.l('Is this list missing an instrument? Request it by following {link|these instructions}.', {
-            link: '/doc/How_to_Add_Instruments',
-          })}
+          {exp.l(
+            `Is this list missing an instrument?
+             Request it by following {link|these instructions}.`,
+            {link: '/doc/How_to_Add_Instruments'},
+          )}
         </p>
       </div>
     </Layout>

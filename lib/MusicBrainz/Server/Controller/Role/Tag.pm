@@ -2,6 +2,7 @@ package MusicBrainz::Server::Controller::Role::Tag;
 use List::MoreUtils qw( uniq );
 use Moose::Role -traits => 'MooseX::MethodAttributes::Role::Meta::Role';
 use MusicBrainz::Server::Data::Utils qw( trim );
+use MusicBrainz::Server::Entity::Util::JSON qw( to_json_array );
 use Readonly;
 
 requires 'load';
@@ -18,10 +19,14 @@ after load => sub {
     my @user_tags = $tags_model->find_user_tags($c->user->id, $entity->id)
         if $c->user_exists;
 
+    $c->model('Genre')->load(map { $_->tag } (@tags, @user_tags));
+    my %genre_map = map { $_->name => $_->TO_JSON } $c->model('Genre')->get_all;
+
     $c->stash(
-        top_tags => \@tags,
+        genre_map => \%genre_map,
+        top_tags => to_json_array(\@tags),
         more_tags => $count > @tags,
-        user_tags => \@user_tags,
+        user_tags => to_json_array(\@user_tags),
         user_tags_json => $c->json->encode(\@user_tags),
     );
 };
@@ -31,10 +36,11 @@ sub tags : Chained('load') PathPart('tags') {
 
     my $entity = $c->stash->{$self->{entity_name}};
     my @tags = $c->model($self->{model})->tags->find_tags($entity->id);
+    $c->model('Genre')->load(map { $_->tag } @tags);
 
     my %props = (
-        entity        => $entity,
-        allTags       => \@tags,
+        entity        => $entity->TO_JSON,
+        allTags       => to_json_array(\@tags),
         userTags      => $c->stash->{user_tags},
         moreTags      => $c->stash->{more_tags},
     );
@@ -57,7 +63,7 @@ sub _vote_on_tags {
     my ($self, $c, $method) = @_;
 
     $c->res->headers->header('X-Robots-Tag' => 'noindex');
-    if (!$c->user_exists) {
+    if (!$c->user_exists || !$c->user->has_confirmed_email_address) {
         $c->res->status(401);
         $c->res->body('{}');
         $c->detach;
@@ -87,23 +93,13 @@ sub withdraw_tags : Chained('load') PathPart('tags/withdraw') DenyWhenReadonly {
 no Moose::Role;
 1;
 
-=head1 COPYRIGHT
+=head1 COPYRIGHT AND LICENSE
 
 Copyright (C) 2009 Oliver Charles
 Copyright (C) 2009 Lukas Lalinsky
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program; if not, write to the Free Software
-Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+This file is part of MusicBrainz, the open internet music database,
+and is licensed under the GPL version 2, or (at your option) any
+later version: http://www.gnu.org/licenses/gpl-2.0.txt
 
 =cut

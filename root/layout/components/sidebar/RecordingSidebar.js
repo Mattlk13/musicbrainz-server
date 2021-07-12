@@ -1,5 +1,5 @@
 /*
- * @flow
+ * @flow strict-local
  * Copyright (C) 2018 MetaBrainz Foundation
  *
  * This file is part of MusicBrainz, the open internet music database,
@@ -7,12 +7,15 @@
  * later version: http://www.gnu.org/licenses/gpl-2.0.txt
  */
 
-import React from 'react';
+import * as React from 'react';
 
-import {withCatalystContext} from '../../../context';
-import ArtistCreditLink from '../../../static/scripts/common/components/ArtistCreditLink';
+import ArtistCreditLink
+  from '../../../static/scripts/common/components/ArtistCreditLink';
 import CodeLink from '../../../static/scripts/common/components/CodeLink';
-import formatTrackLength from '../../../static/scripts/common/utility/formatTrackLength';
+import formatTrackLength
+  from '../../../static/scripts/common/utility/formatTrackLength';
+import SidebarAcousticBrainz
+  from '../../../static/scripts/common/components/sidebar/AcousticBrainz';
 import ExternalLinks from '../ExternalLinks';
 
 import AnnotationLinks from './AnnotationLinks';
@@ -26,13 +29,12 @@ import {SidebarProperty, SidebarProperties} from './SidebarProperties';
 import SidebarRating from './SidebarRating';
 import SidebarTags from './SidebarTags';
 
-type Props = {|
-  +$c: CatalystContextT,
-  +recording: RecordingT,
-|};
+type Props = {
+  +recording: RecordingWithArtistCreditT,
+};
 
-const RecordingSidebar = ({$c, recording}: Props) => {
-  const gid = encodeURIComponent(recording.gid);
+const RecordingSidebar = ({recording}: Props): React.Element<'div'> => {
+  const firstReleaseYear = recording.first_release_date?.year;
 
   return (
     <div id="sidebar">
@@ -51,21 +53,31 @@ const RecordingSidebar = ({$c, recording}: Props) => {
           </SidebarProperty>
         ) : null}
 
+        {firstReleaseYear == null ? null : (
+          <SidebarProperty
+            className="first-release-year"
+            label={addColonText(l('First release year'))}
+          >
+            {firstReleaseYear}
+          </SidebarProperty>
+        )}
+
         {recording.isrcs.map(isrc => (
-          <SidebarProperty className="isrc" key={'isrc-' + isrc.isrc} label={l('ISRC:')}>
+          <SidebarProperty
+            className="isrc"
+            key={'isrc-' + isrc.isrc}
+            label={l('ISRC:')}
+          >
             <CodeLink code={isrc} />
           </SidebarProperty>
         ))}
       </SidebarProperties>
 
+      <SidebarAcousticBrainz recording={recording} />
+
       <SidebarRating entity={recording} />
 
-      <SidebarTags
-        aggregatedTags={$c.stash.top_tags}
-        entity={recording}
-        more={!!$c.stash.more_tags}
-        userTags={$c.stash.user_tags}
-      />
+      <SidebarTags entity={recording} />
 
       <ExternalLinks empty entity={recording} />
 
@@ -88,4 +100,4 @@ const RecordingSidebar = ({$c, recording}: Props) => {
   );
 };
 
-export default withCatalystContext(RecordingSidebar);
+export default RecordingSidebar;

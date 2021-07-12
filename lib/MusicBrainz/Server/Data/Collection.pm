@@ -11,6 +11,8 @@ use MusicBrainz::Server::Data::Utils qw(
     placeholders
 );
 use List::MoreUtils qw( zip );
+use List::AllUtils qw( any uniq );
+use List::UtilsBy qw( uniq_by );
 use MusicBrainz::Server::Constants qw( %ENTITIES entities_with );
 
 extends 'MusicBrainz::Server::Data::CoreEntity';
@@ -48,7 +50,7 @@ sub find_by_subscribed_editor {
                  FROM " . $self->_table . "
                     JOIN editor_subscribe_collection s ON editor_collection.id = s.collection
                  WHERE s.editor = ? AND s.available
-                 ORDER BY musicbrainz_collate(name), editor_collection.id";
+                 ORDER BY name COLLATE musicbrainz, editor_collection.id";
     $self->query_to_list_limited($query, [$editor_id], $limit, $offset);
 }
 
@@ -109,6 +111,89 @@ sub is_empty {
     );
 
     return $non_empty ? 0 : 1;
+}
+
+sub merge {
+    my ($self, $new_id, $old_ids, $user_id) = @_;
+
+    my @ids = ($new_id, @$old_ids);
+
+    my @collections = values %{ $self->c->model('Collection')->get_by_ids(@ids) };
+    my @collection_owners = uniq map { $_->editor_id } @collections;
+    if (any { $_ != $user_id } @collection_owners) {
+        confess('Attempt to merge collections by a different user');
+    }
+
+    $self->c->model('CollectionType')->load(@collections);
+    my @entity_types = uniq map { $_->type->item_entity_type } @collections;
+
+    if (@entity_types > 1) {
+        confess('Attempt to merge collections of different entity types');
+    }
+
+    my $type = $entity_types[0];
+
+    # Update duplicate entities: for all entities that exist in multiple
+    # collections, standardize the data to that what we want to keep.
+    $self->sql->do(
+        "UPDATE editor_collection_$type ec
+         SET added = x.added, comment = x.comment
+         FROM (
+            SELECT $type, min(added) AS added, string_agg(comment, '\n\n-------\n\n') AS comment
+            FROM editor_collection_$type
+            WHERE collection = any(?)
+            GROUP BY $type
+         ) x 
+         WHERE x.$type = ec.$type AND ec.collection = any(?)",
+        \@ids, \@ids);
+
+    # Move all entities to the destination collection, ignore repeats
+    $self->sql->do(
+        "INSERT INTO editor_collection_$type
+         SELECT ? AS collection, $type, added, position, comment
+         FROM editor_collection_$type ec1
+         WHERE ec1.collection = any(?)
+         ON CONFLICT (collection, $type) DO NOTHING",
+        $new_id, $old_ids);
+
+    # Remove entries for old collections
+    $self->sql->do(
+        "DELETE FROM editor_collection_$type
+         WHERE collection = any(?)",
+        $old_ids);
+
+    for my $collection (@collections) {
+        $self->c->model('Editor')->load_for_collection($collection);
+    }
+
+    my @collaborators = uniq_by { $_->id } map { $_->all_collaborators } @collections;
+
+    # Move all collaborators to the destination collection
+    $self->set_collaborators(
+        $new_id, \@collaborators
+    ) if @collaborators;
+
+    # Remove all collaborators from the collection(s) being merged
+    $self->sql->do('DELETE FROM editor_collection_collaborator
+                    WHERE collection IN (' . placeholders(@$old_ids) . ')', @$old_ids);
+
+    # Append all descriptions to the destination one, for user improvement if needed
+    my $new_description = join("\n\n-------\n\n",
+                          uniq
+                          grep { $_ ne '' }
+                          map { $_->description }
+                          @collections);
+    if ($new_description ne '') {
+        $self->sql->do("UPDATE editor_collection SET description = ?
+                WHERE id = ?",
+                $new_description,
+                $new_id);
+    }
+
+    # Finally, delete the now empty collections
+    $self->_delete_and_redirect_gids('editor_collection', $new_id, @$old_ids);
+
+    return 1;
 }
 
 sub merge_entities {
@@ -185,14 +270,18 @@ sub find_by {
                                EXISTS (SELECT 1 FROM editor_collection_collaborator ecc
                                WHERE ecc.collection = editor_collection.id AND ecc.editor = ?))';
             push @args, $editor_id, $editor_id;
+        } elsif ($opts->{collaborator_id}) {
+            push @conditions, '(editor_collection.public = true OR
+                               EXISTS (SELECT 1 FROM editor_collection_collaborator ecc
+                               WHERE ecc.collection = editor_collection.id AND ecc.editor = ?))';
+            push @args, $editor_id;
         } else {
             push @conditions, '(editor_collection.public = true OR editor_collection.editor = ?)';
             push @args, $editor_id;
         }
     } else {
-        # If we have a collaborator ID we will already only show relevant collections, and we should show all
         # If we want to only see non-visible collections, then we clearly don't want to show only public ones
-        unless ($opts->{collaborator_id} || $opts->{show_private_only}) {
+        unless ($opts->{show_private_only}) {
             push @conditions, 'editor_collection.public = true';
         }
     }
@@ -210,7 +299,7 @@ sub find_by {
         'SELECT ' . $self->_columns .
         '  FROM ' . $self->_table . ' ' .
         ' WHERE ' . join(' AND ', @conditions) .
-        ' ORDER BY musicbrainz_collate(editor_collection.name), editor_collection.id';
+        ' ORDER BY editor_collection.name COLLATE musicbrainz, editor_collection.id';
 
     if (defined $limit) {
         return $self->query_to_list_limited($query, \@args, $limit, $offset);
@@ -295,6 +384,7 @@ sub delete {
     return unless @collection_ids;
 
     $self->sql->begin;
+    $self->remove_gid_redirects(@collection_ids);
 
     # Remove all entities associated with the collection(s)
     map {
@@ -359,24 +449,14 @@ __PACKAGE__->meta->make_immutable;
 no Moose;
 1;
 
-=head1 COPYRIGHT
+=head1 COPYRIGHT AND LICENSE
 
 Copyright (C) 2009 Lukas Lalinsky
 Copyright (C) 2010 Sean Burke
 Copyright (C) 2015 Jesse Weinstein
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program; if not, write to the Free Software
-Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+This file is part of MusicBrainz, the open internet music database,
+and is licensed under the GPL version 2, or (at your option) any
+later version: http://www.gnu.org/licenses/gpl-2.0.txt
 
 =cut

@@ -1,5 +1,5 @@
 /*
- * @flow
+ * @flow strict-local
  * Copyright (C) 2018 MetaBrainz Foundation
  *
  * This file is part of MusicBrainz, the open internet music database,
@@ -9,61 +9,42 @@
 
 import * as React from 'react';
 
-import {withCatalystContext} from '../context';
-import Layout from '../layout';
-import formatUserDate from '../utility/formatUserDate';
-
 import ReleaseList from './components/ReleaseList';
-import FilterLink from './FilterLink';
+import ReportLayout from './components/ReportLayout';
 import type {ReportDataT, ReportReleaseT} from './types';
 
 const FeaturingReleases = ({
-  $c,
   canBeFiltered,
   filtered,
   generated,
   items,
   pager,
-}: ReportDataT<ReportReleaseT>) => (
-  <Layout
-    fullWidth
+}: ReportDataT<ReportReleaseT>): React.Element<typeof ReportLayout> => (
+  <ReportLayout
+    canBeFiltered={canBeFiltered}
+    description={exp.l(
+      `This report shows releases with “(feat. Artist)”
+       (or similar) in the title. For classical releases, 
+       consult the {CSG|classical style guidelines}. For 
+       non-classical releases, this is usually inherited from an
+       older version of MusicBrainz and should be fixed. Consult the
+       {featured_artists|page about featured artists} to know more.
+       Don’t forget that the same generally applies to tracks, so if
+       the track titles also include featuring credits you can fix
+       them too while you edit the release!`,
+      {
+        CSG: '/doc/Style/Classical',
+        featured_artists: '/doc/Style/Artist_Credits#Featured_artists',
+      },
+    )}
+    entityType="release"
+    filtered={filtered}
+    generated={generated}
     title={l('Releases with titles containing featuring artists')}
+    totalEntries={pager.total_entries}
   >
-    <h1>{l('Releases with titles containing featuring artists')}</h1>
-
-    <ul>
-      <li>
-        {exp.l(
-          `This report shows releases with “(feat. Artist)”
-           (or similar) in the title. For classical releases, 
-           consult the {CSG|classical style guidelines}. For 
-           non-classical releases, this is usually inherited from an
-           older version of MusicBrainz and should be fixed. Consult the
-           {featured_artists|page about featured artists} to know more.
-           Don’t forget that the same generally applies to tracks, so if
-           the track titles also include featuring credits you can fix
-           them too while you edit the release!`,
-          {
-            CSG: '/doc/Style/Classical',
-            featured_artists: '/doc/Style/Artist_Credits#Featured_artists',
-          },
-        )}
-      </li>
-      <li>
-        {texp.l('Total releases found: {count}',
-                {count: pager.total_entries})}
-      </li>
-      <li>
-        {texp.l('Generated on {date}',
-                {date: formatUserDate($c.user, generated)})}
-      </li>
-
-      {canBeFiltered ? <FilterLink filtered={filtered} /> : null}
-    </ul>
-
     <ReleaseList items={items} pager={pager} />
-
-  </Layout>
+  </ReportLayout>
 );
 
-export default withCatalystContext(FeaturingReleases);
+export default FeaturingReleases;

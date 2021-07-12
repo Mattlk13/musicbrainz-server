@@ -1,5 +1,5 @@
 /*
- * @flow
+ * @flow strict-local
  * Copyright (C) 2018 MetaBrainz Foundation
  *
  * This file is part of MusicBrainz, the open internet music database,
@@ -9,49 +9,31 @@
 
 import * as React from 'react';
 
-import {withCatalystContext} from '../context';
-import Layout from '../layout';
-import formatUserDate from '../utility/formatUserDate';
-
 import ArtistList from './components/ArtistList';
-import FilterLink from './FilterLink';
+import ReportLayout from './components/ReportLayout';
 import type {ReportArtistT, ReportDataT} from './types';
 
 const ArtistsContainingDisambiguationComments = ({
-  $c,
   canBeFiltered,
   filtered,
   generated,
   items,
   pager,
-}: ReportDataT<ReportArtistT>) => (
-  <Layout
-    fullWidth
+}: ReportDataT<ReportArtistT>): React.Element<typeof ReportLayout> => (
+  <ReportLayout
+    canBeFiltered={canBeFiltered}
+    description={l(
+      `This report lists artists that may have disambiguation comments
+       in their name, rather than the actual disambiguation comment field.`,
+    )}
+    entityType="artist"
+    filtered={filtered}
+    generated={generated}
     title={l('Artists containing disambiguation comments in their name')}
+    totalEntries={pager.total_entries}
   >
-    <h1>{l('Artists containing disambiguation comments in their name')}</h1>
-
-    <ul>
-      <li>
-        {l(`This report lists artists that may have disambiguation comments in
-            their name, rather than the actual disambiguation comment
-            field.`)}
-      </li>
-      <li>
-        {texp.l('Total artists found: {count}',
-                {count: pager.total_entries})}
-      </li>
-      <li>
-        {texp.l('Generated on {date}',
-                {date: formatUserDate($c.user, generated)})}
-      </li>
-
-      {canBeFiltered ? <FilterLink filtered={filtered} /> : null}
-    </ul>
-
     <ArtistList items={items} pager={pager} />
-
-  </Layout>
+  </ReportLayout>
 );
 
-export default withCatalystContext(ArtistsContainingDisambiguationComments);
+export default ArtistsContainingDisambiguationComments;

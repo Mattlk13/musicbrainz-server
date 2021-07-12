@@ -18,6 +18,7 @@ use MusicBrainz::Server::Constants qw(
     :edit_status
     :email_addresses
     $CONTACT_URL
+    $EDITOR_MODBOT
     $MINIMUM_RESPONSE_PERIOD
 );
 use MusicBrainz::Server::Email::AutoEditorElection::Nomination;
@@ -27,6 +28,9 @@ use MusicBrainz::Server::Email::AutoEditorElection::Canceled;
 use MusicBrainz::Server::Email::AutoEditorElection::Accepted;
 use MusicBrainz::Server::Email::AutoEditorElection::Rejected;
 use MusicBrainz::Server::Email::Subscriptions;
+use MusicBrainz::Server::Translation;
+
+use aliased 'MusicBrainz::Server::Entity::EditNote';
 
 has 'c' => (
     is => 'rw',
@@ -176,6 +180,60 @@ EOS
     return $self->_create_email(\@headers, $body);
 }
 
+sub _create_email_in_use_email
+{
+    my ($self, %opts) = @_;
+
+    my @headers = (
+        'To'         => $opts{email},
+        'From'       => $EMAIL_NOREPLY_ADDRESS,
+        'Reply-To'   => $EMAIL_SUPPORT_ADDRESS,
+        'Message-Id' => _message_id('email-in-use-%d', time()),
+        'Subject'    => 'Email address already in use',
+    );
+
+    my $lost_username_link = $url_prefix . '/lost-username';
+    my $lost_password_link = $url_prefix . '/lost-password';
+    my $bot_code_of_conduct_link = $url_prefix . '/doc/Code_of_Conduct/Bots';
+    my $ip = $opts{ip};
+    my $user_name = $opts{editor}->name;
+
+    my $body = <<EOS;
+Hello $user_name,
+
+You have requested to verify this email address for the MusicBrainz account $user_name,
+but we already have at least one account using this address in our database.
+If you have forgotten your old username, you can recover it from the following link:
+
+$lost_username_link
+
+You can then request a password reset, if needed, from the link below:
+
+$lost_password_link
+
+If clicking the links above doesn't work, please copy and paste the URL in a
+new browser window instead.
+
+If you have a specific reason why you need a second account (for example,
+you want to run a bot and have notes also reach you at this address)
+please drop us a line (see $CONTACT_URL for details). We will look into
+your specific case. For bots, also let us know about what you are intending
+to do with it (see $bot_code_of_conduct_link).
+
+If you didn't initiate this request and feel that you've received this email in
+error, don't worry, you don't need to take any further action and can safely
+disregard this email.
+
+This email was triggered by a request from the IP address [$ip].
+
+Thanks for using MusicBrainz!
+
+-- The MusicBrainz Team
+EOS
+
+    return $self->_create_email(\@headers, $body);
+}
+
 sub _create_lost_username_email
 {
     my ($self, %opts) = @_;
@@ -311,6 +369,24 @@ sub _create_edit_note_email
     my $note_text = $opts{note_text} or die "Missing 'note_text' argument";
     my $own_edit = $opts{own_edit};
 
+    if ($from_editor->id == $EDITOR_MODBOT) {
+        # Messages from ModBot, while they may be translated on the website,
+        # are currently always mailed in English via
+        # `run_without_translations` below. This is because, for one, the
+        # current language set here is unrelated to the language of the
+        # recipient: the current process is either authenticated as the
+        # user who approved the edit, or no user at all (being applied by
+        # ModBot). Second, the UI language of the recipient is stored as a
+        # cookie in their browser, which we obviously don't have access
+        # to here.
+        MusicBrainz::Server::Translation->run_without_translations(sub {
+            $note_text = EditNote->new(
+                editor_id => $from_editor->id,
+                text => "$note_text",
+            )->localize;
+        });
+    }
+
     my @headers = (
         'To'          => _user_address($editor),
         'From'        => _user_address($from_editor, 1),
@@ -398,6 +474,14 @@ sub send_email_verification
     my ($self, %opts) = @_;
 
     my $email = $self->_create_email_verification_email(%opts);
+    return $self->_send_email($email);
+}
+
+sub send_email_in_use
+{
+    my ($self, %opts) = @_;
+
+    my $email = $self->_create_email_in_use_email(%opts);
     return $self->_send_email($email);
 }
 
@@ -495,33 +579,40 @@ sub send_editor_report {
 
     my $reporter = $opts{reporter};
     my $reported_user = $opts{reported_user};
-    my $subject = 'Editor ' . $reported_user->name . ' has been reported by ' . $reporter->name;
+    my $reported_user_name = $reported_user->name;
+    my $subject = 'Editor ' . $reported_user_name . ' has been reported by ' . $reporter->name;
     my $reason = $MusicBrainz::Server::Form::User::Report::REASONS{$opts{reason}};
     my $reporter_tolink = uri_escape_utf8($reporter->name);
     my $reported_user_tolink = uri_escape_utf8($reported_user->name);
-    my $body .= <<EOF;
-$subject for the following reason:
+    my $report_content = <<~"EOF";
+        $subject for the following reason:
 
-“$reason”
+        “$reason”
 
-Reporter’s account: https://musicbrainz.org/user/$reporter_tolink
-Reported user’s account: https://musicbrainz.org/user/$reported_user_tolink
+        Reporter’s account: https://musicbrainz.org/user/$reporter_tolink
+        Reported user’s account: https://musicbrainz.org/user/$reported_user_tolink
 
-EOF
+        EOF
+
+    my $message = $opts{message};
+    if ($message) {
+        $report_content .= <<~"EOF";
+            ------------------------------------------------------------------------
+            $message
+            EOF
+    }
+
+    # We keep the report content without reply info for a possible "send copy" email
+    my $body = <<~"EOF";
+        $report_content
+        ------------------------------------------------------------------------
+        EOF
 
     if ($opts{reveal_address}) {
         $body .= "You can reply to this message directly.\n";
     } else {
         $body .= "The reporter chose not to reveal their email address. ";
         $body .= "You’ll have to contact them through their user page if necessary.\n";
-    }
-
-    my $message = $opts{message};
-    if ($message) {
-        $body .= <<EOF;
-------------------------------------------------------------------------
-$message
-EOF
     }
 
     my @headers = (
@@ -540,6 +631,30 @@ EOF
 
     my $email = $self->_create_email(\@headers, $body);
     $self->_send_email($email);
+
+    if ($opts{send_to_self}) {
+        my $copy_subject = 'Copy of your report of ' . $reported_user_name;
+
+        my @copy_headers = (
+            'To'          => _user_address($reporter),
+            'Sender'      => $EMAIL_NOREPLY_ADDRESS,
+            'Subject'     => _encode_header($copy_subject),
+            'Message-Id'  => _message_id('editor-report-copy-%s-%s-%d', $reporter->id, $reported_user->id, time),
+        );
+
+        push @copy_headers, 'From', _user_address($reporter, 1);
+
+        my $copy_body = <<~"EOF";
+            This is a copy of your report of MusicBrainz editor '$reported_user_name':
+            ------------------------------------------------------------------------
+            $report_content
+            ------------------------------------------------------------------------
+            Please do not respond to this e-mail.
+            EOF
+
+        my $copy = $self->_create_email(\@copy_headers, $copy_body);
+        $self->_send_email($copy);
+    }
 }
 
 has 'transport' => (
@@ -602,22 +717,12 @@ __PACKAGE__->meta->make_immutable;
 no Moose;
 1;
 
-=head1 COPYRIGHT
+=head1 COPYRIGHT AND LICENSE
 
 Copyright (C) 2009 Lukas Lalinsky
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program; if not, write to the Free Software
-Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+This file is part of MusicBrainz, the open internet music database,
+and is licensed under the GPL version 2, or (at your option) any
+later version: http://www.gnu.org/licenses/gpl-2.0.txt
 
 =cut

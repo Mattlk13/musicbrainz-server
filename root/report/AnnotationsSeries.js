@@ -1,5 +1,5 @@
 /*
- * @flow
+ * @flow strict-local
  * Copyright (C) 2018 MetaBrainz Foundation
  *
  * This file is part of MusicBrainz, the open internet music database,
@@ -9,46 +9,40 @@
 
 import * as React from 'react';
 
-import {withCatalystContext} from '../context';
-import Layout from '../layout';
-import formatUserDate from '../utility/formatUserDate';
-
 import {ANNOTATION_REPORT_TEXT} from './constants';
-import SeriesAnnotationList from './components/SeriesAnnotationList';
-import FilterLink from './FilterLink';
+import SeriesList from './components/SeriesList';
+import ReportLayout from './components/ReportLayout';
+import useAnnotationColumns from './hooks/useAnnotationColumns';
 import type {ReportDataT, ReportSeriesAnnotationT} from './types';
 
 const AnnotationsSeries = ({
-  $c,
   canBeFiltered,
   filtered,
   generated,
   items,
   pager,
-}: ReportDataT<ReportSeriesAnnotationT>) => (
-  <Layout fullWidth title={l('Series annotations')}>
-    <h1>{l('Series annotations')}</h1>
+}: ReportDataT<ReportSeriesAnnotationT>):
+React.Element<typeof ReportLayout> => {
+  const annotationColumns = useAnnotationColumns<ReportSeriesAnnotationT>();
 
-    <ul>
-      <li>
-        {l('This report lists series with annotations.')}
-      </li>
-      <li>{ANNOTATION_REPORT_TEXT()}</li>
-      <li>
-        {texp.l('Total series found: {count}',
-                {count: pager.total_entries})}
-      </li>
-      <li>
-        {texp.l('Generated on {date}',
-                {date: formatUserDate($c.user, generated)})}
-      </li>
+  return (
+    <ReportLayout
+      canBeFiltered={canBeFiltered}
+      description={l('This report lists series with annotations.')}
+      entityType="series"
+      extraInfo={ANNOTATION_REPORT_TEXT()}
+      filtered={filtered}
+      generated={generated}
+      title={l('Series annotations')}
+      totalEntries={pager.total_entries}
+    >
+      <SeriesList
+        columnsAfter={annotationColumns}
+        items={items}
+        pager={pager}
+      />
+    </ReportLayout>
+  );
+};
 
-      {canBeFiltered ? <FilterLink filtered={filtered} /> : null}
-    </ul>
-
-    <SeriesAnnotationList items={items} pager={pager} />
-
-  </Layout>
-);
-
-export default withCatalystContext(AnnotationsSeries);
+export default AnnotationsSeries;

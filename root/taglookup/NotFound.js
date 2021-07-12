@@ -1,5 +1,5 @@
 /*
- * @flow
+ * @flow strict-local
  * Copyright (C) 2018 Shamroy Pellew
  *
  * This file is part of MusicBrainz, the open internet music database,
@@ -7,11 +7,11 @@
  * later version: http://www.gnu.org/licenses/gpl-2.0.txt
  */
 
-import React from 'react';
+import * as React from 'react';
 
 import NotFound from '../components/NotFound';
 
-const TagLookupNotFound = () => (
+const TagLookupNotFound = (): React.Element<typeof NotFound> => (
   <NotFound title={l('Tag Lookup Error')}>
     <p>
       {l(

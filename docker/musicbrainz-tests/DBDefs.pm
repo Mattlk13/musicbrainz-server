@@ -76,6 +76,12 @@ sub CACHE_MANAGER_OPTIONS {
 
 sub CATALYST_DEBUG { 0 }
 
+sub COVER_ART_ARCHIVE_ACCESS_KEY { 'hi_im_public' }
+sub COVER_ART_ARCHIVE_SECRET_KEY { 'hi_im_private' }
+sub COVER_ART_ARCHIVE_UPLOAD_PREFIXER { shift; sprintf('//localhost:5050/%s', shift) };
+sub COVER_ART_ARCHIVE_DOWNLOAD_PREFIX { 'http://localhost:8081' };
+sub COVER_ART_ARCHIVE_IA_METADATA_PREFIX { 'http://localhost:5050/metadata' }
+
 sub DATASTORE_REDIS_ARGS {
     my $self = shift;
     return {
@@ -86,7 +92,7 @@ sub DATASTORE_REDIS_ARGS {
     };
 }
 
-sub DB_SCHEMA_SEQUENCE { 25 }
+sub DB_SCHEMA_SEQUENCE { 26 }
 
 sub DB_STAGING_TESTING_FEATURES { 1 }
 
@@ -102,7 +108,9 @@ sub GIT_SHA { return }
 
 sub HTML_VALIDATOR { 'http://localhost:8888?out=json' }
 
-sub MB_LANGUAGES { qw( de el-gr es-es et fi fr it ja nl en ) }
+sub MB_LANGUAGES { qw( de el-gr es-es et fi fr it ja nl sq en ) }
+
+sub ACTIVE_SCHEMA_SEQUENCE { 26 }
 
 sub PLUGIN_CACHE_OPTIONS {
     my $self = shift;
@@ -112,6 +120,9 @@ sub PLUGIN_CACHE_OPTIONS {
         namespace => $self->CACHE_NAMESPACE . 'Catalyst:',
     };
 }
+
+sub SEARCH_SERVER { '127.0.0.1:8983/solr' }
+sub SEARCH_ENGINE { 'SOLR' }
 
 sub USE_SET_DATABASE_HEADER { 1 }
 

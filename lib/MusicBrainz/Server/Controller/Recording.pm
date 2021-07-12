@@ -17,7 +17,7 @@ with 'MusicBrainz::Server::Controller::Role::Tag';
 with 'MusicBrainz::Server::Controller::Role::EditListing';
 with 'MusicBrainz::Server::Controller::Role::EditRelationships';
 with 'MusicBrainz::Server::Controller::Role::JSONLD' => {
-    endpoints => {show => {}, aliases => {copy_stash => ['aliases']}}
+    endpoints => {show => {copy_stash => ['top_tags']}, aliases => {copy_stash => ['aliases']}}
 };
 with 'MusicBrainz::Server::Controller::Role::Collection' => {
     entity_type => 'recording'
@@ -39,6 +39,7 @@ use aliased 'MusicBrainz::Server::Entity::ArtistCredit';
 use List::AllUtils qw( any );
 use MusicBrainz::Server::ControllerUtils::JSON qw( serialize_pager );
 use MusicBrainz::Server::Entity::Recording;
+use MusicBrainz::Server::Entity::Util::JSON qw( to_json_array );
 use MusicBrainz::Server::Translation qw( l );
 use Set::Scalar;
 
@@ -72,6 +73,7 @@ after 'load' => sub
 
     unless ($returning_jsonld) {
         $c->model('Recording')->load_meta($recording);
+        $c->model('Recording')->load_first_release_date($recording);
 
         if ($c->user_exists) {
             $c->model('Recording')->rating->load_user_ratings($c->user->id, $recording);
@@ -106,14 +108,20 @@ sub show : Chained('load') PathPart('') {
     $c->model('ReleaseLabel')->load(@releases);
     $c->model('Label')->load(map { $_->all_labels } @releases);
     $c->model('ReleaseStatus')->load(@releases);
+    $c->model('ReleaseGroup')->load(@releases);
+    $c->model('ReleaseGroupType')->load(map { $_->release_group }
+        @releases);
 
     my %props = (
         numberOfRevisions => $c->stash->{number_of_revisions},
         pager             => serialize_pager($c->stash->{pager}),
-        recording         => $c->stash->{recording},
-        tracks            => group_by_release_status_nested(
-                                sub { shift->medium->release },
-                                @$tracks),
+        recording         => $c->stash->{recording}->TO_JSON,
+        tracks            => [
+            map { to_json_array($_) }
+                @{ group_by_release_status_nested(
+                    sub { shift->medium->release },
+                    @$tracks) }
+        ],
     );
     $c->stash(
         component_path => 'recording/RecordingIndex',
@@ -122,10 +130,18 @@ sub show : Chained('load') PathPart('') {
     );
 }
 
-sub fingerprints : Chained('load') PathPart('fingerprints') { }
+sub fingerprints : Chained('load') PathPart('fingerprints') {
+    my ($self, $c) = @_;
+
+    $c->stash(
+        component_path => 'recording/RecordingFingerprints',
+        component_props => { recording => $c->stash->{recording}->TO_JSON },
+        current_view => 'Node',
+    );
+}
 
 # Stuff that has the sidebar and needs collection info
-after [qw( show collections details tags aliases fingerprints )] => sub {
+after [qw( show collections details tags ratings aliases fingerprints )] => sub {
     my ($self, $c) = @_;
     $self->_stash_collections($c);
 };
@@ -203,7 +219,7 @@ sub _merge_load_entities {
         my $get_isrc_set = sub { Set::Scalar->new(map { $_->isrc } shift->all_isrcs) };
         my $expect = $get_isrc_set->($comparator);
         $c->stash(
-            isrcs_differ => any { $get_isrc_set->($_) != $expect } @tail
+            isrcs_differ => (any { $get_isrc_set->($_) != $expect } @tail),
         );
     }
 };
@@ -212,22 +228,14 @@ with 'MusicBrainz::Server::Controller::Role::Delete' => {
     edit_type => $EDIT_RECORDING_DELETE,
 };
 
-=head1 LICENSE
+=head1 COPYRIGHT AND LICENSE
 
-This software is provided "as is", without warranty of any kind, express or
-implied, including  but not limited  to the warranties of  merchantability,
-fitness for a particular purpose and noninfringement. In no event shall the
-authors or  copyright  holders be  liable for any claim,  damages or  other
-liability, whether  in an  action of  contract, tort  or otherwise, arising
-from,  out of  or in  connection with  the software or  the  use  or  other
-dealings in the software.
+Copyright (C) 2009 MetaBrainz Foundation
+Copyright (C) 2009 Lukas Lalinsky
 
-GPL - The GNU General Public License    http://www.gnu.org/licenses/gpl.txt
-Permits anyone the right to use and modify the software without limitations
-as long as proper  credits are given  and the original  and modified source
-code are included. Requires  that the final product, software derivate from
-the original  source or any  software  utilizing a GPL  component, such  as
-this, is also licensed under the GPL license.
+This file is part of MusicBrainz, the open internet music database,
+and is licensed under the GPL version 2, or (at your option) any
+later version: http://www.gnu.org/licenses/gpl-2.0.txt
 
 =cut
 

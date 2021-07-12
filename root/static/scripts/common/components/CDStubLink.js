@@ -1,5 +1,5 @@
 /*
- * @flow
+ * @flow strict-local
  * Copyright (C) 2018 MetaBrainz Foundation
  *
  * This file is part of MusicBrainz, the open internet music database,
@@ -11,13 +11,17 @@ import * as React from 'react';
 
 import entityHref from '../utility/entityHref';
 
-type Props = {|
+type Props = {
   +cdstub: CDStubT,
   +content: string,
   +subPath?: string,
-|};
+};
 
-const CDStubLink = ({cdstub, content, subPath}: Props) => (
+const CDStubLink = ({
+  cdstub,
+  content,
+  subPath,
+}: Props): React.Element<'a'> => (
   <a href={entityHref(cdstub, subPath)}>
     <bdi>
       {content}

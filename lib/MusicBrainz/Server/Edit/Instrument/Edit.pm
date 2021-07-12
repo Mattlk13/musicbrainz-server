@@ -10,6 +10,7 @@ use MusicBrainz::Server::Edit::Utils qw(
     changed_display_data
 );
 use MusicBrainz::Server::Entity::PartialDate;
+use MusicBrainz::Server::Entity::Util::JSON qw( to_json_object );
 use MusicBrainz::Server::Translation qw( N_l );
 use MusicBrainz::Server::Validation qw( normalise_strings );
 
@@ -25,6 +26,7 @@ with 'MusicBrainz::Server::Edit::Role::AlwaysAutoEdit';
 
 sub edit_name { N_l('Edit instrument') }
 sub edit_type { $EDIT_INSTRUMENT_EDIT }
+sub edit_template_react { "EditInstrument" }
 
 sub _edit_model { 'Instrument' }
 
@@ -72,8 +74,15 @@ sub build_display_data {
 
     my $data = changed_display_data($self->data, $loaded, %map);
 
-    $data->{instrument} = $loaded->{Instrument}{ $self->data->{entity}{id} }
-        || Instrument->new( name => $self->data->{entity}{name} );
+    $data->{instrument} = to_json_object(
+        $loaded->{Instrument}{ $self->data->{entity}{id} } ||
+        Instrument->new( name => $self->data->{entity}{name} )
+    );
+
+    if (defined $data->{type}) {
+        $data->{type}{old} = to_json_object($data->{type}{old});
+        $data->{type}{new} = to_json_object($data->{type}{new});
+    }
 
     return $data;
 }
@@ -93,22 +102,12 @@ __PACKAGE__->meta->make_immutable;
 no Moose;
 1;
 
-=head1 LICENSE
+=head1 COPYRIGHT AND LICENSE
 
 Copyright (C) 2014 MetaBrainz Foundation
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program; if not, write to the Free Software
-Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+This file is part of MusicBrainz, the open internet music database,
+and is licensed under the GPL version 2, or (at your option) any
+later version: http://www.gnu.org/licenses/gpl-2.0.txt
 
 =cut

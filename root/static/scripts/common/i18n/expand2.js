@@ -7,8 +7,8 @@
  * later version: http://www.gnu.org/licenses/gpl-2.0.txt
  */
 
-import Raven from 'raven-js';
 import * as React from 'react';
+import * as Sentry from '@sentry/browser';
 
 /*
  * Flow doesn't have very good support for Symbols, so we use a unique
@@ -16,7 +16,8 @@ import * as React from 'react';
  */
 export class NO_MATCH {
   static instance: ?NO_MATCH;
-  constructor() {
+
+  constructor(): NO_MATCH {
     return NO_MATCH.instance || (NO_MATCH.instance = this);
   }
 }
@@ -30,29 +31,35 @@ export function gotMatch(x: mixed): boolean %checks {
   );
 }
 
-export type VarArgsObject<+T> = {__proto__: any, +[string]: T};
+export type VarArgsObject<+T> = {
+  +[arg: string]: T,
+};
 
-export class VarArgs<+T> {
+export interface VarArgsClass<+T> {
+  get(name: string): T,
+  has(name: string): boolean,
+}
+
+export class VarArgs<+T, +U = T> implements VarArgsClass<T | U> {
   +data: VarArgsObject<T>;
 
   constructor(data: VarArgsObject<T>) {
     this.data = data;
   }
 
-  get(name: string): T {
+  get(name: string): T | U {
     return this.data[name];
   }
 
   has(name: string): boolean {
-    return Object.prototype.hasOwnProperty.call(this.data, name);
+    return hasOwnProp(this.data, name);
   }
 }
 
-export type Parser<+T, -V> = (VarArgs<V>) => T;
+export type Parser<+T, -V> = (VarArgsClass<V>) => T;
 
 const EMPTY_OBJECT = Object.freeze({});
-
-const DEFAULT_ARGS = new VarArgs<any>(EMPTY_OBJECT);
+const EMPTY_VARARGS = new VarArgs(EMPTY_OBJECT);
 
 type State = {
   /*
@@ -81,7 +88,7 @@ export const state: State = Object.seal({
   source: '',
 });
 
-export function getString(x: mixed) {
+export function getString(x: mixed): string {
   if (typeof x === 'string') {
     return x;
   }
@@ -91,14 +98,14 @@ export function getString(x: mixed) {
   return '';
 }
 
-export function getVarSubstArg(x: mixed) {
+export function getVarSubstArg(x: mixed): React$MixedElement | string {
   if (React.isValidElement(x)) {
     return ((x: any): React$MixedElement);
   }
   return getString(x);
 }
 
-export function accept(pattern: RegExp) {
+export function accept(pattern: RegExp): NO_MATCH | string {
   const m = state.remainder.match(pattern);
   if (m) {
     const entireMatch = m[0];
@@ -110,7 +117,7 @@ export function accept(pattern: RegExp) {
   return NO_MATCH_VALUE;
 }
 
-export function error(message: string) {
+export function error(message: string): Error {
   return new Error(
     `Failed to parse string ${JSON.stringify(state.source)} at position ` +
     `${state.position}: ${message}`,
@@ -137,7 +144,7 @@ export function saveMatch<T, V>(cb: Parser<T, V>): Parser<T, V> {
 
 export function parseContinuous<T, U, V>(
   parsers: $ReadOnlyArray<Parser<T | NO_MATCH, V>>,
-  args: VarArgs<V>,
+  args: VarArgsClass<V>,
   matchCallback: (U | NO_MATCH, T) => U,
   defaultValue: U,
 ): U {
@@ -175,7 +182,7 @@ function concatStringMatch(
 
 export function parseContinuousString<V>(
   parsers: $ReadOnlyArray<Parser<string | NO_MATCH, V>>,
-  args: VarArgs<V>,
+  args: VarArgsClass<V>,
 ): string {
   return parseContinuous<string, string, V>(
     parsers,
@@ -199,23 +206,25 @@ export const createTextContentParser = <+T, V>(
 const varSubst = /^\{([0-9A-z_]+)\}/;
 export const createVarSubstParser = <T, V>(
   argFilter: (V) => T,
-): Parser<T | string | NO_MATCH, V> => saveMatch(function (args: VarArgs<V>) {
-  const name = accept(varSubst);
-  if (typeof name !== 'string') {
-    return NO_MATCH_VALUE;
-  }
-  if (args.has(name)) {
-    return argFilter(args.get(name));
-  }
-  return state.match;
-});
+): Parser<T | string | NO_MATCH, V> => saveMatch(
+  function (args: VarArgsClass<V>) {
+    const name = accept(varSubst);
+    if (typeof name !== 'string') {
+      return NO_MATCH_VALUE;
+    }
+    if (args.has(name)) {
+      return argFilter(args.get(name));
+    }
+    return state.match;
+  },
+);
 
-export const parseStringVarSubst =
+export const parseStringVarSubst: Parser<string | NO_MATCH, mixed> =
   createVarSubstParser<string, mixed>(getString);
 
 const condSubstStart = /^\{([0-9A-z_]+):/;
 const verticalPipe = /^\|/;
-export const substEnd = /^}/;
+export const substEnd: RegExp = /^}/;
 export const createCondSubstParser = <T, V>(
   thenParser: Parser<T, V>,
   elseParser: Parser<T, V>,
@@ -268,9 +277,9 @@ export const createCondSubstParser = <T, V>(
  * and input arg values.
  */
 export default function expand<+T, V>(
-  rootParser: (VarArgs<V>) => T,
+  rootParser: (VarArgsClass<V>) => T,
   source: ?string,
-  args: ?(VarArgsObject<V> | VarArgs<V>),
+  args: ?VarArgsClass<V>,
 ): T | string {
   if (!source) {
     return '';
@@ -289,21 +298,9 @@ export default function expand<+T, V>(
   state.running = true;
   state.source = source;
 
-  if (!(args instanceof VarArgs)) {
-    /*
-     * Note: The `data` property is covariant on the VarArgs class,
-     * but assigning to it here is safe only because it remains
-     * constant throughout the `expand` call, so this is equivalent
-     * to creating a new object. It must not be assigned to anywhere
-     * else.
-     */
-    (DEFAULT_ARGS: any).data = args || EMPTY_OBJECT;
-    args = (DEFAULT_ARGS: VarArgs<V>);
-  }
-
   let result;
   try {
-    result = rootParser(args);
+    result = rootParser(args ?? EMPTY_VARARGS);
 
     if (state.remainder) {
       throw error('unexpected token');
@@ -315,15 +312,13 @@ export default function expand<+T, V>(
      * console and Sentry.
      */
     console.error(e);
-    Raven.captureException(e);
+    Sentry.captureException(e);
     return source;
   } finally {
     if (savedState) {
       Object.assign(state, savedState);
     } else {
       state.running = false;
-      // Remove reference to the args object, so it can be GC'd.
-      (DEFAULT_ARGS: any).data = EMPTY_OBJECT;
     }
   }
 

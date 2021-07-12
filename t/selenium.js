@@ -1,12 +1,26 @@
 #!/usr/bin/env node
-// This file is part of MusicBrainz, the open internet music database.
-// Copyright (C) 2017 MetaBrainz Foundation
-// Licensed under the GPL version 2, or (at your option) any later version:
-// http://www.gnu.org/licenses/gpl-2.0.txt
+/*
+ * This file is part of MusicBrainz, the open internet music database.
+ * Copyright (C) 2017 MetaBrainz Foundation
+ * Licensed under the GPL version 2, or (at your option) any later version:
+ * http://www.gnu.org/licenses/gpl-2.0.txt
+ */
 
 require('@babel/register');
 
 const argv = require('yargs')
+  .option('b', {
+    alias: 'browser',
+    default: 'chrome',
+    describe: 'browser to use (chrome, firefox)',
+    type: 'string',
+  })
+  .option('c', {
+    alias: 'coverage',
+    default: true,
+    describe: 'dump coverage data to .nyc_output/',
+    type: 'boolean',
+  })
   .option('h', {
     alias: 'headless',
     default: true,
@@ -28,32 +42,46 @@ const defined = require('defined');
 const fs = require('fs');
 const http = require('http');
 const httpProxy = require('http-proxy');
-const jsdom = require('jsdom');
-const isEqualWith = require('lodash/isEqualWith');
+const JSON5 = require('json5');
 const path = require('path');
-const shellQuote = require('shell-quote');
 const test = require('tape');
 const TestCls = require('tape/lib/test');
-const utf8 = require('utf8');
 const webdriver = require('selenium-webdriver');
 const chrome = require('selenium-webdriver/chrome');
+const firefox = require('selenium-webdriver/firefox');
 const webdriverProxy = require('selenium-webdriver/proxy');
-const {UnexpectedAlertOpenError} = require('selenium-webdriver/lib/error');
 const {Key} = require('selenium-webdriver/lib/input');
 const promise = require('selenium-webdriver/lib/promise');
 const until = require('selenium-webdriver/lib/until');
 
 const DBDefs = require('../root/static/scripts/common/DBDefs');
-const escapeRegExp = require('../root/static/scripts/common/utility/escapeRegExp').default;
+const deepEqual = require('../root/static/scripts/common/utility/deepEqual');
+const escapeRegExp =
+  require('../root/static/scripts/common/utility/escapeRegExp').default;
+const writeCoverage = require('../root/utility/writeCoverage');
 
-const IGNORE = Symbol();
-
-function skipIgnored(a, b) {
-  return (a === IGNORE || b === IGNORE) ? true : undefined;
+function compareEditDataValues(actualValue, expectedValue) {
+  if (expectedValue === '$$__IGNORE__$$') {
+    return true;
+  }
+  /*
+   * Handle cases where Perl's JSON module serializes numbers in the
+   * edit data as strings (something we can't fix easily).
+   */
+  if (
+    (typeof actualValue === 'string' ||
+      typeof actualValue === 'number') &&
+    (typeof expectedValue === 'string' ||
+      typeof expectedValue === 'number')
+  ) {
+    return String(actualValue) === String(expectedValue);
+  }
+  // Tells `deepEqual` to perform its default comparison.
+  return null;
 }
 
 TestCls.prototype.deepEqual2 = function (a, b, msg, extra) {
-  this._assert(isEqualWith(a, b, skipIgnored), {
+  this._assert(deepEqual(a, b, compareEditDataValues), {
     message: defined(msg, 'should be equivalent'),
     operator: 'deepEqual2',
     actual: a,
@@ -76,12 +104,15 @@ function execFile(...args) {
       }
     }
 
-    const child = child_process.execFile(...args, function (error, stdout, stderr) {
-      result = {error, stdout, stderr};
-      if (exitCode !== null) {
-        done();
-      }
-    });
+    const child = child_process.execFile(
+      ...args,
+      function (error, stdout, stderr) {
+        result = {error, stdout, stderr};
+        if (exitCode !== null) {
+          done();
+        }
+      },
+    );
 
     child.on('exit', function (code) {
       exitCode = code;
@@ -105,23 +136,42 @@ const customProxyServer = http.createServer(function (req, res) {
     req.headers['mb-set-database'] = 'SELENIUM';
     req.rawHeaders['mb-set-database'] = 'SELENIUM';
   }
-  proxy.web(req, res, {target: 'http://' + host});
+  proxy.web(req, res, {target: 'http://' + host}, function (e) {
+    console.error(e);
+  });
 });
 
 const driver = (x => {
-  x.forBrowser('chrome');
+  let options;
 
-  x.setProxy(webdriverProxy.manual({http: 'localhost:5050'}));
+  switch (argv.browser) {
+    case 'chrome':
+      x.forBrowser('chrome');
+      options = new chrome.Options();
+      options.addArguments(
+        'disable-dev-shm-usage',
+        'no-sandbox',
+        'proxy-server=http://localhost:5051',
+      );
+      x.setChromeOptions(options);
+      break;
+
+    case 'firefox':
+      x.forBrowser('firefox');
+      options = new firefox.Options();
+      options.setPreference('dom.disable_beforeunload', false);
+      options.setPreference('network.proxy.allow_hijacking_localhost', true);
+      x.setFirefoxOptions(options);
+      break;
+
+    default:
+      throw new Error('Unsupported browser: ' + argv.browser);
+  }
+
+  x.setProxy(webdriverProxy.manual({http: 'localhost:5051'}));
 
   if (argv.headless) {
-    x.setChromeOptions(
-      new chrome.Options()
-        .headless()
-        .addArguments(
-          'no-sandbox',
-          'proxy-server=http://localhost:5050',
-        )
-    );
+    options.headless();
   }
 
   return x.build();
@@ -171,7 +221,7 @@ async function setChecked(element, wantChecked) {
   const checked = await element.isSelected();
 
   if (checked !== wantChecked) {
-    return element.click();
+    await element.click();
   }
 }
 
@@ -211,63 +261,65 @@ async function selectOption(select, optionLocator) {
 
 const KEY_CODES = {
   '${KEY_BKSP}': Key.BACK_SPACE,
+  '${KEY_DOWN}': Key.ARROW_DOWN,
   '${KEY_END}': Key.END,
+  '${KEY_ENTER}': Key.ENTER,
+  '${KEY_ESC}': Key.ESCAPE,
   '${KEY_HOME}': Key.HOME,
   '${KEY_SHIFT}': Key.SHIFT,
+  '${KEY_TAB}': Key.TAB,
+  '${MBS_ROOT}': DBDefs.MB_SERVER_ROOT.replace(/\/$/, ''),
 };
 
 function getPageErrors() {
   return driver.executeScript('return ((window.MB || {}).js_errors || [])');
 }
 
-function parseEditData(value) {
-  return (new Function('ignore', `return (${value})`))(IGNORE);
+let coverageObjectIndex = 0;
+function writeSeleniumCoverage(coverageString) {
+  writeCoverage(`selenium-${coverageObjectIndex++}`, coverageString);
 }
 
-async function handleCommandAndWait(file, command, target, value, t) {
-  command = command.replace(/AndWait$/, '');
+async function writePreviousSeleniumCoverage() {
+  /*
+   * `previousCoverage` means for the previous window.
+   *
+   * We only want to write the __coverage__ object to disk before the page
+   * is about to change, for the obvious reason that it's not complete until
+   * then, but also because retrieving the large (> 1MB) __coverage__ object
+   * from the driver is slow, so we only want to do that when absolutely
+   * necessary.
+   */
+  const previousCoverage = await driver.executeScript(
+    `if (!window.__seen__) {
+       window.__seen__ = true;
+       window.addEventListener('beforeunload', function () {
+         sessionStorage.setItem(
+           '__previous_coverage__',
+           JSON.stringify(window.__coverage__),
+         );
+       });
+       return sessionStorage.getItem('__previous_coverage__');
+     }
+     return null;`,
+  );
+  if (previousCoverage) {
+    writeSeleniumCoverage(previousCoverage);
+  }
+}
+
+async function handleCommandAndWait({command, target, value}, t) {
+  const newCommand = command.replace(/AndWait$/, '');
 
   const html = await findElement('css=html');
-  await handleCommand(file, command, target, value, t);
+  await handleCommand({command: newCommand, target, value}, t);
   return driver.wait(until.stalenessOf(html), 30000);
 }
 
-async function handleCommand(file, command, target, value, t) {
-  // Die if there are any JS errors on the page since the previous command.
-  let errors;
-  try {
-    errors = await getPageErrors();
-  } catch (e) {
-    // Handle the "All of your changes will be lost" confirmation dialog in
-    // the release editor.
-    //  1. Setting the unexpectedAlertBehavior capability on the session
-    //     doesn't seem to handle this.
-    //  2. The webdriver thinks the alert text is empty, so we don't bother
-    //     checking it.
-    if (e instanceof UnexpectedAlertOpenError) {
-      await driver.switchTo().alert().accept();
-      errors = await getPageErrors();
-    } else {
-      throw e;
-    }
-  }
-
-  if (errors.length) {
-    throw new Error(
-      'Errors were found on the page since executing the previous command:\n' +
-      errors.join('\n\n')
-    );
-  }
-
+async function handleCommand({command, target, value}, t) {
   if (/AndWait$/.test(command)) {
     return handleCommandAndWait.apply(null, arguments);
   }
-
-  // The CATALYST_DEBUG views interfere with our tests. Remove them.
-  await driver.executeScript(`
-    node = document.getElementById('plDebug');
-    if (node) node.remove();
-  `);
 
   // Wait for all pending network requests before running the next command.
   await driver.wait(function () {
@@ -275,23 +327,23 @@ async function handleCommand(file, command, target, value, t) {
     return pendingReqs.length === 0;
   });
 
-  let commentValue;
-  switch (command) {
-    case 'assertEditData':
-      commentValue = parseEditData(value);
-      break;
-    default:
-      commentValue = value;
-  }
-
   t.comment(
     command +
-    ' target=' + utf8.encode(JSON.stringify(target)) +
-    ' value=' + utf8.encode(JSON.stringify(commentValue))
+    ' target=' + JSON.stringify(target) +
+    ' value=' + JSON.stringify(value),
   );
 
   let element;
   switch (command) {
+    case 'assertArtworkJson':
+      const artworkJson = JSON.parse(await driver.executeAsyncScript(`
+        var callback = arguments[arguments.length - 1];
+        fetch('http://localhost:8081/release/${target}')
+          .then(x => x.text().then(callback));
+      `));
+      t.deepEqual2(artworkJson, value);
+      break;
+
     case 'assertAttribute':
       const splitAt = target.indexOf('@');
       const locator = target.slice(0, splitAt);
@@ -299,16 +351,16 @@ async function handleCommand(file, command, target, value, t) {
       element = await findElement(locator);
 
       t.equal(await element.getAttribute(attribute), value);
-      return;
+      break;
 
     case 'assertElementPresent':
       const elements = await driver.findElements(makeLocator(target));
       t.ok(elements.length > 0);
-      return;
+      break;
 
     case 'assertEval':
       t.equal(await driver.executeScript(`return String(${target})`), value);
-      return;
+      break;
 
     case 'assertEditData':
       const actualEditData = JSON.parse(await driver.executeAsyncScript(`
@@ -319,30 +371,29 @@ async function handleCommand(file, command, target, value, t) {
           headers: new Headers({'Accept': 'application/json'}),
         }).then(x => x.text().then(callback));
       `));
-      const expectedEditData = parseEditData(value);
-      t.deepEqual2(actualEditData, expectedEditData);
-      return;
+      t.deepEqual2(actualEditData, value);
+      break;
 
     case 'assertLocationMatches':
       t.ok(new RegExp(target).test(await driver.getCurrentUrl()));
-      return;
+      break;
 
     case 'assertText':
       target = await getElementText(target);
       t.equal(target, value.trim());
-      return;
+      break;
 
     case 'assertTextMatches':
       t.ok(new RegExp(value).test(await getElementText(target)));
-      return;
+      break;
 
     case 'assertTitle':
       t.equal(await driver.getTitle(), target);
-      return;
+      break;
 
     case 'assertValue':
       t.equal(await findElement(target).getAttribute('value'), value);
-      return;
+      break;
 
     case 'check':
       return setChecked(findElement(target), true);
@@ -350,48 +401,56 @@ async function handleCommand(file, command, target, value, t) {
     case 'click':
       element = await findElement(target);
       await driver.executeScript('arguments[0].scrollIntoView()', element);
-      return element.click();
+      await element.click();
+      break;
 
     case 'fireEvent':
-      return driver.executeScript(
+      await driver.executeScript(
         `arguments[0].dispatchEvent(new Event('${value}'))`,
-        await findElement(target)
+        await findElement(target),
       );
+      break;
 
     case 'focus':
-      return driver.executeScript(
+      await driver.executeScript(
         'arguments[0].focus()',
-        await findElement(target)
+        await findElement(target),
       );
+      break;
+
+    case 'handleAlert':
+      await driver.switchTo().alert()[target]();
+      break;
 
     case 'mouseOver':
-      return driver.actions()
-        .mouseMove(await findElement(target))
+      await driver.actions()
+        .move({origin: await findElement(target)})
         .perform();
+      break;
 
     case 'open':
       await driver.get('http://' + DBDefs.WEB_SERVER + target);
-      return driver.manage().window().setSize(1024, 768);
-
-    case 'openFile':
-      await driver.get('file://' + path.resolve(path.dirname(file), target));
-      return driver.manage().window().setSize(1024, 768);
+      break;
 
     case 'pause':
-      return driver.sleep(target);
+      await driver.sleep(target);
+      break;
 
     case 'runScript':
-      return driver.executeScript(target);
+      await driver.executeScript(target);
+      break;
 
     case 'select':
-      return selectOption(await findElement(target), value);
+      await selectOption(await findElement(target), value);
+      break;
 
     case 'sendKeys':
       value = value.split(/(\$\{[A-Z_]+\})/)
         .filter(x => x)
         .map(x => KEY_CODES[x] || x);
       element = await findElement(target);
-      return element.sendKeys.apply(element, value);
+      await element.sendKeys.apply(element, value);
+      break;
 
     case 'type':
       element = await findElement(target);
@@ -408,30 +467,64 @@ async function handleCommand(file, command, target, value, t) {
        */
       await element.clear();
       await driver.executeScript('arguments[0].value = ""', element);
-      return element.sendKeys(value);
+      await element.sendKeys(value);
+      break;
 
     case 'uncheck':
-      return setChecked(findElement(target), false);
+      await setChecked(findElement(target), false);
+      break;
+
+    case 'waitUntilUrlIs':
+      await driver.wait(until.urlIs(
+        'http://' + DBDefs.WEB_SERVER + target,
+      ), 30000);
+      break;
 
     default:
       throw 'Unsupported command: ' + command;
   }
+  return null;
 }
 
 const seleniumTests = [
-  {name: 'Create_Account.html'},
-  {name: 'MBS-5387.html', login: true},
-  {name: 'MBS-7456.html', login: true},
-  {name: 'MBS-9548.html'},
-  {name: 'MBS-9669.html'},
-  {name: 'MBS-9941.html', login: true},
-  {name: 'Artist_Credit_Editor.html', login: true},
-  {name: 'External_Links_Editor.html', login: true},
-  {name: 'Work_Editor.html', login: true},
-  {name: 'Redirect_Merged_Entities.html', login: true},
-  {name: 'admin/Edit_Banner.html', login: true},
-  {name: 'release-editor/The_Downward_Spiral.html', login: true},
-  {name: 'release-editor/Seeding.html', login: true, sql: 'vision_creation_newsun.sql'},
+  {name: 'Create_Account.json5'},
+  {name: 'MBS-5387.json5', login: true},
+  {name: 'MBS-7456.json5', login: true},
+  {name: 'MBS-9548.json5'},
+  {name: 'MBS-9669.json5'},
+  {name: 'MBS-9941.json5', login: true},
+  {name: 'MBS-10188.json5', login: true, sql: 'mbs-10188.sql'},
+  {name: 'MBS-10510.json5', login: true, sql: 'mbs-10510.sql'},
+  {name: 'MBS-11730.json5', login: true},
+  {name: 'MBS-11735.json5', login: true},
+  {name: 'Artist_Credit_Editor.json5', login: true},
+  {name: 'CAA.json5', login: true},
+  {name: 'External_Links_Editor.json5', login: true},
+  {name: 'Work_Editor.json5', login: true},
+  {name: 'Redirect_Merged_Entities.json5', login: true},
+  {name: 'admin/Edit_Banner.json5', login: true},
+  {name: 'release-editor/The_Downward_Spiral.json5', login: true},
+  {
+    name: 'release-editor/Duplicate_Selection.json5',
+    login: true,
+    sql: 'whatever_it_takes.sql',
+  },
+  {
+    name: 'release-editor/Seeding.json5',
+    login: true,
+    sql: 'vision_creation_newsun.sql',
+  },
+  {name: 'release-editor/MBS-4555.json5', login: false},
+  {name: 'release-editor/MBS-10221.json5', login: true},
+  {name: 'release-editor/MBS-10359.json5', login: true},
+  {name: 'release-editor/MBS-11015.json5', login: true},
+  {name: 'release-editor/MBS-11114.json5', login: true},
+  {name: 'release-editor/MBS-11156.json5', login: true},
+  {
+    name: 'Check_Duplicates.json5',
+    login: true,
+    sql: 'duplicate_checker.sql',
+  },
 ];
 
 const testPath = name => path.resolve(__dirname, 'selenium', name);
@@ -441,172 +534,98 @@ seleniumTests.forEach(x => {
 });
 
 function getPlan(file) {
-  const {document} = new jsdom.JSDOM(fs.readFileSync(file)).window;
-  const title = document.querySelector('title').textContent;
-  const tbody = document.querySelector('tbody');
-  const rows = Array.prototype.slice.call(tbody.getElementsByTagName('tr'), 0);
-  const commands = [];
+  const document = JSON5.parse(fs.readFileSync(file));
+  const commands = document.commands;
   let plan = 0;
 
-  for (let i = 0; i < rows.length; i++) {
-    const cols = rows[i].getElementsByTagName('td');
-    const command = cols[0].textContent;
-    const target = cols[1].textContent;
-    const value = cols[2].textContent;
+  for (let i = 0; i < commands.length; i++) {
+    const row = commands[i];
 
-    if (/^assert/.test(command)) {
+    if (/^assert/.test(row.command)) {
       plan++;
     }
 
-    commands.push([file, command, target, value]);
+    row.file = file;
   }
 
-  return {commands, plan, title};
+  document.plan = plan;
+  return document;
 }
 
 async function runCommands(commands, t) {
+  await driver.manage().window().setRect({height: 768, width: 1024});
+
   for (let i = 0; i < commands.length; i++) {
-    await handleCommand(...commands[i], t);
+    await handleCommand(commands[i], t);
+
+    const nextCommand = i < (commands.length - 1) ? commands[i + 1] : null;
+
+    /*
+     * If there's an alert open on the page, we can't execute any scripts;
+     * they'll die with an UnexpectedAlertOpenError. Since these must be
+     * handled explicitly with the `handleAlert` command, we check if that's
+     * the next command before proceeding.
+     */
+    if (!nextCommand || nextCommand.command !== 'handleAlert') {
+      if (argv.coverage) {
+        await writePreviousSeleniumCoverage();
+      }
+
+      // Die if there are any JS errors on the page since the previous command
+      const errors = await getPageErrors();
+
+      if (errors.length) {
+        throw new Error(
+          'Errors were found on the page ' +
+          'since executing the previous command:\n' +
+          errors.join('\n\n'),
+        );
+      }
+
+      // The CATALYST_DEBUG views interfere with our tests. Remove them.
+      await driver.executeScript(`
+        node = document.getElementById('plDebug');
+        if (node) node.remove();
+      `);
+    }
   }
 }
 
 (async function runTests() {
   const TEST_TIMEOUT = 200000; // 200 seconds
 
-  const cartonPrefix = process.env.PERL_CARTON_PATH
-    ? 'carton exec -- '
-    : '';
-
-  function pgPasswordEnv(db) {
-    if (db.password) {
-      return {env: Object.assign({}, process.env, {PGPASSWORD: db.password})};
-    }
-    return {};
-  }
-
-  async function getDbConfig(name) {
-    if (name !== 'SYSTEM' && name !== 'TEST') {
-      return null;
-    }
-
-    const result = (await execFile(
-      'sh', [
-        '-c',
-        `$(${cartonPrefix}./script/database_configuration ${name}) && ` +
-        'echo "$PGHOST\n$PGPORT\n$PGDATABASE\n$PGUSER\n$PGPASSWORD"',
-      ],
-    )).stdout.split('\n').map(x => x.trim());
-
-    return {
-      host: result[0],
-      port: result[1],
-      database: result[2],
-      user: result[3],
-      password: result[4],
-    };
-  }
-
-  const sysDb = await getDbConfig('SYSTEM');
-  const testDb = await getDbConfig('TEST');
-
-  const hostPort = ['-h', testDb.host, '-p', testDb.port];
-
-  /*
-   * In our production tests setup, there exists a musicbrainz_test_template
-   * database based on a pristine musicbrainz_test, so that we can run
-   * t/tests.t in parallel without having to worry about modifications to
-   * musicbrainz_test.
-   */
-  const testTemplateExists = await dbExists('musicbrainz_test_template');
-  const createdbArgs = [
-    '-O', testDb.user,
-    '-T', testTemplateExists ? 'musicbrainz_test_template' : testDb.database,
-    '-U', sysDb.user,
-    ...hostPort,
-    'musicbrainz_selenium',
-  ];
-
-  const dropdbArgs = [...hostPort, '-U', sysDb.user, 'musicbrainz_selenium'];
-
-  function execSql(sqlFile) {
-    const args = [
-      '-c',
-      shellQuote.quote(['cat', path.resolve(__dirname, 'sql', sqlFile)]) +  ' | ' +
-      shellQuote.quote(['psql', ...hostPort, '-U', testDb.user, 'musicbrainz_selenium']),
-    ];
-    return execFile('sh', args, pgPasswordEnv(testDb));
-  }
-
-  async function createSeleniumDb() {
-    await execFile('createdb', createdbArgs, pgPasswordEnv(sysDb));
-    await execSql('selenium.sql');
-  }
-
-  async function dropSeleniumDb() {
-    // Close active sessions before dropping the database.
+  async function cleanSeleniumDb(extraSql) {
     await execFile(
-      'psql',
-      [
-        ...hostPort,
-        '-U', sysDb.user,
-        '-c', `
-          SELECT pg_terminate_backend(pg_stat_activity.pid)
-            FROM pg_stat_activity
-           WHERE datname = 'musicbrainz_selenium'
-        `,
-        'template1',
-      ],
-      pgPasswordEnv(sysDb),
+      path.resolve(__dirname, '../script/reset_selenium_env.sh'),
+      extraSql ? [path.resolve(__dirname, 'sql', extraSql)] : [],
     );
-    return execFile('dropdb', dropdbArgs, pgPasswordEnv(sysDb));
   }
 
-  async function dbExists(name) {
-    const result = await execFile(
-      'psql', [...hostPort, '-U', sysDb.user, '-c', 'SELECT 1', name],
-      pgPasswordEnv(sysDb),
-    ).catch(x => x);
-
-    if (result.code === 0) {
-      return true;
-    } else if (result.code !== 2) {
-      // An error other than the database not existing occurred.
-      throw result.error;
-    }
-    return false;
-  }
-
-  if (await dbExists('musicbrainz_selenium')) {
-    await dropSeleniumDb();
-  }
-
-  const loginPlan = getPlan(testPath('Log_In.html'));
-  const logoutPlan = getPlan(testPath('Log_Out.html'));
+  const loginPlan = getPlan(testPath('Log_In.json5'));
+  const logoutPlan = getPlan(testPath('Log_Out.json5'));
   const testsPathsToRun = argv._.map(x => path.resolve(x));
   const testsToRun = testsPathsToRun.length
     ? seleniumTests.filter(x => testsPathsToRun.includes(x.path))
     : seleniumTests;
 
-  customProxyServer.listen(5050);
+  customProxyServer.listen(5051);
 
   await testsToRun.reduce(function (accum, stest, index) {
     const {commands, plan, title} = getPlan(stest.path);
 
     const isLastTest = index === testsToRun.length - 1;
 
+    const testOptions = {objectPrintDepth: 10, timeout: TEST_TIMEOUT};
+
     return new Promise(function (resolve) {
-      test(title, {timeout: TEST_TIMEOUT}, function (t) {
+      test(title, testOptions, function (t) {
         t.plan(plan);
 
         const timeout = setTimeout(resolve, TEST_TIMEOUT);
 
         accum.then(async function () {
           try {
-            await createSeleniumDb();
-
-            if (stest.sql) {
-              await execSql(stest.sql);
-            }
+            await cleanSeleniumDb(stest.sql);
 
             if (stest.login) {
               await runCommands(loginPlan.commands, t);
@@ -618,12 +637,11 @@ async function runCommands(commands, t) {
               if (stest.login) {
                 await runCommands(logoutPlan.commands, t);
               }
-              await dropSeleniumDb();
             }
           } catch (error) {
             t.fail(
               'caught exception: ' +
-              (error && error.stack ? error.stack : error.toString())
+              (error && error.stack ? error.stack : error.toString()),
             );
             throw error;
           }
@@ -635,6 +653,15 @@ async function runCommands(commands, t) {
       });
     });
   }, Promise.resolve());
+
+  if (argv.coverage) {
+    const remainingCoverage = await driver.executeScript(
+      'return JSON.stringify(window.__coverage__)',
+    );
+    if (remainingCoverage) {
+      writeSeleniumCoverage(remainingCoverage);
+    }
+  }
 
   if (!argv.stayOpen) {
     await quit();

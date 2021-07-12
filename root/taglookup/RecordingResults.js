@@ -1,5 +1,5 @@
 /*
- * @flow
+ * @flow strict-local
  * Copyright (C) 2018 MetaBrainz Foundation
  *
  * This file is part of MusicBrainz, the open internet music database,
@@ -9,16 +9,16 @@
 
 import * as React from 'react';
 
-import {withCatalystContext} from '../context';
 import {RecordingResultsInline} from '../search/components/RecordingResults';
 
 import TagLookupResults from './Results';
 import type {TagLookupResultsPropsT} from './types';
 
-const TagLookupRecordingResults = (props: TagLookupResultsPropsT<RecordingT>) => (
+const TagLookupRecordingResults = (
+  props: TagLookupResultsPropsT<RecordingWithArtistCreditT>,
+): React.Element<typeof TagLookupResults> => (
   <TagLookupResults {...props}>
     <RecordingResultsInline
-      $c={props.$c}
       pager={props.pager}
       query={props.query}
       results={props.results}
@@ -26,4 +26,4 @@ const TagLookupRecordingResults = (props: TagLookupResultsPropsT<RecordingT>) =>
   </TagLookupResults>
 );
 
-export default withCatalystContext(TagLookupRecordingResults);
+export default TagLookupRecordingResults;

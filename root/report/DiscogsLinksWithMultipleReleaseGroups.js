@@ -1,5 +1,5 @@
 /*
- * @flow
+ * @flow strict-local
  * Copyright (C) 2018 MetaBrainz Foundation
  *
  * This file is part of MusicBrainz, the open internet music database,
@@ -9,48 +9,32 @@
 
 import * as React from 'react';
 
-import {withCatalystContext} from '../context';
-import Layout from '../layout';
-import formatUserDate from '../utility/formatUserDate';
-
 import ReleaseGroupUrlList from './components/ReleaseGroupUrlList';
-import FilterLink from './FilterLink';
+import ReportLayout from './components/ReportLayout';
 import type {ReportDataT, ReportReleaseGroupUrlT} from './types';
 
 const DiscogsLinksWithMultipleReleaseGroups = ({
-  $c,
   canBeFiltered,
   filtered,
   generated,
   items,
   pager,
-}: ReportDataT<ReportReleaseGroupUrlT>) => (
-  <Layout
-    fullWidth
+}: ReportDataT<ReportReleaseGroupUrlT>):
+React.Element<typeof ReportLayout> => (
+  <ReportLayout
+    canBeFiltered={canBeFiltered}
+    description={l(
+      `This report shows Discogs URLs which are linked
+       to multiple release groups.`,
+    )}
+    entityType="release_group"
+    filtered={filtered}
+    generated={generated}
     title={l('Discogs URLs linked to multiple release groups')}
+    totalEntries={pager.total_entries}
   >
-    <h1>{l('Discogs URLs linked to multiple release groups')}</h1>
-
-    <ul>
-      <li>
-        {l(`This report shows Discogs URLs which are linked
-            to multiple release groups.`)}
-      </li>
-      <li>
-        {texp.l('Total release groups found: {count}',
-                {count: pager.total_entries})}
-      </li>
-      <li>
-        {texp.l('Generated on {date}',
-                {date: formatUserDate($c.user, generated)})}
-      </li>
-
-      {canBeFiltered ? <FilterLink filtered={filtered} /> : null}
-    </ul>
-
     <ReleaseGroupUrlList items={items} pager={pager} />
-
-  </Layout>
+  </ReportLayout>
 );
 
-export default withCatalystContext(DiscogsLinksWithMultipleReleaseGroups);
+export default DiscogsLinksWithMultipleReleaseGroups;

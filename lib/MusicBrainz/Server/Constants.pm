@@ -6,6 +6,7 @@ use warnings;
 use base 'Exporter';
 
 use DateTime::Duration;
+use DateTime::Locale '1.00';
 use File::Basename qw( dirname );
 use File::Slurp qw( read_file );
 use File::Spec;
@@ -24,17 +25,19 @@ sub _get
 }
 
 our %EXPORT_TAGS = (
+    direction          => _get(qr/^DIRECTION_/),
     edit_type          => _get(qr/^EDIT_/),
     expire_action      => _get(qr/^EXPIRE_/),
     quality            => _get(qr/^QUALITY_/),
     alias              => _get(qr/^EDIT_.*_ALIAS$/),
     annotation         => _get(qr/^EDIT_.*_ADD_ANNOTATION$/),
+    create_entity      => _get(qr/^EDIT_.*_CREATE$/),
     historic           => _get(qr/^EDIT_HISTORIC_/),
     editor             => _get(qr/^EDITOR_/),
     vote               => _get(qr/^VOTE_/),
     edit_status        => _get(qr/^STATUS_/),
     access_scope       => _get(qr/^ACCESS_SCOPE_/),
-    privileges         => _get(qr/_FLAG$/),
+    privileges         => _get(qr/_FLAGS?$/),
     language_frequency => _get(qr/^LANGUAGE_FREQUENCY/),
     script_frequency   => _get(qr/^SCRIPT_FREQUENCY/),
     election_status => [
@@ -56,7 +59,7 @@ our %EXPORT_TAGS = (
 our @EXPORT_OK = (
     (uniq map { @$_ } values %EXPORT_TAGS),
     qw(
-        $DLABEL_ID $DARTIST_ID $VARTIST_ID $VARTIST_GID
+        $DLABEL_ID $DARTIST_ID $VARTIST_ID $VARTIST_GID $NOLABEL_ID $NOLABEL_GID
         $COVERART_FRONT_TYPE $COVERART_BACK_TYPE
         $AREA_TYPE_COUNTRY $AREA_TYPE_CITY
         $ARTIST_TYPE_PERSON $ARTIST_TYPE_GROUP
@@ -68,7 +71,7 @@ our @EXPORT_OK = (
         %PART_OF_SERIES $PART_OF_AREA_LINK_TYPE $PART_OF_AREA_LINK_TYPE_ID
         $SERIES_ORDERING_TYPE_AUTOMATIC $SERIES_ORDERING_TYPE_MANUAL
         $SERIES_ORDERING_ATTRIBUTE
-        $MAX_INITIAL_MEDIUMS
+        $MAX_INITIAL_MEDIUMS $MAX_INITIAL_TRACKS
         $MAX_POSTGRES_INT $MAX_POSTGRES_BIGINT
         @FULL_TABLE_LIST
         @CORE_TABLE_LIST
@@ -86,9 +89,11 @@ our @EXPORT_OK = (
         $CONTACT_URL
         $WS_EDIT_RESPONSE_OK $WS_EDIT_RESPONSE_NO_CHANGES
         %ENTITIES_WITH_RELATIONSHIP_CREDITS
+        %HISTORICAL_RELEASE_GROUP_TYPES
         %ENTITIES entities_with @RELATABLE_ENTITIES
         $EDITOR_SANITISED_COLUMNS
         $PASSPHRASE_BCRYPT_COST
+        %ALIAS_LOCALES
     ),
 );
 
@@ -97,6 +102,12 @@ Readonly our $DARTIST_ID => 2;
 
 Readonly our $VARTIST_GID => '89ad4ac3-39f7-470e-963a-56509c546377';
 Readonly our $VARTIST_ID  => 1;
+
+Readonly our $NOLABEL_GID => '157afde4-4bf5-4039-8ad2-5a15acc85176';
+Readonly our $NOLABEL_ID  => 3267;
+
+Readonly our $DIRECTION_FORWARD => 1;
+Readonly our $DIRECTION_BACKWARD => 2;
 
 Readonly our $EXPIRE_ACCEPT => 1;
 Readonly our $EXPIRE_REJECT => 2;
@@ -195,7 +206,6 @@ Readonly our $EDIT_RECORDING_DELETE => 73;
 Readonly our $EDIT_RECORDING_MERGE => 74;
 Readonly our $EDIT_RECORDING_ADD_ANNOTATION => 75;
 Readonly our $EDIT_RECORDING_ADD_ISRCS => 76;
-Readonly our $EDIT_RECORDING_ADD_PUIDS => 77;
 Readonly our $EDIT_RECORDING_REMOVE_ISRC => 78;
 Readonly our $EDIT_RECORDING_ADD_ALIAS => 711;
 Readonly our $EDIT_RECORDING_DELETE_ALIAS => 712;
@@ -251,8 +261,6 @@ Readonly our $EDIT_EVENT_EDIT_ALIAS => 157;
 Readonly our $EDIT_WIKIDOC_CHANGE => 120;
 
 Readonly our $EDIT_URL_EDIT => 101;
-
-Readonly our $EDIT_PUID_DELETE => 113;
 
 Readonly our $EDIT_HISTORIC_EDIT_RELEASE_NAME       => 201;
 Readonly our $EDIT_HISTORIC_EDIT_TRACKNAME          => 204;
@@ -324,20 +332,28 @@ Readonly our $STATUS_FAILEDDEP    => 4;
 Readonly our $STATUS_ERROR        => 5;
 Readonly our $STATUS_FAILEDPREREQ => 6;
 Readonly our $STATUS_NOVOTES      => 7;
-Readonly our $STATUS_TOBEDELETED  => 8;
 Readonly our $STATUS_DELETED      => 9;
 
-Readonly our $AUTO_EDITOR_FLAG         => 1;
-Readonly our $BOT_FLAG                 => 2;
-Readonly our $UNTRUSTED_FLAG           => 4;
-Readonly our $RELATIONSHIP_EDITOR_FLAG => 8;
-Readonly our $DONT_NAG_FLAG            => 16;
-Readonly our $WIKI_TRANSCLUSION_FLAG   => 32;
-Readonly our $MBID_SUBMITTER_FLAG      => 64;
-Readonly our $ACCOUNT_ADMIN_FLAG       => 128;
-Readonly our $LOCATION_EDITOR_FLAG     => 256;
-Readonly our $BANNER_EDITOR_FLAG       => 512;
-Readonly our $EDITING_DISABLED_FLAG    => 1024;
+Readonly our $AUTO_EDITOR_FLAG              => 1;
+Readonly our $BOT_FLAG                      => 2;
+Readonly our $UNTRUSTED_FLAG                => 4;
+Readonly our $RELATIONSHIP_EDITOR_FLAG      => 8;
+Readonly our $DONT_NAG_FLAG                 => 16;
+Readonly our $WIKI_TRANSCLUSION_FLAG        => 32;
+Readonly our $MBID_SUBMITTER_FLAG           => 64;
+Readonly our $ACCOUNT_ADMIN_FLAG            => 128;
+Readonly our $LOCATION_EDITOR_FLAG          => 256;
+Readonly our $BANNER_EDITOR_FLAG            => 512;
+Readonly our $EDITING_DISABLED_FLAG         => 1024;
+Readonly our $ADDING_NOTES_DISABLED_FLAG    => 2048;
+# If you update this, also update root/utility/sanitizedEditor.js
+Readonly our $PUBLIC_PRIVILEGE_FLAGS        => $AUTO_EDITOR_FLAG &
+                                               $BOT_FLAG &
+                                               $RELATIONSHIP_EDITOR_FLAG &
+                                               $WIKI_TRANSCLUSION_FLAG &
+                                               $ACCOUNT_ADMIN_FLAG &
+                                               $LOCATION_EDITOR_FLAG &
+                                               $BANNER_EDITOR_FLAG;
 
 Readonly our $ELECTION_VOTE_NO      => -1;
 Readonly our $ELECTION_VOTE_ABSTAIN => 0;
@@ -375,6 +391,7 @@ Readonly our $SERIES_ORDERING_TYPE_AUTOMATIC => 1;
 Readonly our $SERIES_ORDERING_TYPE_MANUAL => 2;
 
 Readonly our %PART_OF_SERIES => (
+    artist          => 'd1a845d1-8c03-3191-9454-e4e8d37fa5e0',
     event           => '707d947d-9563-328a-9a7d-0c5b9c3a9791',
     recording       => 'ea6f0698-6782-30d6-b16d-293081b66774',
     release         => '3fa29f01-8e13-3e49-9b0a-ad212aa2f81d',
@@ -389,6 +406,7 @@ Readonly our $PART_OF_AREA_LINK_TYPE => 'de7cc874-8b1b-3a05-8272-f3834c968fb7';
 Readonly our $PART_OF_AREA_LINK_TYPE_ID => 356;
 
 Readonly our $MAX_INITIAL_MEDIUMS => 10;
+Readonly our $MAX_INITIAL_TRACKS => 100;
 
 Readonly our $MAX_POSTGRES_INT => 2147483647;
 Readonly our $MAX_POSTGRES_BIGINT => 9223372036854775807;
@@ -401,8 +419,23 @@ Readonly our $WS_EDIT_RESPONSE_NO_CHANGES => 2;
 Readonly our %ENTITIES_WITH_RELATIONSHIP_CREDITS => map { $_ => 1 } qw(
     area
     artist
+    instrument
     label
     place
+);
+
+Readonly our %HISTORICAL_RELEASE_GROUP_TYPES => (
+    1 => 'Album',
+    2 => 'Single',
+    3 => 'EP',
+    4 => 'Compilation',
+    5 => 'Soundtrack',
+    6 => 'Spokenword',
+    7 => 'Interview',
+    8 => 'Audiobook',
+    9 => 'Live',
+    10 => 'Remix',
+    11 => 'Other',
 );
 
 Readonly our %ENTITIES => %{
@@ -696,6 +729,7 @@ Readonly our @DERIVED_TABLE_LIST => qw(
     label_tag
     medium_index
     place_annotation
+    place_meta
     place_tag
     recording_annotation
     recording_meta
@@ -757,6 +791,7 @@ Readonly our @PRIVATE_TABLE_LIST => qw(
     editor_collection_artist
     editor_collection_collaborator
     editor_collection_event
+    editor_collection_gid_redirect
     editor_collection_instrument
     editor_collection_label
     editor_collection_place
@@ -783,6 +818,7 @@ Readonly our @PRIVATE_TABLE_LIST => qw(
     label_rating_raw
     label_tag_raw
     old_editor_name
+    place_rating_raw
     place_tag_raw
     recording_rating_raw
     recording_tag_raw
@@ -951,6 +987,30 @@ Readonly our $PASSPHRASE_BCRYPT_COST => 12;
 Readonly our $OAUTH_INSTALLED_APP_REDIRECT_URI_RE => qr/^(?![_-])[\w-]+(?:\.(?![_-])[\w-]+)+:/;
 Readonly our $OAUTH_WEB_APP_REDIRECT_URI_RE => qr/^https?:\/\//;
 
+=item %ALIAS_LOCALES
+
+Historically, alias locales have been stored in the database and
+returned in the web service using underscores instead of dashes, e.g.
+zh_Hant_HK instead of zh-Hant-HK. Presumably this was simply because
+that was how DateTime::Locale returned them prior to version 1.00.
+The primary reason to continue doing this is to maintain compatibility
+for data users.
+
+Thus, we define these locale codes as Unicode CLDR locale identifiers
+[1], but they can be converted to and from BCP 47 language tags quite
+easily still [2].
+
+[1] https://www.unicode.org/reports/tr35/tr35.html#BCP_47_Conformance
+[2] https://www.unicode.org/reports/tr35/tr35.html
+    #Unicode_Locale_Identifier_CLDR_to_BCP_47
+
+=cut
+
+Readonly our %ALIAS_LOCALES => map {
+    my $id = ($_ =~ s/-/_/gr);
+    $id => DateTime::Locale->load($_);
+} DateTime::Locale->codes;
+
 =head1 NAME
 
 MusicBrainz::Server::Constant - constants used in the database that
@@ -977,24 +1037,18 @@ Row ID and GID's for the special artist "Various Artists"
 
 Row ID for the Deleted Artist entity
 
+=item $NOLABEL_ID, $NOLABEL_GID
+
+Row ID and GID for the special label "[no label]"
+
 =back
 
-=head1 COPYRIGHT
+=head1 COPYRIGHT AND LICENSE
 
 Copyright (C) 2009 Oliver Charles
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program; if not, write to the Free Software
-Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+This file is part of MusicBrainz, the open internet music database,
+and is licensed under the GPL version 2, or (at your option) any
+later version: http://www.gnu.org/licenses/gpl-2.0.txt
 
 =cut

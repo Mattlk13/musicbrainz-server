@@ -1,5 +1,5 @@
 /*
- * @flow
+ * @flow strict-local
  * Copyright (C) 2018 MetaBrainz Foundation
  *
  * This file is part of MusicBrainz, the open internet music database,
@@ -7,16 +7,18 @@
  * later version: http://www.gnu.org/licenses/gpl-2.0.txt
  */
 
-import noop from 'lodash/noop';
 import * as React from 'react';
 
-import UserAccountLayout from '../components/UserAccountLayout';
+import {CONTACT_URL} from '../constants';
+import UserAccountLayout, {
+  type AccountLayoutUserT,
+} from '../components/UserAccountLayout';
+import FormCsrfToken from '../components/FormCsrfToken';
 import FormRow from '../components/FormRow';
 import FormRowCheckbox from '../components/FormRowCheckbox';
 import FormRowSelect from '../components/FormRowSelect';
 import FormRowTextArea from '../components/FormRowTextArea';
 import FormSubmit from '../components/FormSubmit';
-import {withCatalystContext} from '../context';
 
 type ReportReasonT =
   | 'enforcing_guidelines'
@@ -24,18 +26,19 @@ type ReportReasonT =
   | 'other'
   | 'spam'
   | 'unresponsiveness'
-  | 'voting'
-  ;
+  | 'voting';
 
-type Props = {|
+type Props = {
   +$c: CatalystContextT,
-  +form: FormT<{|
+  +form: FormT<{
+    +csrf_token: FieldT<string>,
     +message: FieldT<string>,
     +reason: FieldT<ReportReasonT>,
     +reveal_address: FieldT<boolean>,
-  |}>,
-  +user: EditorT,
-|};
+    +send_to_self: FieldT<boolean>,
+  }>,
+  +user: AccountLayoutUserT,
+};
 
 const reportReasonOptions = {
   grouped: false,
@@ -73,7 +76,7 @@ const ReportUser = ({
   $c,
   form,
   user,
-}: Props) => (
+}: Props): React.Element<typeof UserAccountLayout> => (
   <UserAccountLayout
     entity={user}
     page="report"
@@ -81,76 +84,102 @@ const ReportUser = ({
   >
     <h2>{l('Report User')}</h2>
 
-    <p>
-      {exp.l(`Please review our {uri|Code of Conduct} before sending a
-              report.`,
-             {uri: {href: '/doc/Code_of_Conduct', target: '_blank'}})}
-    </p>
-
-    <p>
-      {exp.l(`Your report will be sent to our {uri|account administrators},
-              who will decide what action to take.`,
-             {uri: {href: '/privileged', target: '_blank'}})}
-    </p>
-
-    <p>
-      <strong>{addColonText(l('Note'))}</strong>
-      {' '}
-      {exp.l(
-        `Be sure to provide direct links to examples of the behaviour you’re 
-         reporting (for example, use
-         “<code>https://musicbrainz.org/edit/23</code>”
-         instead of “edit #23”, and use
-         “<code>https://musicbrainz.org/edit/42</code> and
-         <code>https://musicbrainz.org/edit/43</code>”
-         instead of
-         “<code>https://musicbrainz.org/user/SomeUser/edits</code>”).
-         Providing links makes it much easier for the recipients of the
-         report to look into the issues; a report without links is
-         unlikely to be acted on fast, since it will require a lot of
-         additional research.`,
-      )}
-    </p>
-
-    <form action={$c.req.uri} className="report-form" method="post">
-      <FormRowSelect
-        field={form.field.reason}
-        label={addColonText(l('Reason'))}
-        onChange={noop}
-        options={reportReasonOptions}
-      />
-
-      <FormRowTextArea
-        cols={50}
-        field={form.field.message}
-        label={addColonText(l('Message'))}
-        required
-        rows={10}
-      />
-
-      <FormRow hasNoLabel>
+    {user.deleted ? (
+      <p>
+        {exp.l(
+          `This user account has already been deleted,
+           so there’s probably no need to report it.
+           If you feel there’s a problem that still needs action,
+           please {link|contact us}.`,
+          {link: CONTACT_URL},
+        )}
+      </p>
+    ) : (
+      <>
         <p>
           {exp.l(
-            `If you don’t want our admins to contact you further regarding 
-             this report, you can uncheck the checkbox below.
-             <br />
-             We recommend leaving it checked, so that you can be contacted if 
-             the report is resolved or the admins need more information.`,
+            `Please review our {uri|Code of Conduct} before
+             sending a report.`,
+            {uri: {href: '/doc/Code_of_Conduct', target: '_blank'}},
           )}
         </p>
-      </FormRow>
 
-      <FormRowCheckbox
-        field={form.field.reveal_address}
-        label={l('Reveal my email address')}
-      />
+        <p>
+          {exp.l(
+            `Your report will be sent to our {uri|account administrators},
+             who will decide what action to take.`,
+            {uri: {href: '/privileged', target: '_blank'}},
+          )}
+        </p>
 
-      <FormRow hasNoLabel>
-        <FormSubmit label={l('Send')} />
-      </FormRow>
-    </form>
+        <p>
+          <strong>{addColonText(l('Note'))}</strong>
+          {' '}
+          {exp.l(
+            `Be sure to provide direct links to examples of the behaviour
+             you’re reporting (for example, use
+             “<code>https://musicbrainz.org/edit/23</code>”
+             instead of “edit #23”, and use
+             “<code>https://musicbrainz.org/edit/42</code> and
+             <code>https://musicbrainz.org/edit/43</code>”
+             instead of
+             “<code>https://musicbrainz.org/user/SomeUser/edits</code>”).
+             Providing links makes it much easier for the recipients of the
+             report to look into the issues; a report without links is
+             unlikely to be acted on fast, since it will require a lot of
+             additional research.`,
+          )}
+        </p>
 
+        <form action={$c.req.uri} className="report-form" method="post">
+          <FormCsrfToken form={form} />
+
+          <FormRowSelect
+            field={form.field.reason}
+            label={addColonText(l('Reason'))}
+            options={reportReasonOptions}
+            uncontrolled
+          />
+
+          <FormRowTextArea
+            cols={50}
+            field={form.field.message}
+            label={addColonText(l('Message'))}
+            required
+            rows={10}
+          />
+
+          <FormRowCheckbox
+            field={form.field.reveal_address}
+            help={
+              <p>
+                {exp.l(
+                  `If you don’t want our admins to contact you further
+                   regarding this report, you can uncheck the checkbox above.
+                   <br />
+                   We recommend leaving it checked, so that you can be
+                   contacted if the report is resolved or the admins
+                   need more information.`,
+                )}
+              </p>
+            }
+            label={l('Reveal my email address')}
+            uncontrolled
+          />
+
+          <FormRowCheckbox
+            field={form.field.send_to_self}
+            label={l('Send a copy to my own email address')}
+            uncontrolled
+          />
+
+          <FormRow hasNoLabel>
+            <FormSubmit label={l('Send')} />
+          </FormRow>
+        </form>
+      </>
+    )}
   </UserAccountLayout>
 );
 
-export default withCatalystContext(ReportUser);
+export default ReportUser;

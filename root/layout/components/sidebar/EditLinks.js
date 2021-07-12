@@ -1,5 +1,5 @@
 /*
- * @flow
+ * @flow strict-local
  * Copyright (C) 2018 MetaBrainz Foundation
  *
  * This file is part of MusicBrainz, the open internet music database,
@@ -9,45 +9,50 @@
 
 import * as React from 'react';
 
+import {CatalystContext} from '../../../context';
 import RequestLogin from '../../../components/RequestLogin';
-import {withCatalystContext} from '../../../context';
 import EntityLink from '../../../static/scripts/common/components/EntityLink';
 
-type Props = {|
-  +$c: CatalystContextT,
+type Props = {
   +children?: React.Node,
   +entity: CoreEntityT,
-|};
+};
 
-const EditLinks = ({$c, children, entity}: Props) => (
-  <>
-    <h2 className="editing">{l('Editing')}</h2>
-    <ul className="links">
-      {$c.user_exists ? (
-        <>
-          {children}
-          <li>
-            <EntityLink
-              content={l('Open edits')}
-              entity={entity}
-              subPath="open_edits"
-            />
-          </li>
-          <li>
-            <EntityLink
-              content={l('Editing history')}
-              entity={entity}
-              subPath="edits"
-            />
-          </li>
-        </>
-      ) : (
+const EditLinks = ({
+  children,
+  entity,
+}: Props): React.Element<typeof React.Fragment> => {
+  const $c = React.useContext(CatalystContext);
+
+  return (
+    <>
+      <h2 className="editing">{l('Editing')}</h2>
+      <ul className="links">
+        {$c.user ? children : (
+          <>
+            <li>
+              <RequestLogin $c={$c} text={l('Log in to edit')} />
+            </li>
+            <li className="separator" role="separator" />
+          </>
+        )}
         <li>
-          <RequestLogin $c={$c} text={l('Log in to edit')} />
+          <EntityLink
+            content={l('Open edits')}
+            entity={entity}
+            subPath="open_edits"
+          />
         </li>
-      )}
-    </ul>
-  </>
-);
+        <li>
+          <EntityLink
+            content={l('Editing history')}
+            entity={entity}
+            subPath="edits"
+          />
+        </li>
+      </ul>
+    </>
+  );
+};
 
-export default withCatalystContext(EditLinks);
+export default EditLinks;

@@ -1,5 +1,5 @@
 /*
- * @flow
+ * @flow strict-local
  * Copyright (C) 2018 MetaBrainz Foundation
  *
  * This file is part of MusicBrainz, the open internet music database,
@@ -8,50 +8,66 @@
  */
 
 import * as React from 'react';
+import type {ColumnOptionsNoValue} from 'react-table';
 
 import PaginatedResults from '../../components/PaginatedResults';
-import EntityLink from '../../static/scripts/common/components/EntityLink';
-import loopParity from '../../utility/loopParity';
+import Table from '../../components/Table';
+import {
+  defineArtistCreditColumn,
+  defineEntityColumn,
+} from '../../utility/tableColumns';
 import type {ReportRecordingT} from '../types';
-import ArtistCreditLink
-  from '../../static/scripts/common/components/ArtistCreditLink';
 
-const RecordingList = ({
+type Props<D: {+recording: ?RecordingT, ...}> = {
+  +columnsAfter?: $ReadOnlyArray<ColumnOptionsNoValue<D>>,
+  +columnsBefore?: $ReadOnlyArray<ColumnOptionsNoValue<D>>,
+  +items: $ReadOnlyArray<D>,
+  +pager: PagerT,
+};
+
+const RecordingList = <D: {+recording: ?RecordingT, ...}>({
+  columnsBefore,
+  columnsAfter,
   items,
   pager,
-}: {items: $ReadOnlyArray<ReportRecordingT>, pager: PagerT}) => (
-  <PaginatedResults pager={pager}>
-    <table className="tbl">
-      <thead>
-        <tr>
-          <th>{l('Artist')}</th>
-          <th>{l('Recording')}</th>
-        </tr>
-      </thead>
-      <tbody>
-        {items.map((item, index) => (
-          <tr className={loopParity(index)} key={item.recording_id}>
-            {item.recording ? (
-              <>
-                <td>
-                  <ArtistCreditLink
-                    artistCredit={item.recording.artistCredit}
-                  />
-                </td>
-                <td>
-                  <EntityLink entity={item.recording} />
-                </td>
-              </>
-            ) : (
-              <td colSpan="2">
-                {l('This recording no longer exists.')}
-              </td>
-            )}
-          </tr>
-        ))}
-      </tbody>
-    </table>
-  </PaginatedResults>
-);
+}: Props<D>): React.Element<typeof PaginatedResults> => {
+  const existingRecordingItems = items.reduce((result, item) => {
+    if (item.recording != null) {
+      result.push(item);
+    }
+    return result;
+  }, []);
+
+  const columns = React.useMemo(
+    () => {
+      const recordingColumn = defineEntityColumn<ReportRecordingT>({
+        columnName: 'recording',
+        descriptive: false,
+        getEntity: result => result.recording ?? null,
+        title: l('Recording'),
+      });
+      const artistCreditColumn =
+        defineArtistCreditColumn<ReportRecordingT>({
+          columnName: 'artist',
+          getArtistCredit: result => result.recording?.artistCredit ?? null,
+          title: l('Artist'),
+        });
+
+      return [
+        ...(columnsBefore ? [...columnsBefore] : []),
+        recordingColumn,
+        artistCreditColumn,
+        ...(columnsAfter ? [...columnsAfter] : []),
+      ];
+    },
+    [columnsAfter, columnsBefore],
+  );
+
+  return (
+    <PaginatedResults pager={pager}>
+      <Table columns={columns} data={existingRecordingItems} />
+    </PaginatedResults>
+  );
+};
 
 export default RecordingList;

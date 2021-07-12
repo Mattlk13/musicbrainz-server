@@ -1,5 +1,5 @@
 /*
- * @flow
+ * @flow strict-local
  * Copyright (C) 2019 MetaBrainz Foundation
  *
  * This file is part of MusicBrainz, the open internet music database,
@@ -7,160 +7,145 @@
  * later version: http://www.gnu.org/licenses/gpl-2.0.txt
  */
 
-import React from 'react';
+import * as React from 'react';
 
-import commaOnlyList from '../../static/scripts/common/i18n/commaOnlyList';
+import {CatalystContext} from '../../context';
+import Table from '../Table';
+import {commaOnlyListText}
+  from '../../static/scripts/common/i18n/commaOnlyList';
 import localizeArtistRoles
   from '../../static/scripts/common/i18n/localizeArtistRoles';
-import {withCatalystContext} from '../../context';
-import loopParity from '../../utility/loopParity';
-import ArtistRoles from '../../static/scripts/common/components/ArtistRoles';
-import DescriptiveLink
-  from '../../static/scripts/common/components/DescriptiveLink';
-import EventLocations
-  from '../../static/scripts/common/components/EventLocations';
-import formatDatePeriod
-  from '../../static/scripts/common/utility/formatDatePeriod';
-import RatingStars from '../RatingStars';
-import SortableTableHeader from '../SortableTableHeader';
+import {
+  defineArtistRolesColumn,
+  defineCheckboxColumn,
+  defineDatePeriodColumn,
+  defineLocationColumn,
+  defineNameColumn,
+  defineRatingsColumn,
+  defineSeriesNumberColumn,
+  defineTypeColumn,
+  defineTextColumn,
+  removeFromMergeColumn,
+} from '../../utility/tableColumns';
 
-type Props = {|
+type Props = {
   ...SeriesItemNumbersRoleT,
-  +$c: CatalystContextT,
   +artist?: ArtistT,
   +artistRoles?: boolean,
   +checkboxes?: string,
   +events: $ReadOnlyArray<EventT>,
+  +mergeForm?: MergeFormT,
   +order?: string,
   +showArtists?: boolean,
   +showLocation?: boolean,
   +showRatings?: boolean,
   +showType?: boolean,
   +sortable?: boolean,
-|};
+};
 
 const EventList = ({
-  $c,
   artist,
-  artistRoles,
+  artistRoles = false,
   checkboxes,
   events,
+  mergeForm,
   order,
   seriesItemNumbers,
-  showArtists,
-  showLocation,
-  showRatings,
-  showType,
+  showArtists = false,
+  showLocation = false,
+  showRatings = false,
+  showType = false,
   sortable,
-}: Props) => (
-  <table className="tbl">
-    <thead>
-      <tr>
-        {$c.user_exists && checkboxes ? (
-          <th className="checkbox-cell">
-            <input type="checkbox" />
-          </th>
-        ) : null}
-        {seriesItemNumbers ? <th style={{width: '1em'}}>{l('#')}</th> : null}
-        <th>
-          {sortable
-            ? (
-              <SortableTableHeader
-                label={l('Event')}
-                name="name"
-                order={order}
-              />
-            )
-            : l('Event')}
-        </th>
-        {showType ? (
-          <th>
-            {sortable
-              ? (
-                <SortableTableHeader
-                  label={l('Type')}
-                  name="type"
-                  order={order}
-                />
-              )
-              : l('Type')}
-          </th>
-        ) : null}
-        {showArtists ? <th>{l('Artists')}</th> : null}
-        {artistRoles ? <th>{l('Role')}</th> : null}
-        {showLocation ? <th>{l('Location')}</th> : null}
-        <th>
-          {sortable
-            ? (
-              <SortableTableHeader
-                label={l('Date')}
-                name="date"
-                order={order}
-              />
-            )
-            : l('Date')}
-        </th>
-        <th>{l('Time')}</th>
-        {showRatings ? <th>{l('Rating')}</th> : null}
-      </tr>
-    </thead>
-    <tbody>
-      {events.map((event, index) => (
-        <tr className={loopParity(index)} key={event.id}>
-          {$c.user_exists && checkboxes ? (
-            <td>
-              <input
-                name={checkboxes}
-                type="checkbox"
-                value={event.id}
-              />
-            </td>
-          ) : null}
-          {seriesItemNumbers ? (
-            <td style={{width: '1em'}}>
-              {seriesItemNumbers[event.id]}
-            </td>
-          ) : null}
-          <td>
-            <DescriptiveLink entity={event} />
-          </td>
-          {showType ? (
-            <td>
-              {event.typeName
-                ? lp_attributes(event.typeName, 'event_type')
-                : null}
-            </td>
-          ) : null}
-          {showArtists ? (
-            <td>
-              <ArtistRoles relations={event.performers} />
-            </td>
-          ) : null}
-          {artist && artistRoles ? (
-            <td>
-              {event.performers.map(performer => (
-                performer.entity.id === artist.id ? (
-                  commaOnlyList(localizeArtistRoles(performer.roles))
-                ) : null
-              ))}
-            </td>
-          ) : null}
-          {showLocation ? (
-            <td>
-              <EventLocations event={event} />
-            </td>
-          ) : null}
-          <td>{formatDatePeriod(event)}</td>
-          <td>{event.time}</td>
-          {showRatings ? (
-            <td>
-              <RatingStars entity={event} />
-            </td>
-          ) : null}
-        </tr>
-      ))}
-    </tbody>
-  </table>
-);
+}: Props): React.Element<typeof Table> => {
+  const $c = React.useContext(CatalystContext);
 
-export default withCatalystContext(EventList);
+  const columns = React.useMemo(
+    () => {
+      const checkboxColumn = $c.user && (nonEmpty(checkboxes) || mergeForm)
+        ? defineCheckboxColumn({mergeForm: mergeForm, name: checkboxes})
+        : null;
+      const seriesNumberColumn = seriesItemNumbers
+        ? defineSeriesNumberColumn({seriesItemNumbers: seriesItemNumbers})
+        : null;
+      const nameColumn = defineNameColumn<EventT>({
+        descriptive: false, // since dates have their own column
+        order: order,
+        sortable: sortable,
+        title: l('Event'),
+      });
+      const typeColumn = defineTypeColumn({
+        order: order,
+        sortable: sortable,
+        typeContext: 'event_type',
+      });
+      const artistsColumn = defineArtistRolesColumn<EventT>({
+        columnName: 'performers',
+        getRoles: entity => entity.performers,
+        title: l('Artists'),
+      });
+      const locationColumn = defineLocationColumn<EventT>({
+        getEntity: entity => entity,
+      });
+      const timeColumn = defineTextColumn<EventT>({
+        columnName: 'time',
+        getText: entity => entity.time,
+        title: l('Time'),
+      });
+      const rolesOnlyColumn = artist && artistRoles
+        ? defineTextColumn<EventT>({
+          columnName: 'performers',
+          getText: entity => commaOnlyListText(
+            entity.performers.reduce((result, performer) => {
+              if (performer.entity.id === artist.id) {
+                result.push(...localizeArtistRoles(performer.roles));
+              }
+              return result;
+            }, []),
+          ),
+          title: l('Role'),
+        })
+        : null;
+      const dateColumn = defineDatePeriodColumn<EventT>({
+        getEntity: entity => entity,
+        order: order,
+        sortable: sortable,
+      });
+      const ratingsColumn = defineRatingsColumn<EventT>({
+        getEntity: entity => entity,
+      });
+
+      return [
+        ...(checkboxColumn ? [checkboxColumn] : []),
+        ...(seriesNumberColumn ? [seriesNumberColumn] : []),
+        nameColumn,
+        ...(showType ? [typeColumn] : []),
+        ...(showArtists ? [artistsColumn] : []),
+        ...(rolesOnlyColumn ? [rolesOnlyColumn] : []),
+        ...(showLocation ? [locationColumn] : []),
+        dateColumn,
+        timeColumn,
+        ...(showRatings ? [ratingsColumn] : []),
+        ...(mergeForm && events.length > 2 ? [removeFromMergeColumn] : []),
+      ];
+    },
+    [
+      $c.user,
+      artist,
+      artistRoles,
+      checkboxes,
+      events,
+      mergeForm,
+      order,
+      seriesItemNumbers,
+      showArtists,
+      showLocation,
+      showRatings,
+      showType,
+      sortable,
+    ],
+  );
+
+  return <Table columns={columns} data={events} />;
+};
+
+export default EventList;

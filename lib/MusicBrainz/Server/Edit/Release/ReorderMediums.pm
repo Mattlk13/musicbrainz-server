@@ -96,8 +96,14 @@ sub build_display_data {
         sort { $a->{new} <=> $b->{new} }
         @{ $self->data->{medium_positions} } ];
 
-    $data{release} = $loaded->{Release}{ $self->data->{release}{id} }
-        || Release->new( name => $self->data->{release}{name} );
+    my $release = $loaded->{Release}{ $self->data->{release}{id} };
+
+    if ($release) {
+        $self->c->model('ArtistCredit')->load($release);
+    }
+
+    $data{release} = $release || Release->new( name => $self->data->{release}{name} );
+
 
     return \%data;
 }
@@ -110,12 +116,12 @@ sub accept {
     my $new_positions = [values %medium_positions];
 
     my $possible_conflicts =
-        $self->c->sql->select_list_of_hashes(<<'EOSQL', $self->release_id, $new_positions);
+        $self->c->sql->select_list_of_hashes(<<~'EOSQL', $self->release_id, $new_positions);
             SELECT id, position
-              FROM medium
-             WHERE release = ?
-               AND position = any(?)
-EOSQL
+            FROM medium
+            WHERE release = ?
+            AND position = any(?)
+            EOSQL
 
     for my $row (@$possible_conflicts) {
         unless (exists $medium_positions{$row->{id}}) {

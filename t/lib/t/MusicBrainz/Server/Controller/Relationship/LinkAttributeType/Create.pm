@@ -5,9 +5,10 @@ use MusicBrainz::Server::Test qw( capture_edits html_ok );
 
 around run_test => sub {
     my ($orig, $test, @args) = @_;
-    $test->c->sql->do(<<'EOSQL');
-INSERT INTO editor (id, name, password, email, privs, ha1, email_confirm_date) VALUES (1, 'editor1', '{CLEARTEXT}pass', 'editor1@example.com', 255, '16a4862191803cb596ee4b16802bb7ee', now())
-EOSQL
+    $test->c->sql->do(<<~'EOSQL');
+        INSERT INTO editor (id, name, password, email, privs, ha1, email_confirm_date)
+            VALUES (1, 'editor1', '{CLEARTEXT}pass', 'editor1@example.com', 255, '16a4862191803cb596ee4b16802bb7ee', now())
+        EOSQL
 
     $test->mech->get('/login');
     $test->mech->submit_form(
@@ -40,7 +41,7 @@ test 'Can create new relationship attribute' => sub {
         ok($mech->success);
 
         my @redir = $response->redirects;
-        like($redir[0]->content, qr{http://localhost/relationship-attributes}, "Redirect contains link to main relationship-attributes page.");
+        like($redir[0]->content, qr{http://localhost/relationship-attribute/}, "Redirect contains link to attribute page.");
     } $test->c;
 
     is(@edits, 1);

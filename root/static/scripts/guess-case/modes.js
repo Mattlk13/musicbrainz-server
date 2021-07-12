@@ -1,15 +1,16 @@
 /*
- * This file is part of MusicBrainz, the open internet music database.
  * Copyright (C) 2005 Stefan Kestenholz (keschte)
  * Copyright (C) 2015 MetaBrainz Foundation
- * Licensed under the GPL version 2, or (at your option) any later version:
- * http://www.gnu.org/licenses/gpl-2.0.txt
+ *
+ * This file is part of MusicBrainz, the open internet music database,
+ * and is licensed under the GPL version 2, or (at your option) any
+ * later version: http://www.gnu.org/licenses/gpl-2.0.txt
  */
 
-import {assign, capitalize} from 'lodash';
-import ReactDOMServer from 'react-dom/server';
+import * as ReactDOMServer from 'react-dom/server';
 
 import getBooleanCookie from '../common/utility/getBooleanCookie';
+import {capitalize} from '../common/utility/strings';
 
 import {
   isPrepBracketWord,
@@ -140,16 +141,19 @@ const DefaultMode = {
     return LOWER_CASE_WORDS.test(w);
   },
 
+  isRomanNumber(w) {
+    return getBooleanCookie('guesscase_roman') && ROMAN_NUMERALS.test(w);
+  },
+
   isSentenceCaps() {
     return true;
   },
 
   isUpperCaseWord(w) {
-    return (
-      UPPER_CASE_WORDS.test(w) ||
-      (getBooleanCookie('guesscase_roman') && ROMAN_NUMERALS.test(w))
-    );
+    return UPPER_CASE_WORDS.test(w);
   },
+
+  name: '',
 
   toLowerCase(str) {
     return str.toLowerCase();
@@ -176,8 +180,10 @@ const DefaultMode = {
       (words[wi] === ' ') ||
 
       // vinyl (7" or 12")
-      (words[wi] === '"' && (words[wi - 1] === '7' || words[wi - 1] === '12')) ||
-      ((words[wi + 1] || '') === '"' && (words[wi] === '7' || words[wi] === '12')) ||
+      (words[wi] === '"' &&
+        (words[wi - 1] === '7' || words[wi - 1] === '12')) ||
+      ((words[wi + 1] || '') === '"' &&
+        (words[wi] === '7' || words[wi] === '12')) ||
 
       isPrepBracketWord(words[wi])
     )) {
@@ -278,7 +284,7 @@ const DefaultMode = {
   },
 };
 
-export const English = assign({}, DefaultMode, {
+export const English = Object.assign({}, DefaultMode, {
   description: ReactDOMServer.renderToStaticMarkup(exp.l(
     `This mode capitalises almost all words, with some words (mainly articles 
      and short prepositions) lowercased. Some words may need to be manually 
@@ -289,12 +295,36 @@ export const English = assign({}, DefaultMode, {
     },
   )),
 
+  /*
+   * This changes key names in titles to follow
+   * the English classical music guidelines.
+   * See https://musicbrainz.org/doc/Style/Classical/Language/English#Keys
+   */
+  fixEnglishKeyNames(is) {
+    return is.replace(
+      /\bin ([a-g])(?:[\s-]([Ff]lat|[Ss]harp))?\s(dorian|lydian|major|minor|mixolydian)(?:\b|$)/ig,
+      function (match, p1, p2, p3) {
+        return 'in ' + p1.toUpperCase() +
+          (p2 ? '-' + p2.toLowerCase() : '') +
+          ' ' + p3.toLowerCase();
+      },
+    );
+  },
+
   isSentenceCaps() {
     return false;
   },
+
+  name: 'English',
+
+  runPostProcess(is) {
+    is = DefaultMode.runPostProcess(is);
+    is = this.fixEnglishKeyNames(is);
+    return is;
+  },
 });
 
-export const French = assign({}, DefaultMode, {
+export const French = Object.assign({}, DefaultMode, {
   description: ReactDOMServer.renderToStaticMarkup(exp.l(
     `This mode capitalises titles as sentence mode, but also inserts spaces 
      before semicolons, colons, exclamation marks and question marks, 
@@ -304,6 +334,8 @@ export const French = assign({}, DefaultMode, {
       url: {href: 'https://musicbrainz.org/doc/Style/Language/French', target: '_blank'},
     },
   )),
+
+  name: 'French',
 
   runPostProcess(is) {
     return DefaultMode.runPostProcess(is)
@@ -315,7 +347,7 @@ export const French = assign({}, DefaultMode, {
   },
 });
 
-export const Sentence = assign({}, DefaultMode, {
+export const Sentence = Object.assign({}, DefaultMode, {
   description: ReactDOMServer.renderToStaticMarkup(exp.l(
     `This mode capitalises the first word of a sentence, most other words 
      are lowercased. Some words, often proper nouns, may need to be manually 
@@ -325,8 +357,10 @@ export const Sentence = assign({}, DefaultMode, {
         {href: 'https://musicbrainz.org/doc/Style/Language', target: '_blank'},
     },
   )),
+
+  name: 'Sentence',
 });
-export const Turkish = assign({}, DefaultMode, {
+export const Turkish = Object.assign({}, DefaultMode, {
   description: ReactDOMServer.renderToStaticMarkup(exp.l(
     `This mode handles the Turkish capitalisation of 'i' ('İ') and 'ı' ('I').
      Some words may need to be manually corrected according to 
@@ -346,6 +380,8 @@ export const Turkish = assign({}, DefaultMode, {
   isSentenceCaps() {
     return false;
   },
+
+  name: 'Turkish',
 
   toLowerCase: turkishLowerCase,
 

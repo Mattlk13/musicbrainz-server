@@ -1,5 +1,5 @@
 /*
- * @flow
+ * @flow strict-local
  * Copyright (C) 2018 MetaBrainz Foundation
  *
  * This file is part of MusicBrainz, the open internet music database,
@@ -9,41 +9,31 @@
 
 import * as React from 'react';
 
-import {withCatalystContext} from '../context';
-import Layout from '../layout';
-import formatUserDate from '../utility/formatUserDate';
-
 import InstrumentList from './components/InstrumentList';
+import ReportLayout from './components/ReportLayout';
 import type {ReportDataT, ReportInstrumentT} from './types';
 
 const InstrumentsWithoutAnImage = ({
-  $c,
+  canBeFiltered,
+  filtered,
   generated,
   items,
   pager,
-}: ReportDataT<ReportInstrumentT>) => (
-  <Layout fullWidth title={l('Instruments without an image')}>
-    <h1>{l('Instruments without an image')}</h1>
-
-    <ul>
-      <li>
-        {l(`This report shows instruments without image
-            relationships nor Wikidata relationships.`)}
-      </li>
-      <li>
-        {texp.l('Total instruments found: {count}',
-                {count: pager.total_entries})}
-      </li>
-      <li>
-        {texp.l('Generated on {date}',
-                {date: formatUserDate($c.user, generated)})}
-      </li>
-
-    </ul>
-
+}: ReportDataT<ReportInstrumentT>): React.Element<typeof ReportLayout> => (
+  <ReportLayout
+    canBeFiltered={canBeFiltered}
+    description={l(
+      `This report shows instruments without an image relationship
+       to StaticBrainz (i.e. without an IROMBOOK image).`,
+    )}
+    entityType="instrument"
+    filtered={filtered}
+    generated={generated}
+    title={l('Instruments without an image')}
+    totalEntries={pager.total_entries}
+  >
     <InstrumentList items={items} pager={pager} />
-
-  </Layout>
+  </ReportLayout>
 );
 
-export default withCatalystContext(InstrumentsWithoutAnImage);
+export default InstrumentsWithoutAnImage;

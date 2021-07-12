@@ -6,7 +6,12 @@ use Test::Fatal;
 with 't::Edit';
 with 't::Context';
 
-use MusicBrainz::Server::Constants qw( $EDIT_SET_TRACK_LENGTHS );
+use MusicBrainz::Server::Constants qw(
+    $EDIT_SET_TRACK_LENGTHS
+    $STATUS_FAILEDDEP
+    $UNTRUSTED_FLAG
+);
+use MusicBrainz::Server::Data::Utils qw( localized_note );
 use MusicBrainz::Server::Test;
 
 test all => sub {
@@ -84,6 +89,37 @@ test 'Setting track lengths on medium with pregap track' => sub {
     is($medium->tracks->[7]->length, 300626);
     is($medium->tracks->[8]->length, 514679);
     is($medium->tracks->[9]->length, 472880);
+};
+
+test 'Fail gracefully if CD TOC has been removed' => sub {
+    my $test = shift;
+    my $c = $test->c;
+
+    MusicBrainz::Server::Test->prepare_test_database($c, '+tracklist');
+
+    my $edit = $c->model('Edit')->create(
+        edit_type => $EDIT_SET_TRACK_LENGTHS,
+        editor_id => 1,
+        medium_id => 1,
+        cdtoc_id => 1,
+        privileges => $UNTRUSTED_FLAG,
+    );
+    isa_ok($edit => 'MusicBrainz::Server::Edit::Medium::SetTrackLengths');
+
+    $c->sql->do("DELETE FROM cdtoc WHERE id = 1");
+
+    $c->model('Edit')->accept($edit);
+    ok(!$edit->is_open);
+    is($edit->status, $STATUS_FAILEDDEP);
+
+    $c->model('EditNote')->load_for_edits($edit);
+    is(scalar $edit->all_edit_notes, 1);
+
+    my $note = scalar($edit->all_edit_notes) ? $edit->edit_notes->[0] : undef;
+    is(
+        defined $note && $note->localize,
+        'The CD TOC the track times were being set from has been removed since this edit was entered.',
+    );
 };
 
 1;

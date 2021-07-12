@@ -24,29 +24,45 @@ sub _type { 'link_attribute_type' }
 
 sub _table
 {
-    return 'link_attribute_type';
+    return 'link_attribute_type ' .
+        'LEFT JOIN (' .
+            'SELECT id AS root_id, gid AS root_gid, name AS root_name ' .
+            'FROM link_attribute_type' .
+        ') AS lat_root ON lat_root.root_id = link_attribute_type.root ' .
+        'LEFT JOIN (' .
+            'SELECT id AS parent_id, gid AS parent_gid, name AS parent_name ' .
+            'FROM link_attribute_type' .
+        ') AS lat_parent ON lat_parent.parent_id = link_attribute_type.parent ' .
+        'LEFT JOIN (' .
+            'SELECT instrument.gid AS instrument_gid, ' .
+                'instrument.comment AS instrument_comment, ' .
+                'instrument_type.id AS instrument_type_id, ' .
+                'instrument_type.name AS instrument_type_name ' .
+            'FROM instrument ' .
+            'LEFT JOIN instrument_type ON instrument.type = instrument_type.id' .
+        ') AS ins ON ins.instrument_gid = link_attribute_type.gid';
 }
 
 sub _columns
 {
     return 'id, parent, child_order, gid, name, description, root, ' .
-           '(SELECT r.name FROM link_attribute_type r WHERE r.id = link_attribute_type.root) root_name, ' .
-           '(SELECT r.gid FROM link_attribute_type r WHERE r.id = link_attribute_type.root) root_gid, ' .
+           'lat_root.root_name, ' .
+           'lat_root.root_gid, ' .
+           'lat_parent.parent_name, ' .
+           'lat_parent.parent_gid, ' .
            'COALESCE(
-                (SELECT true FROM link_text_attribute_type
+                (SELECT TRUE FROM link_text_attribute_type
                  WHERE attribute_type = link_attribute_type.id),
                 false
             ) AS free_text, ' .
            'COALESCE(
-                (SELECT true FROM link_creditable_attribute_type
+                (SELECT TRUE FROM link_creditable_attribute_type
                  WHERE attribute_type = link_attribute_type.id),
                 false
             ) AS creditable, ' .
-           'COALESCE(
-                (SELECT comment FROM instrument
-                 WHERE gid = link_attribute_type.gid),
-                \'\'
-            ) AS instrument_comment';
+           "COALESCE(ins.instrument_comment, '') AS instrument_comment, " .
+           'ins.instrument_type_id, ' .
+           "COALESCE(ins.instrument_type_name, '') AS instrument_type_name";
 }
 
 sub _column_mapping
@@ -62,6 +78,18 @@ sub _column_mapping
         description => 'description',
         free_text   => 'free_text',
         creditable  => 'creditable',
+        parent => sub {
+            my ($row) = @_;
+            if ($row->{parent}) {
+                MusicBrainz::Server::Entity::LinkAttributeType->new({
+                    id => $row->{parent},
+                    gid => $row->{parent_gid},
+                    name => $row->{parent_name},
+                    root_id => $row->{root},
+                    root_gid => $row->{root_gid},
+                });
+            }
+        },
         root => sub {
             my ($row) = @_;
             MusicBrainz::Server::Entity::LinkAttributeType->new({
@@ -71,7 +99,10 @@ sub _column_mapping
                 root_id => $row->{root},
                 root_gid => $row->{root_gid},
             });
-        }
+        },
+        instrument_comment => 'instrument_comment',
+        instrument_type_id => 'instrument_type_id',
+        instrument_type_name => 'instrument_type_name',
     };
 }
 
@@ -103,6 +134,12 @@ sub insert
     $row->{gid} = $values->{gid} || generate_gid();
     $row->{root} = $row->{parent} ? $self->find_root($row->{parent}) : $row->{id};
     $self->sql->insert_row('link_attribute_type', $row);
+    if ($values->{creditable}) {
+        $self->sql->insert_row('link_creditable_attribute_type', { attribute_type => $row->{id} });
+    }
+    if ($values->{free_text}) {
+        $self->sql->insert_row('link_text_attribute_type', { attribute_type => $row->{id} });
+    }
     return $self->_entity_class->new( id => $row->{id}, gid => $row->{gid} );
 }
 
@@ -125,6 +162,35 @@ sub update
     my ($self, $id, $values) = @_;
 
     my $row = $self->_hash_to_row($values);
+    my $attribute = $self->get_by_id($id);
+    my $attribute_in_use = $self->in_use($id);
+    my $adds_creditable = $values->{creditable} && !($attribute->creditable);
+    my $removes_creditable = $attribute->creditable && defined $values->{creditable} && !($values->{creditable});
+    my $adds_free_text = $values->{free_text} && !($attribute->free_text);
+    my $removes_free_text = $attribute->free_text && defined $values->{free_text} && !($values->{free_text});
+
+    if ($adds_creditable) {
+        $self->sql->insert_row('link_creditable_attribute_type', { attribute_type => $id });
+    }
+    if ($removes_creditable) {
+        if ($attribute_in_use) {
+            die('The attribute is in use, and this change would risk damaging existing values');
+        }
+        $self->sql->do('DELETE FROM link_creditable_attribute_type WHERE attribute_type = ?', $id);
+    }
+    if ($adds_free_text) {
+        if ($attribute_in_use) {
+            die('The attribute is in use, and this change would risk damaging existing values');
+        }
+        $self->sql->insert_row('link_text_attribute_type', { attribute_type => $id });
+    }
+    if ($removes_free_text) {
+        if ($attribute_in_use) {
+            die('The attribute is in use, and this change would risk damaging existing values');
+        }
+        $self->sql->do('DELETE FROM link_text_attribute_type WHERE attribute_type = ?', $id);
+    }
+
     if (%$row) {
         if ($row->{parent}) {
             $row->{root} = $self->find_root($row->{parent});
@@ -201,7 +267,7 @@ sub merge_instrument_attributes {
           LEFT JOIN link_attribute_credit lac ON (lac.link = la.link AND lac.attribute_type = la.attribute_type)
           JOIN link_type ON link.link_type = link_type.id
           WHERE link.id IN (
-              SELECT link from link_attribute where attribute_type = any(?)
+              SELECT link FROM link_attribute WHERE attribute_type = any(?)
           )
       GROUP BY link.id, link_type,
                begin_date_year, begin_date_month, begin_date_day,
@@ -289,17 +355,17 @@ sub merge_instrument_attributes {
         $new_link->{attributes} = [values %new_attributes];
 
         my $new_link_id = $self->c->model('Link')->find_or_insert($new_link);
-        my $relationships = $self->sql->select_list_of_hashes(<<"EOSQL", $new_link_id, $old_link_id, $new_link_id);
+        my $relationships = $self->sql->select_list_of_hashes(<<~"EOSQL", $new_link_id, $old_link_id, $new_link_id);
             UPDATE l_${entity_type0}_${entity_type1} r1 SET link = ? WHERE link = ? AND NOT EXISTS (
                 SELECT 1
-                  FROM l_${entity_type0}_${entity_type1} r2
-                 WHERE r2.link = ?
-                   AND r2.entity0 = r1.entity0
-                   AND r2.entity1 = r1.entity1
-                   AND r2.link_order = r1.link_order
-               )
+                FROM l_${entity_type0}_${entity_type1} r2
+                WHERE r2.link = ?
+                AND r2.entity0 = r1.entity0
+                AND r2.entity1 = r1.entity1
+                AND r2.link_order = r1.link_order
+            )
             RETURNING *
-EOSQL
+            EOSQL
 
         # Delete leftover duplicate relationships already using $new_link_id.
         $self->sql->do("DELETE FROM l_${entity_type0}_${entity_type1} WHERE link = ?", $old_link_id);
@@ -354,22 +420,12 @@ __PACKAGE__->meta->make_immutable;
 no Moose;
 1;
 
-=head1 COPYRIGHT
+=head1 COPYRIGHT AND LICENSE
 
 Copyright (C) 2009 Lukas Lalinsky
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program; if not, write to the Free Software
-Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+This file is part of MusicBrainz, the open internet music database,
+and is licensed under the GPL version 2, or (at your option) any
+later version: http://www.gnu.org/licenses/gpl-2.0.txt
 
 =cut

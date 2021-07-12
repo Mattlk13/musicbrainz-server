@@ -88,8 +88,8 @@ sub find_by_entity_ids
                    end_date_year NULLS LAST,
                    end_date_month NULLS LAST,
                    end_date_day NULLS LAST,
-                   musicbrainz_collate(sort_name),
-                   musicbrainz_collate(name)";
+                   sort_name COLLATE musicbrainz,
+                   name COLLATE musicbrainz";
 
     my %ret = map { $_ => [] } @ids;
 
@@ -197,7 +197,7 @@ sub merge
     # preferring primary_for_locale and the target entity
     # therefore, partition by everything except primary_by_locale
     $self->sql->do(
-        "DELETE FROM $table WHERE id in (
+        "DELETE FROM $table WHERE id IN (
              SELECT a.id FROM (
                  SELECT id, rank() OVER (PARTITION BY $type, name, locale, type, sort_name, begin_date_year, begin_date_month, begin_date_day, end_date_year, end_date_month, end_date_day
                                          ORDER BY primary_for_locale DESC, ($type = ?) DESC) > 1 AS redundant
@@ -216,11 +216,15 @@ sub merge
         "INSERT INTO $table (name, $type, sort_name)
             SELECT DISTINCT ON (old_entity.name) old_entity.name, new_entity.id, old_entity.$sortnamecol
               FROM $type old_entity
-         LEFT JOIN $table alias ON alias.name = old_entity.name
               JOIN $type new_entity ON (new_entity.id = ?)
              WHERE old_entity.id = any(?)
-               AND alias.id IS NULL
-               AND old_entity.name != new_entity.name",
+               AND old_entity.name != new_entity.name
+               AND NOT EXISTS (
+                   SELECT TRUE FROM $table
+                    WHERE $type = new_entity.id
+                      AND name = old_entity.name
+                    LIMIT 1
+               )",
         $new_id, [ @old_ids ]
     );
 }
@@ -274,23 +278,13 @@ artist aliases.
 
 Provides support for loading artist aliases from the database.
 
-=head1 COPYRIGHT
+=head1 COPYRIGHT AND LICENSE
 
 Copyright (C) 2009 Oliver Charles
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program; if not, write to the Free Software
-Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+This file is part of MusicBrainz, the open internet music database,
+and is licensed under the GPL version 2, or (at your option) any
+later version: http://www.gnu.org/licenses/gpl-2.0.txt
 
 =cut
 

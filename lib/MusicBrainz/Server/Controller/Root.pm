@@ -1,7 +1,10 @@
 package MusicBrainz::Server::Controller::Root;
+use Digest::MD5 qw( md5_hex );
 use Moose;
 use Try::Tiny;
 use List::Util qw( max );
+use Readonly;
+use URI::QueryParam;
 
 BEGIN { extends 'Catalyst::Controller' }
 
@@ -9,11 +12,14 @@ BEGIN { extends 'Catalyst::Controller' }
 use DBDefs;
 use MusicBrainz::Server::Constants qw( $VARTIST_GID $CONTACT_URL );
 use MusicBrainz::Server::ControllerUtils::SSL qw( ensure_ssl );
-use MusicBrainz::Server::Data::Utils qw( model_to_type );
+use MusicBrainz::Server::Data::Utils qw( boolean_to_json type_to_model );
+use MusicBrainz::Server::Entity::Util::JSON qw( to_json_array );
 use MusicBrainz::Server::Log qw( log_debug );
 use MusicBrainz::Server::Replication ':replication_type';
 use aliased 'MusicBrainz::Server::Translation';
 use MusicBrainz::Server::Translation 'l';
+
+Readonly my $IP_STORE_EXPIRES => (60 * 60 * 24 * 30 * 6); # 6 months
 
 #
 # Sets the actions in this controller to be registered with no prefix
@@ -54,7 +60,7 @@ sub index : Path Args(0)
         component_path => 'main/index.js',
         component_props => {
             blogEntries => $c->model('Blog')->get_latest_entries,
-            newestReleases => \@newest_releases,
+            newestReleases => to_json_array(\@newest_releases),
         },
     );
 }
@@ -78,8 +84,7 @@ sub set_language : Path('set-language') Args(1)
             l('Language set. If you find any problems with the translation, please {url|help us improve it}!',
               {url => {href => 'https://www.transifex.com/musicbrainz/musicbrainz/', target => '_blank'}});
     }
-    $c->res->redirect($c->req->referer || $c->uri_for('/'));
-    $c->detach;
+    $c->redirect_back;
 }
 
 =head2 set_beta_preference
@@ -92,20 +97,29 @@ sub set_beta_preference : Path('set-beta-preference') Args(0)
 {
     my ($self, $c) = @_;
     if (DBDefs->BETA_REDIRECT_HOSTNAME) {
-        my $new_url;
-        # Set URL to go to
-        if (DBDefs->IS_BETA) {
-            $new_url = $c->uri_for('/') . '?unset_beta=1';
-        } elsif (!DBDefs->IS_BETA) {
-            $new_url = $c->req->referer || $c->uri_for('/');
+        my $is_beta = DBDefs->IS_BETA;
+        if (!$is_beta) {
             # 1 year
-            $c->res->cookies->{beta} = { 'value' => 'on', 'path' => '/', 'expires' => time()+31536000 };
+            $c->res->cookies->{beta} = {
+                'value' => 'on',
+                'path' => '/',
+                'expires' => time()+31536000,
+                $c->req->secure ? (
+                    'samesite' => 'None',
+                    'secure' => '1',
+                ) : (),
+            };
         }
-        # Munge URL to redirect server
-        my $ws = DBDefs->WEB_SERVER;
-        $new_url =~ s/$ws/DBDefs->BETA_REDIRECT_HOSTNAME/e;
-        $c->res->redirect($new_url);
-        $c->detach;
+        $c->redirect_back(
+            callback => sub {
+                my $returnto = shift;
+                # Munge URL to redirect server
+                $returnto->authority(DBDefs->BETA_REDIRECT_HOSTNAME);
+                if ($is_beta) {
+                    $returnto->query_param(unset_beta => 1);
+                }
+            },
+        );
     }
 }
 
@@ -127,8 +141,18 @@ sub error_400 : Private
     my ($self, $c) = @_;
 
     $c->response->status(400);
-    $c->stash->{template} = 'main/400.tt';
-    $c->detach;
+
+    my %props = (
+        hostname => $c->stash->{hostname},
+        message => $c->stash->{message},
+        useLanguages => boolean_to_json($c->stash->{use_languages}),
+    );
+
+    $c->stash(
+        component_path => 'main/error/Error400',
+        component_props => \%props,
+        current_view => 'Node',
+    );
 }
 
 sub error_401 : Private
@@ -136,8 +160,10 @@ sub error_401 : Private
     my ($self, $c) = @_;
 
     $c->response->status(401);
-    $c->stash->{template} = 'main/401.tt';
-    $c->detach;
+    $c->stash(
+        component_path => 'main/error/Error401',
+        current_view => 'Node',
+    );
 }
 
 sub error_403 : Private
@@ -145,15 +171,21 @@ sub error_403 : Private
     my ($self, $c) = @_;
 
     $c->response->status(403);
-    $c->stash->{template} = 'main/403.tt';
+    $c->stash(
+        component_path => 'main/error/Error403',
+        current_view => 'Node',
+    );
 }
 
 sub error_404 : Private {
     my ($self, $c, $message) = @_;
 
     $c->response->status(404);
-    $c->stash->{current_view} = 'Node';
-    $c->stash->{component_props}{message} = $message;
+    $c->stash(
+        component_path => 'main/error/Error404',
+        component_props => { message => $message },
+        current_view => 'Node',
+    );
 }
 
 sub error_500 : Private
@@ -161,8 +193,13 @@ sub error_500 : Private
     my ($self, $c) = @_;
 
     $c->response->status(500);
-    $c->stash->{template} = 'main/500.tt';
-    $c->detach;
+    $c->stash(
+        component_path => 'main/error/Error500',
+        component_props => {
+            useLanguages => boolean_to_json($c->stash->{use_languages}),
+        },
+        current_view => 'Node',
+    );
 }
 
 sub error_503 : Private
@@ -170,8 +207,10 @@ sub error_503 : Private
     my ($self, $c) = @_;
 
     $c->response->status(503);
-    $c->stash->{template} = 'main/503.tt';
-    $c->detach;
+    $c->stash(
+        component_path => 'main/error/Error503',
+        current_view => 'Node',
+    );
 }
 
 sub error_mirror : Private
@@ -179,8 +218,10 @@ sub error_mirror : Private
     my ($self, $c) = @_;
 
     $c->response->status(403);
-    $c->stash->{template} = 'main/mirror.tt';
-    $c->detach;
+    $c->stash(
+        component_path => 'main/error/MirrorError403',
+        current_view => 'Node',
+    );
 }
 
 sub error_mirror_404 : Private
@@ -188,17 +229,23 @@ sub error_mirror_404 : Private
     my ($self, $c) = @_;
 
     $c->response->status(404);
-    $c->stash->{template} = 'main/mirror_404.tt';
-    $c->detach;
+    $c->stash(
+        component_path => 'main/error/MirrorError404',
+        current_view => 'Node',
+    );
 }
 
 sub begin : Private
 {
     my ($self, $c) = @_;
 
-    return if exists $c->action->attributes->{Minimal};
+    my $attributes = $c->action->attributes;
 
-    ensure_ssl($c) if $c->action->attributes->{RequireSSL};
+    ensure_ssl($c) if $attributes->{RequireSSL};
+
+    if (exists $attributes->{SecureForm}) {
+        $c->set_csp_headers;
+    }
 
     $c->stats->enable(1) if DBDefs->DEVELOPMENT_SERVER;
 
@@ -213,23 +260,40 @@ sub begin : Private
 
     my $alert = '';
     my $alert_mtime;
+    my @alert_cache_keys = DBDefs->IS_BETA
+        ? qw( beta:alert beta:alert_mtime )
+        : qw( alert alert_mtime );
+
     my ($new_edit_notes, $new_edit_notes_mtime);
     try {
         my $store = $c->model('MB')->context->store;
 
-        my @cache_keys = qw( alert alert_mtime );
+        if ($c->user_exists) {
+            if (!DBDefs->DB_STAGING_SERVER ||
+                !DBDefs->DB_STAGING_SERVER_SANITIZED)
+            {
+                my $ip_md5 = md5_hex($c->req->address);
+                my $user_id = $c->user->id;
 
-        if ($c->user_exists && $c->action->name ne 'notes_received') {
-            my $user_name = $c->user->name;
-            push @cache_keys, (
-                "edit_notes_received_last_viewed:$user_name",
-                "edit_notes_received_last_updated:$user_name",
-            );
+                $store->set_add("ipusers:$ip_md5", $user_id);
+                $store->expire("ipusers:$ip_md5", $IP_STORE_EXPIRES);
+
+                $store->set_add("userips:$user_id", $ip_md5);
+                $store->expire("userips:$user_id", $IP_STORE_EXPIRES);
+            }
+
+            if ($c->action->name ne 'notes_received') {
+                my $user_name = $c->user->name;
+                push @alert_cache_keys, (
+                    "edit_notes_received_last_viewed:$user_name",
+                    "edit_notes_received_last_updated:$user_name",
+                );
+            }
         }
 
         my ($notes_viewed, $notes_updated);
         ($alert, $alert_mtime, $notes_viewed, $notes_updated) =
-            @{$store->get_multi(@cache_keys)}{@cache_keys};
+            @{$store->get_multi(@alert_cache_keys)}{@alert_cache_keys};
 
         if ($notes_updated && (!defined($notes_viewed) || $notes_updated > $notes_viewed)) {
             $new_edit_notes = 1;
@@ -278,24 +342,41 @@ sub begin : Private
     # anything here, make sure it is reflected there, too (if applicable).
 
     # Edit implies RequireAuth
-    if (!exists $c->action->attributes->{RequireAuth} && exists $c->action->attributes->{Edit}) {
-        $c->action->attributes->{RequireAuth} = 1;
+    if (!exists $attributes->{RequireAuth} && exists $attributes->{Edit}) {
+        $attributes->{RequireAuth} = 1;
     }
 
     # Returns a special 404 for areas of the site that shouldn't exist on a slave (e.g. /user pages)
-    if (exists $c->action->attributes->{HiddenOnSlaves}) {
+    if (exists $attributes->{HiddenOnSlaves}) {
         $c->detach('/error_mirror_404') if ($c->stash->{server_details}->{is_slave_db});
     }
 
     # Anything that requires authentication isn't allowed on a mirror server (e.g. editing, registering)
-    if (exists $c->action->attributes->{RequireAuth} || $c->action->attributes->{ForbiddenOnSlaves}) {
+    if (exists $attributes->{RequireAuth} || $attributes->{ForbiddenOnSlaves}) {
         $c->detach('/error_mirror') if ($c->stash->{server_details}->{is_slave_db});
     }
 
-    if (exists $c->action->attributes->{RequireAuth})
+    if (exists $attributes->{RequireAuth})
     {
+        if ($c->form_posted && $c->is_cross_origin) {
+            my $post_params = $c->req->body_params;
+            if (defined $post_params && scalar(%$post_params)) {
+                my $external_origin = $c->req->header('Origin');
+                $c->set_csp_headers;
+                $c->stash(
+                    current_view => 'Node',
+                    component_path => 'main/ConfirmSeed',
+                    component_props => {
+                        origin => $external_origin,
+                        postParameters => $post_params,
+                    },
+                );
+                $c->detach;
+            }
+        }
+        $c->stash->{current_action_requires_auth} = 1;
         $c->forward('/user/do_login');
-        my $privs = $c->action->attributes->{RequireAuth};
+        my $privs = $attributes->{RequireAuth};
         if ($privs && ref($privs) eq "ARRAY") {
             foreach my $priv (@$privs) {
                 last unless $priv;
@@ -307,44 +388,42 @@ sub begin : Private
         }
     }
 
-    if (exists $c->action->attributes->{Edit} && $c->user_exists &&
+    if (exists $attributes->{Edit} && $c->user_exists &&
         (!$c->user->has_confirmed_email_address || $c->user->is_editing_disabled))
     {
-        $c->forward('/error_401');
+        $c->detach('/error_401');
     }
 
-    if (DBDefs->DB_READ_ONLY && (exists $c->action->attributes->{Edit} ||
-                                 exists $c->action->attributes->{DenyWhenReadonly})) {
+    if (DBDefs->DB_READ_ONLY && (exists $attributes->{Edit} ||
+                                 exists $attributes->{DenyWhenReadonly})) {
         $c->stash( message => 'The server is currently in read only mode and is not accepting edits');
-        $c->forward('/error_400');
+        $c->detach('/error_400');
     }
 
     # Update the tagger port
     if (defined $c->req->query_params->{tport}) {
         my ($tport) = $c->req->query_params->{tport} =~ /^([0-9]{1,5})$/
-            or $c->forward('/error_400');
+            or $c->detach('/error_400');
         $c->session->{tport} = $tport;
     }
 
     # Merging
     if (my $merger = $c->try_get_session('merger')) {
-        my $model = $c->model($merger->type);
+        my $model = $c->model(type_to_model($merger->type));
         my @merge = values %{
             $model->get_by_ids($merger->all_entities)
         };
         $c->model('ArtistCredit')->load(@merge);
 
         my @areas = ();
-        push @areas, @merge if $merger->type eq 'Area';
-        push @areas, $c->model('Area')->load(@merge) if $merger->type eq 'Place';
+        push @areas, @merge if $merger->type eq 'area';
+        push @areas, $c->model('Area')->load(@merge) if $merger->type eq 'place';
         $c->model('Area')->load_containment(@areas);
 
         $c->stash(
             to_merge => [ @merge ],
             merger => $merger,
-            merge_link => $c->uri_for_action(
-                model_to_type($merger->type) . '/merge',
-            )
+            merge_link => $c->uri_for_action($merger->type . '/merge'),
         );
     }
 
@@ -367,7 +446,7 @@ sub end : ActionClass('RenderView')
 {
     my ($self, $c) = @_;
 
-    return if exists $c->action->attributes->{Minimal};
+    my $attrs = $c->action->attributes;
 
     $c->stash->{server_details} = {
         %{ $c->stash->{server_details} // {} },
@@ -383,22 +462,25 @@ sub end : ActionClass('RenderView')
     $c->stash->{wiki_server} = DBDefs->WIKITRANS_SERVER;
 }
 
-=head1 LICENSE
+if ($ENV{MUSICBRAINZ_RUNNING_TESTS}) {
+    # Test method for t::MusicBrainz::Server::Controller::Errors
+    my $method = sub { die 'die die' };
+    __PACKAGE__->meta->add_method(die_die_die => $method);
+    __PACKAGE__->meta->register_method_attributes(
+        $method,
+        [q[Path('die-die-die')]],
+    );
+}
 
-This software is provided "as is", without warranty of any kind, express or
-implied, including  but not limited  to the warranties of  merchantability,
-fitness for a particular purpose and noninfringement. In no event shall the
-authors or  copyright  holders be  liable for any claim,  damages or  other
-liability, whether  in an  action of  contract, tort  or otherwise, arising
-from,  out of  or in  connection with  the software or  the  use  or  other
-dealings in the software.
+=head1 COPYRIGHT AND LICENSE
 
-GPL - The GNU General Public License    http://www.gnu.org/licenses/gpl.txt
-Permits anyone the right to use and modify the software without limitations
-as long as proper  credits are given  and the original  and modified source
-code are included. Requires  that the final product, software derivate from
-the original  source or any  software  utilizing a GPL  component, such  as
-this, is also licensed under the GPL license.
+Copyright (C) 2008 MetaBrainz Foundation
+Copyright (C) 2010 Pavan Chander
+Copyright (C) 2014 Ulrich Klauer
+
+This file is part of MusicBrainz, the open internet music database,
+and is licensed under the GPL version 2, or (at your option) any
+later version: http://www.gnu.org/licenses/gpl-2.0.txt
 
 =cut
 

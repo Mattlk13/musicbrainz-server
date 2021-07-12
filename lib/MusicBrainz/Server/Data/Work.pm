@@ -85,7 +85,7 @@ sub find_by_artist
                      WHERE entity0 = ?
                 ) s, ' . $self->_table .'
           WHERE work.id = s.work
-       ORDER BY musicbrainz_collate(work.name)';
+       ORDER BY work.name COLLATE musicbrainz';
 
     # We actually use this for the side effect in the closure
     $self->query_to_list_limited($query, [($artist_id) x 2], $limit, $offset);
@@ -107,7 +107,7 @@ sub find_by_iswc
                  FROM " . $self->_table . "
                  JOIN iswc ON work.id = iswc.work
                  WHERE iswc.iswc = ?
-                 ORDER BY musicbrainz_collate(work.name)";
+                 ORDER BY work.name COLLATE musicbrainz";
 
     $self->query_to_list($query, [$iswc]);
 }
@@ -116,10 +116,10 @@ sub _order_by {
     my ($self, $order) = @_;
     my $order_by = order_by($order, "name", {
         "name" => sub {
-            return "musicbrainz_collate(name)"
+            return "name COLLATE musicbrainz"
         },
         "type" => sub {
-            return "type, musicbrainz_collate(name)"
+            return "type, name COLLATE musicbrainz"
         },
     });
 
@@ -338,13 +338,14 @@ sub _find_writers
     return unless @$ids;
 
     my $query = "
-        SELECT law.entity1 AS work, law.entity0 AS artist, array_agg(lt.name) AS roles
+        SELECT law.entity1 AS work, law.entity0 AS artist, 
+            law.entity0_credit AS credit, array_agg(lt.name) AS roles
         FROM l_artist_work law
         JOIN link l ON law.link = l.id
         JOIN link_type lt ON l.link_type = lt.id
         WHERE law.entity1 IN (" . placeholders(@$ids) . ")
-        GROUP BY law.entity1, law.entity0
-        ORDER BY count(*) DESC, artist
+        GROUP BY law.entity1, law.entity0, law.entity0_credit
+        ORDER BY count(*) DESC, artist, credit
     ";
 
     my $rows = $self->sql->select_list_of_lists($query, @$ids);
@@ -353,9 +354,10 @@ sub _find_writers
     my $artists = $self->c->model('Artist')->get_by_ids(@artist_ids);
 
     for my $row (@$rows) {
-        my ($work_id, $artist_id, $roles) = @$row;
+        my ($work_id, $artist_id, $credit, $roles) = @$row;
         $map->{$work_id} ||= [];
         push @{ $map->{$work_id} }, {
+            credit => $credit,
             entity => $artists->{$artist_id},
             roles => [ uniq @{ $roles } ]
         }
@@ -396,7 +398,7 @@ sub _find_recording_artists
         SELECT lrw.entity1 AS work, r.artist_credit
         FROM l_recording_work lrw
         JOIN recording r ON lrw.entity0 = r.id
-        LEFT JOIN track t on r.id = t.recording
+        LEFT JOIN track t ON r.id = t.recording
         WHERE lrw.entity1 IN (" . placeholders(@$ids) . ")
         GROUP BY lrw.entity1, r.artist_credit
         ORDER BY count(*) DESC, artist_credit
@@ -427,20 +429,20 @@ sub is_empty {
     my ($self, $work_id) = @_;
 
     my $used_in_relationship = used_in_relationship($self->c, work => 'work_row.id');
-    return $self->sql->select_single_value(<<EOSQL, $work_id, $STATUS_OPEN);
+    return $self->sql->select_single_value(<<~"EOSQL", $work_id, $STATUS_OPEN);
         SELECT TRUE
         FROM work work_row
         WHERE id = ?
         AND edits_pending = 0
         AND NOT (
-          EXISTS (
-            SELECT TRUE
-            FROM edit_work JOIN edit ON edit_work.edit = edit.id
-            WHERE status = ? AND work = work_row.id
-          ) OR
-          $used_in_relationship
+            EXISTS (
+                SELECT TRUE
+                FROM edit_work JOIN edit ON edit_work.edit = edit.id
+                WHERE status = ? AND work = work_row.id
+            ) OR
+            $used_in_relationship
         )
-EOSQL
+        EOSQL
 }
 
 sub set_attributes {
@@ -464,23 +466,13 @@ __PACKAGE__->meta->make_immutable;
 no Moose;
 1;
 
-=head1 COPYRIGHT
+=head1 COPYRIGHT AND LICENSE
 
 Copyright (C) 2012 MetaBrainz Foundation
 Copyright (C) 2009 Lukas Lalinsky
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program; if not, write to the Free Software
-Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+This file is part of MusicBrainz, the open internet music database,
+and is licensed under the GPL version 2, or (at your option) any
+later version: http://www.gnu.org/licenses/gpl-2.0.txt
 
 =cut

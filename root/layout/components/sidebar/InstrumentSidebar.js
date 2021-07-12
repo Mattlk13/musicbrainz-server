@@ -1,5 +1,5 @@
 /*
- * @flow
+ * @flow strict-local
  * Copyright (C) 2018 MetaBrainz Foundation
  *
  * This file is part of MusicBrainz, the open internet music database,
@@ -9,9 +9,13 @@
 
 import * as React from 'react';
 
-import {withCatalystContext} from '../../../context';
-import CommonsImage from '../../../static/scripts/common/components/CommonsImage';
-import entityHref from '../../../static/scripts/common/utility/entityHref';
+import {CatalystContext} from '../../../context';
+import CommonsImage
+  from '../../../static/scripts/common/components/CommonsImage';
+import IrombookImage
+  from '../../../static/scripts/common/components/IrombookImage';
+import {isRelationshipEditor}
+  from '../../../static/scripts/common/utility/privileges';
 import ExternalLinks from '../ExternalLinks';
 
 import AnnotationLinks from './AnnotationLinks';
@@ -21,16 +25,17 @@ import LastUpdated from './LastUpdated';
 import MergeLink from './MergeLink';
 import RemoveLink from './RemoveLink';
 import SidebarLicenses from './SidebarLicenses';
-import {SidebarProperty, SidebarProperties} from './SidebarProperties';
+import {SidebarProperties} from './SidebarProperties';
 import SidebarTags from './SidebarTags';
 import SidebarType from './SidebarType';
 
-type Props = {|
-  +$c: CatalystContextT,
+type Props = {
   +instrument: InstrumentT,
-|};
+};
 
-const InstrumentSidebar = ({$c, instrument}: Props) => {
+const InstrumentSidebar = ({instrument}: Props): React.Element<'div'> => {
+  const $c = React.useContext(CatalystContext);
+
   return (
     <div id="sidebar">
       <CommonsImage
@@ -38,7 +43,9 @@ const InstrumentSidebar = ({$c, instrument}: Props) => {
         entity={instrument}
       />
 
-      {instrument.typeID ? (
+      <IrombookImage entity={instrument} />
+
+      {instrument.typeID == null ? null : (
         <>
           <h2 className="instrument-information">
             {l('Instrument information')}
@@ -48,19 +55,14 @@ const InstrumentSidebar = ({$c, instrument}: Props) => {
             <SidebarType entity={instrument} typeType="instrument_type" />
           </SidebarProperties>
         </>
-      ) : null}
+      )}
 
-      <SidebarTags
-        aggregatedTags={$c.stash.top_tags}
-        entity={instrument}
-        more={!!$c.stash.more_tags}
-        userTags={$c.stash.user_tags}
-      />
+      <SidebarTags entity={instrument} />
 
       <ExternalLinks empty entity={instrument} />
 
       <EditLinks entity={instrument}>
-        {$c.user && $c.user.is_relationship_editor ? (
+        {isRelationshipEditor($c.user) ? (
           <>
             <AnnotationLinks entity={instrument} />
 
@@ -82,4 +84,4 @@ const InstrumentSidebar = ({$c, instrument}: Props) => {
   );
 };
 
-export default withCatalystContext(InstrumentSidebar);
+export default InstrumentSidebar;

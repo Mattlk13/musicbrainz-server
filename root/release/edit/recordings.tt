@@ -2,11 +2,19 @@
   <div class="warning field-error" data-bind="showErrorRightAway: needsRecordings">
     <p><strong>[% l('Note:') %]</strong> [%- l('All tracks require an associated recording. Click “Edit” to select a recording for each track. Choose “Add a new recording” if an appropriate one doesn’t exist yet.') -%]</p>
 
-    <p data-bind="ifnot: _.isEmpty(tracksWithUnsetPreviousRecordings())">
-      <button type="button" class="styled-button" data-click="reuseUnsetPreviousRecordings">
-        [%~ l('Reuse previous recordings') | html ~%]
-      </button>
-    </p>
+    <div data-bind="if: tracksWithUnsetPreviousRecordings().length">
+      <p>
+        [% l(
+          'Keep in mind that recording durations are {doc_link|recalculated from tracks} once the duration of a track changes. As such, if you correct the duration of a track whose recording is only used in this release, just reuse the old recording, don’t create a new one. If the recording is also used elsewhere and the durations are significantly different, consider creating a new recording instead.',
+          { doc_link => doc_link('Recording') }
+        ) %]
+      </p>
+      <p>
+        <button type="button" class="styled-button" data-click="reuseUnsetPreviousRecordings">
+          [%~ l('Reuse previous recordings') | html ~%]
+        </button>
+      </p>
+    </div>
   </div>
 
   <div class="half-width" data-bind="affectsBubble: $root.recordingBubble">
@@ -15,8 +23,15 @@
     <fieldset>
       <legend data-bind="text: formattedName()"></legend>
 
-      <table data-bind="if: loaded">
-        <thead>
+      <table id="track-recording-assignation" data-bind="if: loaded">
+        <tbody data-bind="if: tracks().length === 0">
+          <tr>
+            <td></td>
+            <td class="name" style="padding: 1em">[% l('The tracklist for this medium is unknown.') %]</td>
+          <tr>
+        </tbody>
+
+        <thead data-bind="if: tracks().length > 0">
           <tr>
             <th></th>
             <th colspan="2" style="text-align: left">[% l('track') %]</th>
@@ -115,6 +130,12 @@
 
   <!-- ko if: hasTracks() -->
     <fieldset>
+      <p>
+        [% l('If the {recording_doc|recording titles/artists} listed above are incorrect, you can check the boxes below to replace them with the track titles/artists for this release.', {recording_doc => doc_link('Recording')}) %]
+      </p>
+      <p>
+        [% l('<strong>Note:</strong> In classical music, {csg_recording_artist|recording artists} should almost always be different from {csg_track_artist|track artists}, so don’t use the “copy artist credits” option while editing a classical release unless you’re very sure it’s a good idea!', {csg_recording_artist => doc_link('Style/Classical/Recording/Artist'), csg_track_artist => doc_link('Style/Classical/Track/Artist')}) %]
+      </p>
       <legend>[% l('Options') %]</legend>
       <p>
         <label>
@@ -176,7 +197,7 @@
             <td></td>
             <td colspan="3" class="appears-on">
               [%- l('appears on:') %]
-              <span class="appears" data-bind="html: _.invokeMap(appearsOn.results, 'html', { target: '_blank' }).join(', ')"></span>
+              <span class="appears" data-bind="html: appearsOn.results.map(function (x) { return x.html({ target: '_blank' }); }).join(', ')"></span>
             </td>
           </tr>
           <!-- /ko -->

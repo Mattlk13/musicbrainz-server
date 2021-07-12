@@ -1,23 +1,34 @@
-// This file is part of MusicBrainz, the open internet music database.
-// Copyright (C) 2015 MetaBrainz Foundation
-// Licensed under the GPL version 2, or (at your option) any later version:
-// http://www.gnu.org/licenses/gpl-2.0.txt
+/*
+ * Copyright (C) 2015 MetaBrainz Foundation
+ *
+ * This file is part of MusicBrainz, the open internet music database,
+ * and is licensed under the GPL version 2, or (at your option) any
+ * later version: http://www.gnu.org/licenses/gpl-2.0.txt
+ */
 
 /* eslint-disable import/no-commonjs */
 
 'use strict';
 
-const Raven = require('raven');
+const Sentry = require('@sentry/node');
 const DBDefs = require('./static/scripts/common/DBDefs');
-Raven.config(DBDefs.SENTRY_DSN).install();
+
+function sentryInit(config) {
+  Sentry.init({
+    dsn: config.SENTRY_DSN_PUBLIC,
+    environment: config.GIT_BRANCH,
+    release: config.GIT_SHA,
+  });
+}
+sentryInit(DBDefs);
 
 const cluster = require('cluster');
 const fs = require('fs');
 const spawnSync = require('child_process').spawnSync;
-const _ = require('lodash');
 
 const createServer = require('./server/createServer');
 const {clearRequireCache} = require('./server/utils');
+const writeCoverage = require('./utility/writeCoverage');
 
 const yargs = require('yargs')
   .option('socket', {
@@ -47,7 +58,7 @@ if (cluster.isMaster) {
 
   function forkWorker(listening) {
     // Allow spawning one additional worker during HUP.
-    if (_.keys(cluster.workers).length > WORKER_COUNT) {
+    if (Object.keys(cluster.workers).length > WORKER_COUNT) {
       return false;
     }
 
@@ -81,7 +92,7 @@ if (cluster.isMaster) {
     if (!worker.isDead()) {
       console.info(
         `worker hasn't died after ${DISCONNECT_TIMEOUT}ms; ` +
-        `sending SIGKILL to pid ${worker.process.pid}`
+        `sending SIGKILL to pid ${worker.process.pid}`,
       );
       worker.process.kill('SIGKILL');
     }
@@ -94,25 +105,29 @@ if (cluster.isMaster) {
     }
   }
 
-  const cleanup = Raven.wrap(function (signal) {
-    let timeout;
-
-    cluster.disconnect(function () {
-      clearTimeout(timeout);
-      process.exit();
-    });
-
-    timeout = setTimeout(() => {
+  function cleanup() {
+    const timeout = setTimeout(() => {
       for (const id in cluster.workers) {
         killWorker(cluster.workers[id]);
       }
       process.exit();
     }, DISCONNECT_TIMEOUT);
-  });
+
+    cluster.disconnect(function () {
+      clearTimeout(timeout);
+      process.exit();
+    });
+  }
 
   let hupAction = null;
-  const hup = Raven.wrap(function () {
+  function hup() {
     console.info('master received SIGHUP; restarting workers');
+
+    clearRequireCache();
+
+    Sentry.close().then(function () {
+      sentryInit(require('./static/scripts/common/DBDefs'));
+    });
 
     let oldWorkers;
     let initialTimeout = 0;
@@ -122,9 +137,9 @@ if (cluster.isMaster) {
       initialTimeout = 2000;
     }
 
-    const killNext = Raven.wrap(function () {
+    function killNext() {
       if (!oldWorkers) {
-        oldWorkers = _.values(cluster.workers);
+        oldWorkers = Object.values(cluster.workers);
       }
       const oldWorker = oldWorkers.pop();
       if (oldWorker) {
@@ -138,14 +153,24 @@ if (cluster.isMaster) {
       } else {
         hupAction = null;
       }
-    });
+    }
 
     hupAction = setTimeout(killNext, initialTimeout);
-  });
+  }
 
   process.on('SIGINT', cleanup);
   process.on('SIGTERM', cleanup);
   process.on('SIGHUP', hup);
 } else {
   createServer(SOCKET_PATH);
+
+  process.on('beforeExit', function () {
+    const coverage = global.__coverage__;
+    if (coverage) {
+      writeCoverage(
+        `server-${process.pid}`,
+        JSON.stringify(coverage),
+      );
+    }
+  });
 }

@@ -1,8 +1,11 @@
 import test from 'tape';
-import React from 'react';
+import * as React from 'react';
+
 import {VarArgs} from '../../common/i18n/expand2';
 import expand2html from '../../common/i18n/expand2html';
-import expand2text from '../../common/i18n/expand2text';
+import expand2text, {
+  expand2textWithVarArgsClass,
+} from '../../common/i18n/expand2text';
 
 test('expand2', function (t) {
   t.plan(64);
@@ -27,8 +30,16 @@ test('expand2', function (t) {
   expandText(null, null, '');
   expandText(undefined, null, '');
   expandText('Some plain text', null, 'Some plain text');
-  expandText('Some &quot;plain&quot; text', null, 'Some &quot;plain&quot; text');
-  expandHtml('Some &quot;plain&quot; text', null, 'Some &quot;plain&quot; text');
+  expandText(
+    'Some &quot;plain&quot; text',
+    null,
+    'Some &quot;plain&quot; text',
+  );
+  expandHtml(
+    'Some &quot;plain&quot; text',
+    null,
+    'Some &quot;plain&quot; text',
+  );
   expandText('An {apple_fruit}', null, 'An {apple_fruit}');
   expandText('An {apple_fruit}', {apple_fruit: 'apple'}, 'An apple');
   expandText('A {number}', {number: 1}, 'A 1');
@@ -39,8 +50,8 @@ test('expand2', function (t) {
 
   expandHtml(
     'An {apple_fruit}',
-    {apple_fruit: React.createElement('b', null, 'apple')},
-    'An <b>apple</b>',
+    {apple_fruit: React.createElement('strong', null, 'apple')},
+    'An <strong>apple</strong>',
   );
 
   // Shouldn't interpolate React elements with expand2text.
@@ -92,25 +103,25 @@ test('expand2', function (t) {
 
   expandHtml(
     'A {apple_fruit|darn {apple}}',
-    {apple_fruit: 'http://www.apple.com', apple: 'pear'},
+    {apple: 'pear', apple_fruit: 'http://www.apple.com'},
     'A <a href="http://www.apple.com">darn pear</a>',
   );
 
   expandHtml(
     'A {apple_fruit|darn {apple}}',
-    {apple_fruit: 'http://www.apple.com', apple: React.createElement('i', null, 'pear')},
+    {apple: React.createElement('i', null, 'pear'), apple_fruit: 'http://www.apple.com'},
     'A <a href="http://www.apple.com">darn <i>pear</i></a>',
   );
 
   expandHtml(
     'A {apple_fruit|{apple}}',
     {
+      apple: 'pear',
       apple_fruit: {
         className: 'link',
         href: 'http://www.apple.com',
         target: '_blank',
       },
-      apple: 'pear',
     },
     'A <a class="link" href="http://www.apple.com" target="_blank">pear</a>',
   );
@@ -118,8 +129,8 @@ test('expand2', function (t) {
   expandHtml(
     'A {apple_fruit|{apple}}',
     {
-      apple_fruit: 'http://www.apple.com',
       apple: '<pears are="yellow, green & red">',
+      apple_fruit: 'http://www.apple.com',
     },
     'A <a href="http://www.apple.com">&lt;pears are=&quot;yellow, green &amp; red&quot;&gt;</a>',
   );
@@ -131,15 +142,15 @@ test('expand2', function (t) {
   );
 
   expandHtml(
-    'A {apple_fruit|<b><strong>{prefix} APPLE!</strong></b>}',
+    'A {apple_fruit|<strong>{prefix} APPLE!</strong>}',
     {apple_fruit: 'http://www.apple.com', prefix: 'dang'},
-    'A <a href="http://www.apple.com"><b><strong>dang APPLE!</strong></b></a>',
+    'A <a href="http://www.apple.com"><strong>dang APPLE!</strong></a>',
   );
 
   expandText('{x:y|}', null, '{x:y|}');
   expandText('{x:y|}', {x: true}, 'y');
   expandText('{x:y|}', {x: false}, '');
-  expandHtml('{x:<b>|</b>|}', {x: true}, '<b>|</b>');
+  expandHtml('{x:<strong>|</strong>|}', {x: true}, '<strong>|</strong>');
 
   expandText('{x:|y}', null, '{x:|y}');
   expandText('{x:|y}', {x: true}, '');
@@ -149,17 +160,29 @@ test('expand2', function (t) {
   expandText('{x:%|}', {x: ''}, '');
   expandText('{x:%|}', {x: '%'}, '%');
   expandText('{x:%|}', {x: '&percnt;'}, '&percnt;');
-  expandHtml('{x:%|}', {x: <p>hi</p>}, '<p>hi</p>');
+  expandHtml('{x:%|}', {x: <p>{'hi'}</p>}, '<p>hi</p>');
   expandText('{x:a%c|}', {x: 'b'}, 'abc');
   expandText('{x:a&percnt;c|}', {x: 'b'}, 'a&percnt;c');
   expandHtml('{x:a&percnt;c|}', {x: 'b'}, 'a%c');
 
   expandHtml('<a href="{x}"></a>', {x: '/&'}, '<a href="/&amp;"></a>');
   expandHtml('<a href="{x:%|}"></a>', {x: '/%'}, '<a href="/%"></a>');
-  expandHtml('<a href="/{x:%|}"></a>', {x: '&percnt;'}, '<a href="/&amp;percnt;"></a>');
-  expandHtml('<a href="/<{x:&&percnt;|}"></a>', {x: 'b'}, '<a href="/&lt;&amp;%"></a>');
+  expandHtml(
+    '<a href="/{x:%|}"></a>',
+    {x: '&percnt;'},
+    '<a href="/&amp;percnt;"></a>',
+  );
+  expandHtml(
+    '<a href="/<{x:&&percnt;|}"></a>',
+    {x: 'b'},
+    '<a href="/&lt;&amp;%"></a>',
+  );
 
-  expandHtml('{x:{y|% :)}|{z|:(}}', {x: 'hi', y: 'www'}, '<a href="www">hi :)</a>');
+  expandHtml(
+    '{x:{y|% :)}|{z|:(}}',
+    {x: 'hi', y: 'www'},
+    '<a href="www">hi :)</a>',
+  );
   expandHtml(
     '{x:{y|% :)}|{z|<br class="{zz}" />:(}}',
     {x: '', z: 'https://www', zz: '"<>"'},
@@ -215,9 +238,13 @@ test('expand2', function (t) {
       return expand2text('some {value}', {value});
     }
   };
-  expandText(
-    '{value}, huh?',
-    new CustomArgs({value: 'nesting'}),
+
+  error = '';
+  t.equal(
+    expand2textWithVarArgsClass(
+      '{value}, huh?',
+      new CustomArgs({value: 'nesting'}),
+    ),
     'some nesting, huh?',
   );
 

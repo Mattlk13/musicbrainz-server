@@ -1,5 +1,5 @@
 /*
- * @flow
+ * @flow strict
  * Copyright (C) 2018 MetaBrainz Foundation
  *
  * This file is part of MusicBrainz, the open internet music database,
@@ -11,10 +11,10 @@ import linkedEntities from '../static/scripts/common/linkedEntities';
 
 export default function releaseGroupType(
   releaseGroup: ReleaseGroupT,
-) {
+): string {
   const types = [];
   let id = releaseGroup.typeID;
-  if (id) {
+  if (id != null) {
     types.push(lp_attributes(
       linkedEntities.release_group_primary_type[id].name,
       'release_group_primary_type',

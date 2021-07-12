@@ -10,8 +10,11 @@ with 'MusicBrainz::Server::Controller::Role::Load' => {
         default     => ['url'],
         subset      => {
             show => [qw( area artist label place url work series instrument )],
-            performances => [qw( release release_group recording work url )],
-        }
+            performances => [qw( url )],
+        },
+        paged_subset => {
+            performances => [qw( recording release release_group work )],
+        },
     },
 };
 with 'MusicBrainz::Server::Controller::Role::LoadWithRowID';
@@ -20,12 +23,13 @@ with 'MusicBrainz::Server::Controller::Role::Alias';
 with 'MusicBrainz::Server::Controller::Role::Cleanup';
 with 'MusicBrainz::Server::Controller::Role::Details';
 with 'MusicBrainz::Server::Controller::Role::EditListing';
+with 'MusicBrainz::Server::Controller::Role::Rating';
 with 'MusicBrainz::Server::Controller::Role::Tag';
 with 'MusicBrainz::Server::Controller::Role::WikipediaExtract';
 with 'MusicBrainz::Server::Controller::Role::CommonsImage';
 with 'MusicBrainz::Server::Controller::Role::EditRelationships';
 with 'MusicBrainz::Server::Controller::Role::JSONLD' => {
-    endpoints => {show => {}, aliases => {copy_stash => ['aliases']}}
+    endpoints => {show => {copy_stash => ['top_tags']}, aliases => {copy_stash => ['aliases']}}
 };
 with 'MusicBrainz::Server::Controller::Role::Collection' => {
     entity_type => 'place'
@@ -36,6 +40,7 @@ use HTTP::Status qw( :constants );
 use MusicBrainz::Server::Translation qw( l );
 use MusicBrainz::Server::Constants qw( $EDIT_PLACE_CREATE $EDIT_PLACE_EDIT $EDIT_PLACE_MERGE );
 use MusicBrainz::Server::ControllerUtils::JSON qw( serialize_pager );
+use MusicBrainz::Server::Entity::Util::JSON qw( to_json_array to_json_object );
 use Sql;
 
 =head1 NAME
@@ -73,6 +78,15 @@ after 'load' => sub {
     my ($self, $c) = @_;
 
     my $place = $c->stash->{place};
+    my $returning_jsonld = $self->should_return_jsonld($c);
+
+    unless ($returning_jsonld) {
+        $c->model('Place')->load_meta($place);
+
+        if ($c->user_exists) {
+            $c->model('Place')->rating->load_user_ratings($c->user->id, $place);
+        }
+    }
 
     $c->model('PlaceType')->load($place);
     $c->model('Area')->load($place);
@@ -90,8 +104,8 @@ sub show : PathPart('') Chained('load') {
 
     my %props = (
         numberOfRevisions => $c->stash->{number_of_revisions},
-        place             => $c->stash->{place},
-        wikipediaExtract  => $c->stash->{wikipedia_extract},
+        place             => $c->stash->{place}->TO_JSON,
+        wikipediaExtract  => to_json_object($c->stash->{wikipedia_extract}),
     );
 
     $c->stash(
@@ -114,11 +128,12 @@ sub events : Chained('load')
         $c->model('Event')->find_by_place($c->stash->{place}->id, shift, shift);
     });
     $c->model('Event')->load_related_info(@$events);
+    $c->model('Event')->load_meta(@$events);
     $c->model('Event')->rating->load_user_ratings($c->user->id, @$events) if $c->user_exists;
 
     my %props = (
-        events      => $events,
-        place       => $c->stash->{place},
+        events      => to_json_array($events),
+        place       => $c->stash->{place}->TO_JSON,
         pager       => serialize_pager($c->stash->{pager}),
     );
 
@@ -138,10 +153,18 @@ Shows performances linked to a place.
 sub performances : Chained('load') { 
     my ($self, $c) = @_;
 
+    my $stash = $c->stash;
+    my $pager = defined $stash->{pager}
+        ? serialize_pager($stash->{pager})
+        : undef;
     $c->stash(
-        component_path  => 'place/PlacePerformances',
-        component_props => {place => $c->stash->{place}},
-        current_view    => 'Node',
+        component_path => 'place/PlacePerformances',
+        component_props => {
+            place => $stash->{place}->TO_JSON,
+            pagedLinkTypeGroup => to_json_object($stash->{paged_link_type_group}),
+            pager => $pager,
+        },
+        current_view => 'Node',
     );
 }
 
@@ -155,16 +178,28 @@ sub map : Chained('load') {
     my ($self, $c) = @_;
 
     my $place = $c->stash->{place};
-    $c->stash->{map_data_args} = $c->json->encode({
+    my $map_data_args = $c->json->encode({
         draggable => \0,
         place => {
-            coordinates => $place->coordinates,
+            coordinates => to_json_object($place->coordinates),
             name => $place->name,
         },
     });
+
+    my %props = (
+        mapDataArgs => $map_data_args,
+        place       => $place->TO_JSON,
+    );
+
+    $c->stash(
+        component_path  => 'place/PlaceMap',
+        component_props => \%props,
+        current_view    => 'Node',
+    );
+
 }
 
-after [qw( show collections details tags aliases events performances map )] => sub {
+after [qw( show collections details tags ratings aliases events performances map )] => sub {
     my ($self, $c) = @_;
     $self->_stash_collections($c);
 };
@@ -202,6 +237,12 @@ with 'MusicBrainz::Server::Controller::Role::Merge' => {
     edit_type => $EDIT_PLACE_MERGE,
 };
 
+before qw( create edit ) => sub {
+    my ($self, $c) = @_;
+    my %place_types = map {$_->id => $_} $c->model('PlaceType')->get_all();
+    $c->stash->{place_types} = \%place_types;
+};
+
 sub _merge_load_entities
 {
     my ($self, $c, @places) = @_;
@@ -210,22 +251,13 @@ sub _merge_load_entities
     $c->model('Area')->load_containment(map { $_->area } @places);
 };
 
-=head1 LICENSE
+=head1 COPYRIGHT AND LICENSE
 
-This software is provided "as is", without warranty of any kind, express or
-implied, including  but not limited  to the warranties of  merchantability,
-fitness for a particular purpose and noninfringement. In no event shall the
-authors or  copyright  holders be  liable for any claim,  damages or  other
-liability, whether  in an  action of  contract, tort  or otherwise, arising
-from,  out of  or in  connection with  the software or  the  use  or  other
-dealings in the software.
+Copyright (C) 2013 MetaBrainz Foundation
 
-GPL - The GNU General Public License    http://www.gnu.org/licenses/gpl.txt
-Permits anyone the right to use and modify the software without limitations
-as long as proper  credits are given  and the original  and modified source
-code are included. Requires  that the final product, software derivate from
-the original  source or any  software  utilizing a GPL  component, such  as
-this, is also licensed under the GPL license.
+This file is part of MusicBrainz, the open internet music database,
+and is licensed under the GPL version 2, or (at your option) any
+later version: http://www.gnu.org/licenses/gpl-2.0.txt
 
 =cut
 

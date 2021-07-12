@@ -48,13 +48,16 @@ our %relation_types = (
 
 
 # extra inc contains inc= arguments which should be allowed if another
-# argument is present.  E.g. puids and isrcs only make sense on a
+# argument is present.  E.g. isrcs only make sense on a
 # request for a recording or a request with inc=recordings.  This hash
 # helps validate the second case (inc=recordings).
 our %extra_inc = (
     'recordings' => [ qw( artist-credits puids isrcs ) ],
+    'recording-rels' => [ qw( artist-credits ) ],
     'releases' => [ qw( artist-credits discids media type status ) ],
+    'release-rels' => [ qw( artist-credits ) ],
     'release-groups' => [ qw( artist-credits type ) ],
+    'release-group-rels' => [ qw( artist-credits ) ],
     'works' => [ qw( artist-credits ) ],
 );
 
@@ -81,8 +84,6 @@ sub load_type_and_status
         lc('sa-' . $_->name)=> $_->id,
         lc('va-' . $_->name)=> $_->id,
     } @statuses;
-
-    $types{'nat'} = $types{'non-album tracks'};
 }
 
 sub validate_type

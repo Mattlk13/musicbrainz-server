@@ -6,7 +6,6 @@
  * later version: http://www.gnu.org/licenses/gpl-2.0.txt
  */
 
-const _ = require('lodash');
 const canonicalJson = require('canonical-json');
 const CopyWebpackPlugin = require('copy-webpack-plugin');
 const fs = require('fs');
@@ -14,27 +13,39 @@ const ManifestPlugin = require('webpack-manifest-plugin');
 const path = require('path');
 const shell = require('shelljs');
 const shellQuote = require('shell-quote');
-const UglifyJsPlugin = require('uglifyjs-webpack-plugin')
+const TerserPlugin = require('terser-webpack-plugin');
 const webpack = require('webpack');
 
 const poFile = require('./root/server/gettext/poFile');
-const DBDefs = require('./root/static/scripts/common/DBDefs');
 const browserConfig = require('./webpack/browserConfig');
-const {dirs, GETTEXT_DOMAINS, PUBLIC_PATH} = require('./webpack/constants');
+const {
+  dirs,
+  GETTEXT_DOMAINS,
+  PRODUCTION_MODE,
+  WEBPACK_MODE,
+} = require('./webpack/constants');
 const moduleConfig = require('./webpack/moduleConfig');
 const providePluginConfig = require('./webpack/providePluginConfig');
+const {cloneObjectDeep} =
+  require('./root/static/scripts/common/utility/cloneDeep');
+const jedDataTemplate = require('./root/static/scripts/jed-data');
 
 const entries = [
   'account/applications/register',
   'account/edit',
   'account/preferences',
+  'area',
+  'alias',
   'area/index',
   'area/places-map',
+  'artist',
   'artist/index',
   'collection/edit',
   'common',
+  'confirm-seed',
   'edit',
   'edit/notes-received',
+  'event',
   'event/index',
   'instrument/index',
   'jed-data',
@@ -42,6 +53,11 @@ const entries = [
   'place',
   'place/index',
   'place/map',
+  'recording/form',
+  'recording/merge',
+  'register',
+  'release/coverart',
+  'release/index',
   'release-editor',
   'release-group/index',
   'series',
@@ -49,6 +65,7 @@ const entries = [
   'statistics',
   'timeline',
   'url',
+  'user/login',
   'voting',
   'work',
   'work/index',
@@ -61,16 +78,6 @@ function langToPosix(lang) {
   return lang.replace(/^([a-zA-Z]+)-([a-zA-Z]+)$/, function (match, l, c) {
     l = l.toLowerCase();
     c = c.toUpperCase();
-
-    /*
-     * Handle symlinks (see under po/). We want to keep the the result here
-     * consistent regardless of whether someone has el or el-gr in their
-     * MB_LANGUAGE setting, for example.
-     */
-    if (/^(?:el_GR|es_ES)$/.test(`${l}_${c}`)) {
-      return l;
-    }
-
     return l + '_' + c.toUpperCase();
   });
 }
@@ -81,9 +88,8 @@ function mtime(fpath) {
   } catch (err) {
     if (err.code === 'ENOENT') {
       return null;
-    } else {
-      throw err;
     }
+    throw err;
   }
 }
 
@@ -111,14 +117,21 @@ function createJsPo(srcPo, lang) {
    * possible terminal paths.
    */
   const scriptsDir = shellQuote.quote([dirs.SCRIPTS]);
-  const nestedDirs = shell.exec(`find ${scriptsDir} -type d`, {silent: true}).output.split('\n');
-  const msgLocations = _(nestedDirs)
-    .compact()
-    .map(dir => '-N ' + shellQuote.quote(['..' + dir.replace(dirs.CHECKOUT, '') + '/*.js']))
+  const nestedDirs = shell.exec(
+    `find ${scriptsDir} -type d`,
+    {silent: true},
+  ).stdout.split('\n');
+  const msgLocations = nestedDirs
+    .filter(Boolean)
+    .map(dir => (
+      '-N ' +
+      shellQuote.quote(['..' + dir.replace(dirs.CHECKOUT, '') + '/*.js'])))
     .join(' ');
 
   srcPo = shellQuote.quote([srcPo]);
-  tmpPo = shellQuote.quote([path.resolve(dirs.PO, `javascript.${lang}.po`)]);
+  const tmpPo = shellQuote.quote(
+    [path.resolve(dirs.PO, `javascript.${lang}.po`)],
+  );
 
   /*
    * Create a temporary .po file containing only the strings used by
@@ -126,7 +139,7 @@ function createJsPo(srcPo, lang) {
    */
   shell.exec(`msggrep ${msgLocations} ${srcPo} -o ${tmpPo}`);
 
-  jedData = poFile.load('javascript', lang, 'mb_server');
+  const jedData = poFile.load('javascript', lang, 'mb_server');
   fs.unlinkSync(tmpPo);
   return jedData;
 }
@@ -138,7 +151,7 @@ function loadNewerPo(domain, lang, bundleMtime) {
   }
   let jedData;
   if (domain === 'mb_server') {
-    jedData = createJsPo(srcPo, lang)
+    jedData = createJsPo(srcPo, lang);
   } else {
     jedData = poFile.loadFromPath(srcPo, domain);
     jedData.domain = 'mb_server';
@@ -146,46 +159,63 @@ function loadNewerPo(domain, lang, bundleMtime) {
   return jedData;
 }
 
-_(DBDefs.MB_LANGUAGES || '')
-  .split(/\s+/)
-  .compact()
-  .without('en')
-  .map(langToPosix)
-  .each(function (lang) {
-    GETTEXT_DOMAINS.forEach(function (domain) {
-      const fileName = `jed-${lang}-${domain}`;
-      const filePath = path.resolve(dirs.BUILD, `${fileName}.source.js`);
-      const fileMtime = mtime(filePath);
-      const jedData = loadNewerPo(domain, lang, fileMtime);
+const MB_LANGUAGES = shell.exec(
+  `find ${shellQuote.quote([dirs.PO])} -type f -name 'mb_server*.po'`,
+  {silent: true},
+).stdout.split('\n').reduce((accum, filePath) => {
+  const lang = filePath.replace(/^.*\/mb_server\.([A-z_]+)\.po$/, '$1');
+  if (lang && lang !== 'en') {
+    accum.push(langToPosix(lang));
+  }
+  return accum;
+}, []);
 
-      if (jedData) {
-        const source = (`
-          require(${
-            JSON.stringify(path.resolve(dirs.SCRIPTS, 'jed-data'))
-          }).mergeData(
-            ${JSON.stringify(domain)},
-            ${JSON.stringify(lang)},
-            ${canonicalJson(jedData)},
-          );
-        `);
-        fs.writeFileSync(filePath, source);
-      }
+MB_LANGUAGES.forEach(function (lang) {
+  const langJedData = cloneObjectDeep(jedDataTemplate.en);
+  const fileName = `jed-${lang}`;
+  const filePath = path.resolve(dirs.BUILD, `${fileName}.source.js`);
+  const fileMtime = mtime(filePath);
+  let loadedNewPoData = false;
 
-      if (fs.existsSync(filePath)) {
-        entries[fileName] = filePath;
-      }
-    });
+  GETTEXT_DOMAINS.forEach(function (domain) {
+    const domainJedData = loadNewerPo(domain, lang, fileMtime);
+
+    if (domainJedData) {
+      loadedNewPoData = true;
+      langJedData.locale_data[domain] = domainJedData.locale_data[domain];
+    }
   });
+
+  if (loadedNewPoData) {
+    const source = (
+      'var jedData = require(' +
+      JSON.stringify(path.resolve(dirs.SCRIPTS, 'jed-data')) + ');\n' +
+      'var locale = ' + JSON.stringify(lang) + ';\n' +
+      // https://v8.dev/blog/cost-of-javascript-2019#json
+      'jedData[locale] = JSON.parse(\'' +
+      canonicalJson(langJedData)
+        .replace(/\\/g, '\\\\')
+        .replace(/'/g, "\\'") +
+      '\');\n' +
+      'jedData.locale = locale;\n'
+    );
+    fs.writeFileSync(filePath, source);
+  }
+
+  if (fs.existsSync(filePath)) {
+    entries[fileName] = filePath;
+  }
+});
 
 const plugins = browserConfig.plugins.concat();
 
 plugins.push(new webpack.ProvidePlugin(providePluginConfig));
 
-if (!DBDefs.DEVELOPMENT_SERVER) {
+if (PRODUCTION_MODE) {
   plugins.push(
     new webpack.HashedModuleIdsPlugin({
       hashDigestLength: 7,
-    })
+    }),
   );
 }
 
@@ -200,26 +230,14 @@ plugins.push.apply(plugins, [
   }),
 ]);
 
-if (!DBDefs.DEVELOPMENT_SERVER) {
-  plugins.push(new UglifyJsPlugin({
-    uglifyOptions: {
-      ecma: 5,
-      mangle: true,
-      output: {
-        comments: /@preserve|@license/,
-      },
-    },
-  }));
-}
-
 module.exports = {
   context: dirs.CHECKOUT,
 
-  devtool: DBDefs.DEVELOPMENT_SERVER ? 'cheap-source-map' : undefined,
+  devtool: 'source-map',
 
   entry: entries,
 
-  mode: DBDefs.DEVELOPMENT_SERVER ? 'development' : 'production',
+  mode: WEBPACK_MODE,
 
   module: moduleConfig,
 
@@ -242,12 +260,11 @@ module.exports = {
 
   output: {
     filename: (
-      DBDefs.DEVELOPMENT_SERVER
-        ? '[name].js'
-        : '[name]-[chunkhash:7].js'
+      PRODUCTION_MODE
+        ? '[name]-[chunkhash:7].js'
+        : '[name].js'
     ),
     path: dirs.BUILD,
-    publicPath: PUBLIC_PATH,
   },
 
   plugins,
@@ -257,4 +274,15 @@ module.exports = {
 
 if (String(process.env.WATCH_MODE) === '1') {
   Object.assign(module.exports, require('./webpack/watchConfig'));
+}
+
+if (PRODUCTION_MODE) {
+  module.exports.optimization.minimizer = [
+    new TerserPlugin({
+      sourceMap: true,
+      terserOptions: {
+        safari10: true,
+      },
+    }),
+  ];
 }

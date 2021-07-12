@@ -4,6 +4,7 @@ use warnings;
 
 use MusicBrainz::Server::Constants qw( $EDIT_HISTORIC_EDIT_RELEASE_LANGUAGE );
 use MusicBrainz::Server::Edit::Types qw( Nullable );
+use MusicBrainz::Server::Entity::Util::JSON qw( to_json_object );
 use MusicBrainz::Server::Translation qw( N_l );
 use MusicBrainz::Server::Validation qw( is_positive_integer );
 
@@ -15,7 +16,7 @@ sub edit_name     { N_l('Edit release') }
 sub edit_kind     { 'edit' }
 sub historic_type { 44 }
 sub edit_type     { $EDIT_HISTORIC_EDIT_RELEASE_LANGUAGE }
-sub edit_template { 'historic/edit_release_language' }
+sub edit_template_react { 'historic/EditReleaseLanguage' }
 
 sub _build_related_entities
 {
@@ -53,19 +54,24 @@ sub build_display_data
             map {
                 my $release_name = $_->{release_name};
                 +{
-                    language => $loaded->{Language}{ $_->{language_id} },
-                    script   => $loaded->{Script}{ $_->{script_id} },
+                    language => to_json_object($loaded->{Language}{ $_->{language_id} }),
+                    script   => to_json_object($loaded->{Script}{ $_->{script_id} }),
                     releases => [
                         map {
-                            $loaded->{Release}{ $_ } ||
-                                Release->new(name => $release_name)
+                            to_json_object(
+                                $loaded->{Release}{$_} ||
+                                Release->new(
+                                    id => $_,
+                                    name => $release_name,
+                                )
+                            )
                         } @{ $_->{release_ids} }
                     ]
                 }
             } @{ $self->data->{old} }
         ],
-        language => $loaded->{Language}->{ $self->data->{language_id} },
-        script   => $loaded->{Script}->{ $self->data->{script_id} },
+        language => to_json_object($loaded->{Language}{ $self->data->{language_id} }),
+        script   => to_json_object($loaded->{Script}{ $self->data->{script_id} }),
     }
 }
 

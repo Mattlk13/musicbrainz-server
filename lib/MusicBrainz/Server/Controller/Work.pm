@@ -11,17 +11,30 @@ use MusicBrainz::Server::Constants qw(
     $EDIT_WORK_ADD_ISWCS
     $EDIT_WORK_REMOVE_ISWC
 );
+use MusicBrainz::Server::ControllerUtils::JSON qw( serialize_pager );
+use MusicBrainz::Server::Entity::Util::JSON qw( to_json_object );
 use MusicBrainz::Server::Form::Utils qw(
     build_grouped_options
     build_json
     language_options
 );
 use MusicBrainz::Server::Translation qw( l );
+use List::AllUtils qw( any );
 
 with 'MusicBrainz::Server::Controller::Role::Load' => {
     model           => 'Work',
     entity_name     => 'work',
-    relationships   => { all => ['show'], cardinal => ['edit'], default => ['url'] },
+    relationships   => {
+        cardinal => ['edit'],
+        default => ['url'],
+        subset => {
+            show => [qw( area artist event label place release release_group
+                         url work series instrument )],
+        },
+        paged_subset => {
+            show => [qw( recording )],
+        },
+    },
 };
 with 'MusicBrainz::Server::Controller::Role::Annotation';
 with 'MusicBrainz::Server::Controller::Role::Alias';
@@ -34,7 +47,7 @@ with 'MusicBrainz::Server::Controller::Role::WikipediaExtract';
 with 'MusicBrainz::Server::Controller::Role::CommonsImage';
 with 'MusicBrainz::Server::Controller::Role::EditRelationships';
 with 'MusicBrainz::Server::Controller::Role::JSONLD' => {
-    endpoints => {show => {}, aliases => {copy_stash => ['aliases']}}
+    endpoints => {show => {copy_stash => ['top_tags']}, aliases => {copy_stash => ['aliases']}}
 };
 with 'MusicBrainz::Server::Controller::Role::Collection' => {
     entity_type => 'work'
@@ -67,13 +80,30 @@ sub show : PathPart('') Chained('load')
 {
     my ($self, $c) = @_;
 
-    $c->model('Work')->load_writers($c->stash->{work});
+    my $stash = $c->stash;
+    $c->model('Work')->load_writers($stash->{work});
 
-    $c->stash->{template} = 'work/index.tt';
+    my $pager = defined $stash->{pager}
+        ? serialize_pager($stash->{pager})
+        : undef;
+
+    my %props = (
+        numberOfRevisions => $stash->{number_of_revisions},
+        pagedLinkTypeGroup => to_json_object($stash->{paged_link_type_group}),
+        pager => $pager,
+        wikipediaExtract => to_json_object($stash->{wikipedia_extract}),
+        work => $stash->{work}->TO_JSON,
+    );
+
+    $c->stash(
+        component_path => 'work/WorkIndex',
+        component_props => \%props,
+        current_view => 'Node',
+    );
 }
 
 # Stuff that has the side bar and thus needs to display collection information
-after [qw( show collections details tags )] => sub {
+after [qw( show collections details tags ratings aliases )] => sub {
     my ($self, $c) = @_;
     $self->_stash_collections($c);
 };
@@ -143,14 +173,21 @@ sub _merge_load_entities
     my ($self, $c, @works) = @_;
     $c->model('Work')->load_meta(@works);
     $c->model('WorkType')->load(@works);
-    if ($c->user_exists) {
-        $c->model('Work')->rating->load_user_ratings($c->user->id, @works);
-    }
     $c->model('Work')->load_writers(@works);
     $c->model('Work')->load_recording_artists(@works);
     $c->model('WorkAttribute')->load_for_works(@works);
     $c->model('Language')->load_for_works(@works);
     $c->model('ISWC')->load_for_works(@works);
+
+    my @works_with_iswcs = grep { $_->all_iswcs > 0 } @works;
+    if (@works_with_iswcs > 1) {
+        my ($comparator, @tail) = @works_with_iswcs;
+        my $get_iswc_set = sub { Set::Scalar->new(map { $_->iswc } shift->all_iswcs) };
+        my $expect = $get_iswc_set->($comparator);
+        $c->stash(
+            iswcs_differ => (any { $get_iswc_set->($_) != $expect } @tail),
+        );
+    }
 };
 
 with 'MusicBrainz::Server::Controller::Role::Create' => {
@@ -180,22 +217,13 @@ before qw( create edit ) => sub {
 
 1;
 
-=head1 COPYRIGHT
+=head1 COPYRIGHT AND LICENSE
 
 Copyright (C) 2009 Lukas Lalinsky, 2013 MetaBrainz Foundation
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program; if not, write to the Free Software
-Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+This file is part of MusicBrainz, the open internet music database,
+and is licensed under the GPL version 2, or (at your option) any
+later version: http://www.gnu.org/licenses/gpl-2.0.txt
 
 =cut
+

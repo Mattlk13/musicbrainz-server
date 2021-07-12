@@ -2,6 +2,7 @@ package MusicBrainz::Server::Entity::Relationship;
 
 use Moose;
 use Readonly;
+use MusicBrainz::Server::Constants qw( :direction );
 use MusicBrainz::Server::Entity::Types;
 use MusicBrainz::Server::Validation qw( trim_in_place );
 use MusicBrainz::Server::Translation qw( l comma_list comma_only_list );
@@ -9,9 +10,6 @@ use MusicBrainz::Server::Data::Relationship;
 use MusicBrainz::Server::Data::Utils qw( boolean_to_json partial_date_to_hash );
 
 use overload '<=>' => \&_cmp, fallback => 1;
-
-Readonly our $DIRECTION_FORWARD  => 1;
-Readonly our $DIRECTION_BACKWARD => 2;
 
 extends 'MusicBrainz::Server::Entity';
 with  'MusicBrainz::Server::Entity::Role::Editable';
@@ -101,106 +99,35 @@ sub entity_is_orderable {
     return 0;
 }
 
-sub _source_target_prop {
-    my ($self, %opts) = @_;
-
-    my $prop_base = exists $opts{prop_base} ? $opts{prop_base} : $self;
-    my $prop_suffix = $opts{prop_suffix};
-    my $prop;
-    if ($opts{is_target}) {
-        $prop = ($self->direction == $DIRECTION_FORWARD) ? 'entity1' : 'entity0';
-    } else {
-        $prop = ($self->direction == $DIRECTION_FORWARD) ? 'entity0' : 'entity1';
-    }
-    $prop = $prop . '_' . $prop_suffix if $prop_suffix;
-    return $prop_base->$prop;
-}
-
 has source => (
-    is => 'ro',
+    is => 'rw',
     isa => 'Linkable',
-    lazy => 1,
-    builder => '_build_source',
 );
-
-sub _build_source {
-    return shift->_source_target_prop();
-}
 
 has source_type => (
-    is => 'ro',
+    is => 'rw',
     isa => 'Str',
-    lazy => 1,
-    builder => '_build_source_type',
 );
-
-sub _build_source_type {
-    my ($self) = @_;
-    return $self->_source_target_prop(prop_suffix => 'type', prop_base => $self->link->type);
-}
 
 has source_credit => (
-    is => 'ro',
+    is => 'rw',
     isa => 'Str',
-    lazy => 1,
-    builder => '_build_source_credit',
 );
-
-sub _build_source_credit {
-    my ($self) = @_;
-    return $self->_source_target_prop(prop_suffix => 'credit') // '';
-}
-
-sub source_key {
-    my ($self) = @_;
-    return ($self->source_type eq 'url')
-        ? $self->source->url
-        : $self->source->gid;
-}
 
 has target => (
-    is => 'ro',
+    is => 'rw',
     isa => 'Linkable',
-    lazy => 1,
-    builder => '_build_target',
 );
-
-sub _build_target {
-    my ($self) = @_;
-    return $self->_source_target_prop(is_target => 1);
-}
 
 has target_type => (
-    is => 'ro',
+    is => 'rw',
     isa => 'Str',
-    lazy => 1,
-    builder => '_build_target_type',
 );
-
-sub _build_target_type {
-    my ($self) = @_;
-    return $self->_source_target_prop(is_target => 1, prop_suffix => 'type', prop_base => $self->link->type);
-}
 
 has target_credit => (
-    is => 'ro',
+    is => 'rw',
     isa => 'Str',
-    lazy => 1,
-    builder => '_build_target_credit',
 );
-
-sub _build_target_credit {
-    my ($self) = @_;
-    return $self->_source_target_prop(is_target => 1, prop_suffix => 'credit') // '';
-}
-
-sub target_key
-{
-    my ($self) = @_;
-    return ($self->target_type eq 'url')
-        ? $self->target->url
-        : $self->target->gid;
-}
 
 sub phrase
 {
@@ -310,8 +237,10 @@ sub _interpolate {
             return $alt1;
         }
     };
-    $phrase =~ s/{(.*?)(?::(.*?))?}/$replace_attrs->(lc $1, $2)/eg;
-    trim_in_place($phrase);
+    if (defined $phrase) {
+        $phrase =~ s/{(.*?)(?::(.*?))?}/$replace_attrs->(lc $1, $2)/eg;
+        trim_in_place($phrase);
+    }
 
     my @extra_attrs = map { @$_ } values %extra_attrs;
     return [ $phrase, comma_only_list(@extra_attrs) ];
@@ -325,10 +254,10 @@ sub _cmp {
     my $b_sortname = $b->target->can('sort_name')
         ? $b->target->sort_name
         : $b->target->name;
+    $a->link->type_id           <=> $b->link->type_id ||
     $a->link_order              <=> $b->link_order ||
     $a->link->begin_date        <=> $b->link->begin_date ||
     $a->link->end_date          <=> $b->link->end_date   ||
-    $a->link->type->child_order <=> $b->link->type->child_order ||
     $a_sortname cmp $b_sortname;
 }
 
@@ -341,6 +270,7 @@ around TO_JSON => sub {
         attributes      => [map {
             my $type = $_->type;
             $self->link_entity('link_attribute_type', $type->id, $type);
+            $self->link_entity('link_attribute_type', $type->root_id, $type->root);
             my $result = { (%{ $_->TO_JSON }, type => { gid => $type->gid }) };
             $result
         } $link->all_attributes],
@@ -348,16 +278,23 @@ around TO_JSON => sub {
         ended           => boolean_to_json($link->ended),
         entity0_credit  => $self->entity0_credit,
         entity1_credit  => $self->entity1_credit,
-        id              => $self->id + 0,
-        linkOrder       => $self->link_order + 0,
-        linkTypeID      => $link->type_id + 0,
+        entity0_id      => $self->entity0_id,
+        entity1_id      => $self->entity1_id,
+        id              => $self->id ? $self->id + 0 : undef,
+        linkOrder       => $self->link_order ? $self->link_order + 0 : 0,
+        linkTypeID      => $link->type_id ? $link->type_id + 0 : undef,
+        source_type     => $self->source_type,
         target          => $self->target->TO_JSON,
+        target_type     => $self->target_type,
         verbosePhrase   => $self->verbose_phrase,
     };
 
     $json->{begin_date} = $link->begin_date->is_empty ? undef : partial_date_to_hash($link->begin_date);
     $json->{end_date} = $link->end_date->is_empty ? undef : partial_date_to_hash($link->end_date);
-    $json->{direction} = 'backward' if $self->direction == $DIRECTION_BACKWARD;
+    $json->{backward} = boolean_to_json($self->direction == $DIRECTION_BACKWARD);
+
+    my $source = $self->source;
+    $self->link_entity($source->entity_type, $source->id, $source);
 
     $self->link_entity('link_type', $link->type_id, $link->type);
 
@@ -372,22 +309,12 @@ __PACKAGE__->meta->make_immutable;
 no Moose;
 1;
 
-=head1 COPYRIGHT
+=head1 COPYRIGHT AND LICENSE
 
 Copyright (C) 2009 Lukas Lalinsky
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program; if not, write to the Free Software
-Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+This file is part of MusicBrainz, the open internet music database,
+and is licensed under the GPL version 2, or (at your option) any
+later version: http://www.gnu.org/licenses/gpl-2.0.txt
 
 =cut

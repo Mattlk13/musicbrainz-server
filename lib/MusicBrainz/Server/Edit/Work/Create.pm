@@ -5,6 +5,7 @@ use MooseX::Types::Moose qw( ArrayRef Int Maybe Str );
 use MooseX::Types::Structured qw( Dict Optional );
 use MusicBrainz::Server::Constants qw( $EDIT_WORK_CREATE );
 use MusicBrainz::Server::Edit::Types qw( Nullable );
+use MusicBrainz::Server::Entity::Util::JSON qw( to_json_object );
 use MusicBrainz::Server::Translation qw( l N_l );
 
 extends 'MusicBrainz::Server::Edit::Generic::Create';
@@ -18,6 +19,7 @@ sub edit_name { N_l('Add work') }
 sub edit_type { $EDIT_WORK_CREATE }
 sub _create_model { 'Work' }
 sub work_id { shift->entity_id }
+sub edit_template_react { 'AddWork' }
 
 has '+data' => (
     isa => Dict[
@@ -55,17 +57,24 @@ sub build_display_data
     my $data = $self->data;
     my $display = {
         name          => $data->{name},
-        comment       => $data->{comment},
-        type          => $data->{type_id} && $loaded->{WorkType}->{ $data->{type_id} },
-        iswc          => $data->{iswc},
-        work          => $loaded->{Work}{ $self->entity_id } || Work->new( name => $data->{name} ),
+        comment       => $data->{comment} // '',
+        type          => $data->{type_id} && to_json_object($loaded->{WorkType}{ $data->{type_id} }),
+        iswc          => $data->{iswc} // '',
+        work          => to_json_object((defined($self->entity_id) &&
+            $loaded->{Work}{ $self->entity_id }) ||
+            Work->new( name => $self->data->{name} )
+        ),
         ($data->{attributes} && @{ $data->{attributes} } ?
-         ( attributes => { $self->grouped_attributes_by_type($data->{attributes}) } ) : ()
+         ( attributes => { $self->grouped_attributes_by_type($data->{attributes}, 1) } ) : ()
         ),
     };
 
     if (defined $data->{language_id}) {
-        $display->{language} = $loaded->{Language}->{$data->{language_id}};
+        my $language = $loaded->{Language}{$data->{language_id}};
+        if ($language->iso_code_3 eq "zxx") {
+            $language->name(l("[No lyrics]"));
+        }
+        $display->{language} = to_json_object($language);
     }
 
     if (defined $data->{languages}) {

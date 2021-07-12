@@ -30,7 +30,7 @@ test all => sub {
 
     cmp_deeply($vocal_performance, {
         linkTypeID => 149,
-        direction => 'backward',
+        backward => JSON::true,
         ended => JSON::false,
         target => {
             area => undef,
@@ -54,11 +54,7 @@ test all => sub {
             last_updated => ignore,
             name => 'BoA',
             sort_name => 'BoA',
-            unaccented_name => undef,
             typeID => 1,
-            rating => undef,
-            rating_count => 0,
-            user_rating => undef,
         },
         editsPending => JSON::false,
         end_date => undef,
@@ -77,6 +73,10 @@ test all => sub {
         linkOrder => 0,
         entity0_credit => '',
         entity1_credit => '',
+        entity0_id => 9496,
+        entity1_id => 4525123,
+        source_type => 'recording',
+        target_type => 'artist'
     }, "BoA performed vocals");
 
     is_deeply(

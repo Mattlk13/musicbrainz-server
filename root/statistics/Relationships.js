@@ -1,5 +1,5 @@
 /*
- * @flow
+ * @flow strict-local
  * Copyright (C) 2018 MetaBrainz Foundation
  *
  * This file is part of MusicBrainz, the open internet music database,
@@ -7,27 +7,27 @@
  * later version: http://www.gnu.org/licenses/gpl-2.0.txt
  */
 
-import React from 'react';
+import * as React from 'react';
 
 import {compare} from '../static/scripts/common/i18n';
 import {l_statistics as l} from '../static/scripts/common/i18n/statistics';
-import {withCatalystContext} from '../context';
-import formatEntityTypeName from '../static/scripts/common/utility/formatEntityTypeName';
+import formatEntityTypeName
+  from '../static/scripts/common/utility/formatEntityTypeName';
 
-import {formatCount, formatPercentage} from './utilities';
+import {formatCount, formatPercentage, TimelineLink} from './utilities';
 import StatisticsLayout from './StatisticsLayout';
 
-export type RelationshipsStatsT = {|
+export type RelationshipsStatsT = {
   +$c: CatalystContextT,
   +dateCollected: string,
-  +stats: {[string]: number},
-  +types: {[string]: RelationshipTypeT},
-|};
+  +stats: {[statName: string]: number},
+  +types: {[relationshipTable: string]: RelationshipTypeT},
+};
 
-declare type RelationshipTypeT = {|
+declare type RelationshipTypeT = {
   +entity_types: $ReadOnlyArray<string>,
-  +tree: {[string]: Array<LinkTypeT>},
-|};
+  +tree: {[entityTypes: string]: Array<LinkTypeT>},
+};
 
 function comparePhrases(a, b) {
   return compare(
@@ -36,7 +36,7 @@ function comparePhrases(a, b) {
   );
 }
 
-const TypeRows = withCatalystContext(({
+const TypeRows = ({
   $c,
   base,
   indent,
@@ -47,14 +47,31 @@ const TypeRows = withCatalystContext(({
   return (
     <>
       <tr>
-        <th style={{paddingLeft: (indent - 1) + 'em'}}>{l_relationships(type.long_link_phrase)}</th>
-        <td>{formatCount($c, stats[base + '.' + type.name])}</td>
-        <td>{formatCount($c, stats[base + '.' + type.name + '.inclusive'])}</td>
-        <td>{formatPercentage($c, stats[base + '.' + type.name + '.inclusive'] / stats[parent], 1)}</td>
+        <th style={{paddingLeft: (indent - 1) + 'em'}}>
+          {l_relationships(type.long_link_phrase)}
+        </th>
+        <td>
+          {formatCount($c, stats[base + '.' + type.name])}
+          {' '}
+          <TimelineLink statName={base + '.' + type.name} />
+        </td>
+        <td>
+          {formatCount($c, stats[base + '.' + type.name + '.inclusive'])}
+          {' '}
+          <TimelineLink statName={base + '.' + type.name + '.inclusive'} />
+        </td>
+        <td>
+          {formatPercentage(
+            $c,
+            stats[base + '.' + type.name + '.inclusive'] / stats[parent],
+            1,
+          )}
+        </td>
       </tr>
       {type.children ? (
-        type.children.sort(comparePhrases).map((child) => (
+        type.children.slice(0).sort(comparePhrases).map((child) => (
           <TypeRows
+            $c={$c}
             base={base}
             indent={indent + 1}
             key={child.id}
@@ -66,15 +83,19 @@ const TypeRows = withCatalystContext(({
       ) : null}
     </>
   );
-});
+};
 
 const Relationships = ({
   $c,
   dateCollected,
   stats,
   types,
-}: RelationshipsStatsT) => (
-  <StatisticsLayout fullWidth page="relationships" title={l('Relationships')}>
+}: RelationshipsStatsT): React.Element<typeof StatisticsLayout> => (
+  <StatisticsLayout
+    fullWidth
+    page="relationships"
+    title={l('Relationships')}
+  >
     <p>
       {texp.l('Last updated: {date}', {date: dateCollected})}
     </p>
@@ -88,14 +109,18 @@ const Relationships = ({
         <tbody>
           <tr className="thead">
             <th />
-            <th>{l('Exclusive')}</th>
-            <th>{l('Inclusive')}</th>
+            <th>{lp('This type only', 'relationships')}</th>
+            <th>{lp('Including subtypes', 'relationships')}</th>
             <th />
           </tr>
           <tr>
             <th>{l('Relationships:')}</th>
             <td />
-            <td>{formatCount($c, stats['count.ar.links'])}</td>
+            <td>
+              {formatCount($c, stats['count.ar.links'])}
+              {' '}
+              <TimelineLink statName="count.ar.links" />
+            </td>
             <td />
           </tr>
           {Object.keys(types).sort().map((typeKey) => {
@@ -118,11 +143,14 @@ const Relationships = ({
                   </th>
                   <td>
                     {formatCount($c, stats['count.ar.links.' + typeKey])}
+                    {' '}
+                    <TimelineLink statName={'count.ar.links.' + typeKey} />
                   </td>
                   <td>
                     {formatPercentage(
                       $c,
-                      stats['count.ar.links.' + typeKey] / stats['count.ar.links'],
+                      stats['count.ar.links.' + typeKey] /
+                        stats['count.ar.links'],
                       1,
                     )}
                   </td>
@@ -130,6 +158,7 @@ const Relationships = ({
                 {Object.keys(type.tree).sort().map((child) => (
                   type.tree[child].sort(comparePhrases).map((child2) => (
                     <TypeRows
+                      $c={$c}
                       base={'count.ar.links.' + typeKey}
                       indent={2}
                       key={child2.id}
@@ -148,4 +177,4 @@ const Relationships = ({
   </StatisticsLayout>
 );
 
-export default withCatalystContext(Relationships);
+export default Relationships;

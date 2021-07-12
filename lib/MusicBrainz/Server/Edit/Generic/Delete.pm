@@ -7,6 +7,7 @@ use MusicBrainz::Server::Data::Artist;
 use MusicBrainz::Server::Edit::Exceptions;
 use MusicBrainz::Server::Entity::Types;
 use MusicBrainz::Server::Constants qw( :edit_status );
+use MusicBrainz::Server::Entity::Util::JSON qw( to_json_object );
 use MooseX::Types::Moose qw( Int Str );
 use MooseX::Types::Structured qw( Dict );
 use MusicBrainz::Server::Data::Utils qw( model_to_type );
@@ -67,10 +68,12 @@ sub build_display_data
     my $model = $self->_delete_model;
     my $entity_type = model_to_type($model);
     return {
-        entity => $loaded->{$model}->{$self->data->{entity_id}} ||
+        entity => to_json_object(
+            $loaded->{$model}{ $self->data->{entity_id} } ||
             $self->c->model($model)->_entity_class->new(
                 name => $self->data->{name}
-            ),
+            )
+        ),
         entity_type => $entity_type,
     };
 }
@@ -104,7 +107,7 @@ override accept => sub {
 # We do allow auto edits for this (as ModBot needs to insert them)
 sub modbot_auto_edit { 1 }
 
-sub edit_template { "remove_entity" };
+sub edit_template_react { 'RemoveEntity' };
 
 __PACKAGE__->meta->make_immutable;
 

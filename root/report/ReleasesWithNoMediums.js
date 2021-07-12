@@ -1,5 +1,5 @@
 /*
- * @flow
+ * @flow strict-local
  * Copyright (C) 2018 MetaBrainz Foundation
  *
  * This file is part of MusicBrainz, the open internet music database,
@@ -9,44 +9,30 @@
 
 import * as React from 'react';
 
-import {withCatalystContext} from '../context';
-import Layout from '../layout';
-import formatUserDate from '../utility/formatUserDate';
-
 import ReleaseList from './components/ReleaseList';
-import FilterLink from './FilterLink';
+import ReportLayout from './components/ReportLayout';
 import type {ReportDataT, ReportReleaseT} from './types';
 
 const ReleasesWithNoMediums = ({
-  $c,
   canBeFiltered,
   filtered,
   generated,
   items,
   pager,
-}: ReportDataT<ReportReleaseT>) => (
-  <Layout fullWidth title={l('Releases with no mediums')}>
-    <h1>{l('Releases with no mediums')}</h1>
-
-    <ul>
-      <li>
-        {l('This report shows releases without any mediums (no tracklist).')}
-      </li>
-      <li>
-        {texp.l('Total releases found: {count}',
-                {count: pager.total_entries})}
-      </li>
-      <li>
-        {texp.l('Generated on {date}',
-                {date: formatUserDate($c.user, generated)})}
-      </li>
-
-      {canBeFiltered ? <FilterLink filtered={filtered} /> : null}
-    </ul>
-
+}: ReportDataT<ReportReleaseT>): React.Element<typeof ReportLayout> => (
+  <ReportLayout
+    canBeFiltered={canBeFiltered}
+    description={l(
+      'This report shows releases without any mediums (no tracklist).',
+    )}
+    entityType="release"
+    filtered={filtered}
+    generated={generated}
+    title={l('Releases with no mediums')}
+    totalEntries={pager.total_entries}
+  >
     <ReleaseList items={items} pager={pager} />
-
-  </Layout>
+  </ReportLayout>
 );
 
-export default withCatalystContext(ReleasesWithNoMediums);
+export default ReleasesWithNoMediums;

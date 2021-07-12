@@ -1,5 +1,5 @@
 /*
- * @flow
+ * @flow strict
  * Copyright (C) 2018 MetaBrainz Foundation
  *
  * This file is part of MusicBrainz, the open internet music database,
@@ -8,8 +8,10 @@
  */
 
 function amazonHttps(url) {
-  return url.replace(/http:\/\/ec[x4]\.images-amazon\.com\//,
-    'https://images-na.ssl-images-amazon.com/');
+  return url.replace(
+    /http:\/\/ec[x4]\.images-amazon\.com\//,
+    'https://images-na.ssl-images-amazon.com/',
+  );
 }
 
 function genericHttps(url) {
@@ -20,7 +22,10 @@ function genericHttps(url) {
   );
 }
 
-export default function coverArtUrl($c: CatalystContextT, url: string) {
+export default function coverArtUrl(
+  $c: CatalystContextT,
+  url: string,
+): string {
   if ($c.req.secure) {
     return amazonHttps(genericHttps(url));
   }

@@ -1,6 +1,7 @@
 package MusicBrainz::Server::Entity::ReleaseGroupType;
 
 use Moose;
+use MusicBrainz::Server::Data::Utils qw( boolean_to_json );
 use MusicBrainz::Server::Translation::Attributes qw( lp );
 
 extends 'MusicBrainz::Server::Entity';
@@ -9,6 +10,12 @@ with 'MusicBrainz::Server::Entity::Role::OptionsTree' => {
     type => 'ReleaseGroupType',
 };
 
+has 'historic' => (
+    is => 'rw',
+    isa => 'Bool',
+    default => 0,
+);
+
 sub entity_type { 'release_group_primary_type' }
 
 sub l_name {
@@ -16,26 +23,24 @@ sub l_name {
     return lp($self->name, 'release_group_primary_type')
 }
 
+around TO_JSON => sub {
+    my ($orig, $self) = @_;
+    return {
+        %{ $self->$orig },
+        historic => boolean_to_json($self->historic)
+    };
+};
+
 __PACKAGE__->meta->make_immutable;
 no Moose;
 1;
 
-=head1 COPYRIGHT
+=head1 COPYRIGHT AND LICENSE
 
 Copyright (C) 2009 Lukas Lalinsky
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program; if not, write to the Free Software
-Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+This file is part of MusicBrainz, the open internet music database,
+and is licensed under the GPL version 2, or (at your option) any
+later version: http://www.gnu.org/licenses/gpl-2.0.txt
 
 =cut

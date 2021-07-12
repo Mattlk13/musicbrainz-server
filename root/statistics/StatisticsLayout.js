@@ -1,5 +1,5 @@
 /*
- * @flow
+ * @flow strict-local
  * Copyright (C) 2018 Shamroy Pellew
  * Copyright (C) 2018 MetaBrainz Foundation
  *
@@ -8,21 +8,21 @@
  * later version: http://www.gnu.org/licenses/gpl-2.0.txt
  */
 
-import React from 'react';
-import type {Node as ReactNode} from 'react';
+import * as React from 'react';
 
 import Layout from '../layout';
 import Tabs from '../components/Tabs';
 import {unwrapNl} from '../static/scripts/common/i18n';
-import {l_statistics as l, N_l_statistics as N_l} from '../static/scripts/common/i18n/statistics';
+import {l_statistics as l, N_l_statistics as N_l}
+  from '../static/scripts/common/i18n/statistics';
 
-type StatisticsLayoutPropsT = {|
-  +children: ReactNode,
+type StatisticsLayoutPropsT = {
+  +children: React.Node,
   +fullWidth: boolean,
   +page: string,
-  +sidebar?: ?ReactNode,
+  +sidebar?: ?React.Node,
   +title: string,
-|};
+};
 
 type TabPropsT = {
   +link: string,
@@ -33,7 +33,9 @@ type TabPropsT = {
 
 const LinkStatisticsTab = ({link, title, page, selected}: TabPropsT) => (
   <li className={page === selected ? 'sel' : ''}>
-    <a href={link}>{unwrapNl(title)}</a>
+    <a href={link}>
+      {unwrapNl<string | React$MixedElement>(title)}
+    </a>
   </li>
 );
 
@@ -87,16 +89,15 @@ const infoLinks = [
 
 const StatisticsLayout = ({
   children,
-  fullWidth,
+  fullWidth = false,
   page,
   sidebar,
   title,
-}: StatisticsLayoutPropsT) => {
+}: StatisticsLayoutPropsT): React.Element<typeof Layout> => {
   const htmlTitle = hyphenateTitle(l('Database Statistics'), title);
   return (
     <Layout
       fullWidth={fullWidth}
-      gettext_domains={['attributes', 'relationships', 'statistics']}
       title={htmlTitle}
     >
       <link

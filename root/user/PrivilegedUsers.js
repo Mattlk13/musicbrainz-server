@@ -1,5 +1,5 @@
 /*
- * @flow
+ * @flow strict-local
  * Copyright (C) 2019 MetaBrainz Foundation
  *
  * This file is part of MusicBrainz, the open internet music database,
@@ -7,13 +7,13 @@
  * later version: http://www.gnu.org/licenses/gpl-2.0.txt
  */
 
-import React from 'react';
+import * as React from 'react';
 
 import Layout from '../layout';
 
 import UserInlineList from './components/UserInlineList';
 
-type Props = {|
+type Props = {
   +accountAdmins: $ReadOnlyArray<EditorT>,
   +autoEditors: $ReadOnlyArray<EditorT>,
   +bannerEditors: $ReadOnlyArray<EditorT>,
@@ -21,7 +21,7 @@ type Props = {|
   +locationEditors: $ReadOnlyArray<EditorT>,
   +relationshipEditors: $ReadOnlyArray<EditorT>,
   +transclusionEditors: $ReadOnlyArray<EditorT>,
-|};
+};
 
 const PrivilegedUsers = ({
   accountAdmins,
@@ -31,8 +31,8 @@ const PrivilegedUsers = ({
   locationEditors,
   relationshipEditors,
   transclusionEditors,
-}: Props) => (
-  <Layout fullwidth title={l('Privileged user accounts')}>
+}: Props): React.Element<typeof Layout> => (
+  <Layout fullWidth title={l('Privileged user accounts')}>
     <div id="content">
       <h1>{l('Privileged user accounts')}</h1>
 
@@ -92,8 +92,10 @@ const PrivilegedUsers = ({
 
       <h2>{l('Location editors')}</h2>
       <p>
-        {exp.l('Location editors are users who can add or modify {uri|areas}.',
-          {uri: 'doc/Area'})}
+        {exp.l(
+          'Location editors are users who can add or modify {uri|areas}.',
+          {uri: 'doc/Area'},
+        )}
       </p>
       <p>
         {texp.l(

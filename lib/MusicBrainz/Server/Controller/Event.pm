@@ -20,11 +20,11 @@ with 'MusicBrainz::Server::Controller::Role::WikipediaExtract';
 with 'MusicBrainz::Server::Controller::Role::CommonsImage';
 with 'MusicBrainz::Server::Controller::Role::EditRelationships';
 with 'MusicBrainz::Server::Controller::Role::Collection' => {
-    entity_type     => 'event',
-    method_name     => 'attendance'
+    entity_type     => 'event'
 };
 
 use MusicBrainz::Server::Constants qw( $EDIT_EVENT_CREATE $EDIT_EVENT_DELETE $EDIT_EVENT_EDIT $EDIT_EVENT_MERGE );
+use MusicBrainz::Server::Entity::Util::JSON qw( to_json_object );
 
 use Sql;
 
@@ -52,7 +52,7 @@ after 'load' => sub {
 };
 
 # Stuff that has the side bar and thus needs to display collection information
-after [qw( show aliases attendance details tags )] => sub {
+after [qw( show collections details tags ratings aliases )] => sub {
     my ($self, $c) = @_;
     $self->_stash_collections($c);
 };
@@ -71,9 +71,9 @@ sub show : PathPart('') Chained('load') {
     $c->model('Relationship')->load($event->related_series);
 
     my %props = (
-        event             => $c->stash->{event},
+        event             => $c->stash->{event}->TO_JSON,
         numberOfRevisions => $c->stash->{number_of_revisions},
-        wikipediaExtract  => $c->stash->{wikipedia_extract},
+        wikipediaExtract  => to_json_object($c->stash->{wikipedia_extract}),
     );
 
     $c->stash(
@@ -85,8 +85,7 @@ sub show : PathPart('') Chained('load') {
 
 sub _merge_load_entities {
     my ($self, $c, @events) = @_;
-    $c->model('EventType')->load(@events);
-    $c->model('Event')->load_performers(@events);
+    $c->model('Event')->load_related_info(@events);
 };
 
 =head2 WRITE METHODS
@@ -110,6 +109,12 @@ with 'MusicBrainz::Server::Controller::Role::Edit' => {
 
 with 'MusicBrainz::Server::Controller::Role::Delete' => {
     edit_type      => $EDIT_EVENT_DELETE,
+};
+
+before qw( create edit ) => sub {
+    my ($self, $c) = @_;
+    my %event_types = map {$_->id => $_} $c->model('EventType')->get_all();
+    $c->stash->{event_types} = \%event_types;
 };
 
 1;

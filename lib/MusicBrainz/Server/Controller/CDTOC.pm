@@ -42,6 +42,10 @@ sub _load_releases
     my ($self, $c, $cdtoc) = @_;
     my @medium_cdtocs = $c->model('MediumCDTOC')->find_by_discid($cdtoc->discid);
     my @mediums = $c->model('Medium')->load(@medium_cdtocs);
+    $c->model('Medium')->load_track_durations(@mediums);
+    $c->model('Track')->load_for_mediums(@mediums);
+    my @tracks = map { $_->all_tracks } @mediums;
+    $c->model('Recording')->load(@tracks);
     my @releases = $c->model('Release')->load(@mediums);
     my @rgs = $c->model('ReleaseGroup')->load(@releases);
     $c->model('ReleaseGroup')->load_meta(@rgs);
@@ -58,10 +62,6 @@ sub show : Chained('load') PathPart('')
 
     my $cdtoc = $c->stash->{cdtoc};
     my $medium_cdtocs = $self->_load_releases($c, $cdtoc);
-
-    $c->model('Track')->load_for_mediums(
-        map { $_->medium } @{$medium_cdtocs}
-    );
 
     $c->stash(
         medium_cdtocs => $medium_cdtocs,
@@ -80,6 +80,11 @@ sub remove : Local Edit
     $c->model('ArtistCredit')->load($release);
     $c->model('ReleaseGroup')->load($release);
     $c->model('ReleaseGroup')->load_meta($release->release_group);
+
+    # For proper display of the Disc IDs tab
+    $c->model('Medium')->load_for_releases($release);
+    my $cdtoc_count = $c->model('MediumCDTOC')->find_count_by_release($release->id);
+    $c->stash->{release_cdtoc_count} = $cdtoc_count;
 
     my $cdtoc = $c->model('MediumCDTOC')->get_by_medium_cdtoc($medium_id, $cdtoc_id);
     $c->model('CDTOC')->load($cdtoc);
@@ -123,6 +128,7 @@ sub set_durations : Chained('load') PathPart('set-durations') Edit
             message => l('Could not find medium')
         );
 
+    $c->model('Medium')->load_track_durations($medium);
     $c->model('Release')->load($medium);
 
     $c->model('Track')->load_for_mediums($medium);
@@ -145,7 +151,7 @@ sub set_durations : Chained('load') PathPart('set-durations') Edit
     );
 }
 
-sub attach : Local DenyWhenReadonly
+sub attach : Local DenyWhenReadonly Edit
 {
     my ($self, $c) = @_;
 
@@ -154,27 +160,23 @@ sub attach : Local DenyWhenReadonly
     my $cdtoc = MusicBrainz::Server::Entity::CDTOC->new_from_toc($toc)
         or $self->error(
             $c, status => HTTP_BAD_REQUEST,
-            message => l('The provided CD TOC is not valid')
+            message => l(
+                'The provided CD TOC is not valid. This is probably an issue with the software you used to generate it. Try again and please report the error to your software maker if it persists, including the technical information below.')
         );
 
     $c->stash( cdtoc => $cdtoc );
 
-    if ($c->form_posted) {
-        $c->forward('/user/do_login');
-    }
-
     if (my $medium_id = $c->req->query_params->{medium}) {
-        $c->forward('/user/do_login');
-
         $self->error($c, status => HTTP_BAD_REQUEST,
                      message => l('The provided medium id is not valid')
             ) unless looks_like_number($medium_id);
 
-        $self->error(
-            $c,
-            status => HTTP_BAD_REQUEST,
-            message => l('This CDTOC is already attached to this medium')
-        ) if $c->model('MediumCDTOC')->medium_has_cdtoc($medium_id, $cdtoc);
+        if ($c->model('MediumCDTOC')->medium_has_cdtoc($medium_id, $cdtoc)) {
+            $c->stash->{medium_has_cdtoc} = $medium_id;
+            $c->res->status(HTTP_BAD_REQUEST);
+            $self->_attach_list($c, $cdtoc);
+            return;
+        }
 
         my $medium = $c->model('Medium')->get_by_id($medium_id);
         $c->model('MediumFormat')->load($medium);
@@ -186,7 +188,9 @@ sub attach : Local DenyWhenReadonly
         ) unless $medium->may_have_discids;
 
         $c->model('Release')->load($medium);
-        $c->model('ArtistCredit')->load($medium->release);
+        $c->model('Track')->load_for_mediums($medium);
+        $c->model('Recording')->load($medium->all_tracks);
+        $c->model('ArtistCredit')->load($medium->all_tracks, $medium->release);
 
         $c->stash( medium => $medium );
 
@@ -204,9 +208,16 @@ sub attach : Local DenyWhenReadonly
                     $c->uri_for_action(
                         '/release/discids' => [ $medium->release->gid ]));
             }
-        )
+        );
+    } else {
+        $self->_attach_list($c, $cdtoc);
     }
-    elsif (my $artist_id = $c->req->query_params->{artist}) {
+}
+
+sub _attach_list {
+    my ($self, $c, $cdtoc) = @_;
+
+    if (my $artist_id = $c->req->query_params->{artist}) {
 
         $self->error($c, status => HTTP_BAD_REQUEST,
                      message => l('The provided artist id is not valid')
@@ -242,7 +253,7 @@ sub attach : Local DenyWhenReadonly
             qw( artist-name release-name );
 
         # One of these must have been submitted to get here
-        if ($search_artist->submitted_and_valid($c->req->query_params)) {
+        if ($c->form_submitted_and_valid($search_artist, $c->req->query_params)) {
             my $artists = $self->_load_paged($c, sub {
                 $c->model('Search')->search('artist', $search_artist->field('query')->value, shift, shift)
             });
@@ -252,11 +263,32 @@ sub attach : Local DenyWhenReadonly
             );
             $c->detach;
         }
-        elsif ($search_release->submitted_and_valid($c->req->query_params)) {
+        elsif ($c->form_submitted_and_valid($search_release, $c->req->query_params)) {
+            my $query = $search_release->field('query')->value;
+            my ($mbid) = $query =~ m/(
+                [\da-f]{8} -
+                [\da-f]{4} -
+                [\da-f]{4} -
+                [\da-f]{4} -
+                [\da-f]{12}
+            )/ax;
             my $releases = $self->_load_paged($c, sub {
-                $c->model('Search')->search('release', $search_release->field('query')->value, shift, shift,
+                if (defined $mbid) {
+                    $c->stash->{was_mbid_search} = 1;
+                    my $release = $c->model('Release')->get_by_gid($mbid);
+                    return [] unless defined $release;
+                    return [
+                        MusicBrainz::Server::Entity::SearchResult->new(
+                            position => 1,
+                            score => 100,
+                            entity => $release,
+                        ),
+                    ];
+                }
+                $c->model('Search')->search('release', $query, shift, shift,
                                             { track_count => $cdtoc->track_count });
             });
+
             my @releases = map { $_->entity } @$releases;
             $c->model('Release')->load_related_info(@releases);
             my @mediums = map { $_->all_mediums } @releases;
@@ -271,6 +303,7 @@ sub attach : Local DenyWhenReadonly
 
             $c->stash(
                 template => 'cdtoc/attach_filter_release.tt',
+                cdtoc_action => 'add',
                 results => [sort_by { $_->entity->release_group ? $_->entity->release_group->gid : '' } @$releases]
             );
             $c->detach;
@@ -285,7 +318,13 @@ sub attach : Local DenyWhenReadonly
                 $initial_release ||= $cdstub->title;
 
                 my @mediums = $c->model('Medium')->find_for_cdstub($cdstub);
-                $c->model('ArtistCredit')->load(map { $_->release } @mediums);
+                $c->model('MediumFormat')->load(@mediums);
+                $c->model('Track')->load_for_mediums(@mediums);
+                my @tracks = map { $_->all_tracks } @mediums;
+                $c->model('Recording')->load(@tracks);
+                my @releases = map { $_->release } @mediums;
+                $c->model('Release')->load_related_info(@releases);
+                $c->model('ArtistCredit')->load(@releases);
                 $c->stash(
                     possible_mediums => [ @mediums  ],
                     cdstub => $cdstub
@@ -315,7 +354,7 @@ sub move : Local Edit
     my $medium_cdtoc = $c->model('MediumCDTOC')->get_by_id($medium_cdtoc_id)
         or $self->error(
             $c, status => HTTP_BAD_REQUEST,
-            message => l('The provided CD TOC is not valid')
+            message => l('The provided CD TOC ID doesn’t exist.')
         );
 
     $c->model('CDTOC')->load($medium_cdtoc);
@@ -341,12 +380,15 @@ sub move : Local Edit
         ) unless $medium->may_have_discids;
 
         $c->model('Medium')->load($medium_cdtoc);
+        $c->model('Medium')->load_track_durations($medium_cdtoc->medium);
 
+        $c->model('Track')->load_for_mediums($medium);
+        $c->model('Recording')->load($medium->all_tracks);
         $c->model('Release')->load($medium, $medium_cdtoc->medium);
         $c->model('Release')->load_release_events($medium->release);
         $c->model('ReleaseLabel')->load($medium->release);
         $c->model('Label')->load($medium->release->all_labels);
-        $c->model('ArtistCredit')->load($medium->release, $medium_cdtoc->medium->release);
+        $c->model('ArtistCredit')->load($medium->all_tracks, $medium->release, $medium_cdtoc->medium->release);
 
         $c->stash(
             medium => $medium
@@ -373,19 +415,45 @@ sub move : Local Edit
                                        name => 'filter-release' );
         $c->stash( template => 'cdtoc/move_search.tt' );
 
-        if ($search_release->submitted_and_valid($c->req->query_params)) {
+        if ($c->form_submitted_and_valid($search_release, $c->req->query_params)) {
+            my $query = $search_release->field('query')->value;
+            my ($mbid) = $query =~ m/(
+                [\da-f]{8} -
+                [\da-f]{4} -
+                [\da-f]{4} -
+                [\da-f]{4} -
+                [\da-f]{12}
+            )/ax;
+
             my $releases = $self->_load_paged($c, sub {
-                $c->model('Search')->search('release', $search_release->field('query')->value, shift, shift,
+                if (defined $mbid) {
+                    $c->stash->{was_mbid_search} = 1;
+                    my $release = $c->model('Release')->get_by_gid($mbid);
+                    return [] unless defined $release;
+                    return [
+                        MusicBrainz::Server::Entity::SearchResult->new(
+                            position => 1,
+                            score => 100,
+                            entity => $release,
+                        ),
+                    ];
+                }
+                $c->model('Search')->search('release', $query, shift, shift,
                                             { track_count => $cdtoc->track_count });
             });
+
             my @releases = map { $_->entity } @$releases;
             $c->model('ArtistCredit')->load(@releases);
             $c->model('Release')->load_related_info(@releases);
             my @mediums = grep { !$_->format || $_->format->has_discids }
                 map { $_->all_mediums } @releases;
             $c->model('Track')->load_for_mediums(@mediums);
+            $c->model('Recording')->load(map { $_->all_tracks } @mediums);
+            my @rgs = $c->model('ReleaseGroup')->load(@releases);
+            $c->model('ReleaseGroup')->load_meta(@rgs);
             $c->stash(
                 template => 'cdtoc/attach_filter_release.tt',
+                cdtoc_action => 'move',
                 results => $releases
             );
             $c->detach;
@@ -396,22 +464,12 @@ sub move : Local Edit
 no Moose;
 1;
 
-=head1 COPYRIGHT
+=head1 COPYRIGHT AND LICENSE
 
 Copyright (C) 2009 Lukas Lalinsky
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program; if not, write to the Free Software
-Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+This file is part of MusicBrainz, the open internet music database,
+and is licensed under the GPL version 2, or (at your option) any
+later version: http://www.gnu.org/licenses/gpl-2.0.txt
 
 =cut

@@ -1,5 +1,5 @@
 /*
- * @flow
+ * @flow strict-local
  * Copyright (C) 2019 MetaBrainz Foundation
  *
  * This file is part of MusicBrainz, the open internet music database,
@@ -7,16 +7,16 @@
  * later version: http://www.gnu.org/licenses/gpl-2.0.txt
  */
 
-import React from 'react';
+import * as React from 'react';
 
 import formatDate from '../../static/scripts/common/utility/formatDate';
 import isDateEmpty from '../../static/scripts/common/utility/isDateEmpty';
 import EntityLink from '../../static/scripts/common/components/EntityLink';
 import yesNo from '../../static/scripts/common/utility/yesNo';
 
-type AddEventEditT = {|
+type AddEventEditT = {
   ...EditT,
-  +display_data: {|
+  +display_data: {
     ...CommentRoleT,
     ...DatePeriodRoleT,
     +cancelled: boolean,
@@ -25,12 +25,17 @@ type AddEventEditT = {|
     +name: string,
     +setlist: string,
     +time: string | null,
-    +type: EventTypeT,
-  |},
-|};
+    +type: EventTypeT | null,
+  },
+};
 
-const AddEvent = ({edit}: {edit: AddEventEditT}) => {
+type Props = {
+  +edit: AddEventEditT,
+};
+
+const AddEvent = ({edit}: Props): React.MixedElement => {
   const display = edit.display_data;
+  const eventType = display.type;
 
   return (
     <>
@@ -63,10 +68,10 @@ const AddEvent = ({edit}: {edit: AddEventEditT}) => {
           <td>{yesNo(display.cancelled)}</td>
         </tr>
 
-        {display.type ? (
+        {eventType ? (
           <tr>
             <th>{addColon(l('Type'))}</th>
-            <td>{lp_attributes(display.type.name, 'event_type')}</td>
+            <td>{lp_attributes(eventType.name, 'event_type')}</td>
           </tr>
         ) : null}
 
@@ -84,7 +89,7 @@ const AddEvent = ({edit}: {edit: AddEventEditT}) => {
           </tr>
         )}
 
-        {display.time ? (
+        {nonEmpty(display.time) ? (
           <tr>
             <th>{addColon(l('Time'))}</th>
             <td>{display.time}</td>

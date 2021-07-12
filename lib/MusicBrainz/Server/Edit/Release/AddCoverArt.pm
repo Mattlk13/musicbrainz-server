@@ -7,6 +7,7 @@ use MooseX::Types::Structured qw( Dict );
 
 use MusicBrainz::Server::Constants qw( $EDIT_RELEASE_ADD_COVER_ART );
 use MusicBrainz::Server::Edit::Exceptions;
+use MusicBrainz::Server::Entity::Util::JSON qw( to_json_object );
 use MusicBrainz::Server::Translation qw( N_l );
 
 use aliased 'MusicBrainz::Server::Entity::Release';
@@ -22,6 +23,7 @@ sub edit_kind { 'add' }
 sub edit_type { $EDIT_RELEASE_ADD_COVER_ART }
 sub release_ids { shift->data->{entity}{id} }
 sub cover_art_id { shift->data->{cover_art_id} }
+sub edit_template_react { 'AddCoverArt' }
 
 has '+data' => (
     isa => Dict[
@@ -102,14 +104,24 @@ sub foreign_keys {
 sub build_display_data {
     my ($self, $loaded) = @_;
 
-    my $release = $loaded->{Release}{ $self->data->{entity}{id} } ||
-        Release->new( name => $self->data->{entity}{name} );
+    my $loaded_release = $loaded->{Release}{ $self->data->{entity}{id} };
+    my $release = $loaded_release ||
+        Release->new(
+            id => $self->data->{entity}{id},
+            name => $self->data->{entity}{name},
+        );
+    my $artwork_release = $loaded_release ||
+        Release->new(
+            gid => $self->data->{entity}{mbid},
+            id => $self->data->{entity}{id},
+            name => $self->data->{entity}{name},
+        );
 
     my $suffix = $self->data->{cover_art_mime_type}
         ? $self->c->model('CoverArt')->image_type_suffix($self->data->{cover_art_mime_type})
         : "jpg";
 
-    my $artwork = Artwork->new(release => $release,
+    my $artwork = Artwork->new(release => $artwork_release,
                                id => $self->data->{cover_art_id},
                                comment => $self->data->{cover_art_comment},
                                mime_type => $self->data->{cover_art_mime_type},
@@ -117,8 +129,8 @@ sub build_display_data {
                                cover_art_types => [map {$loaded->{CoverArtType}{$_}} @{ $self->data->{cover_art_types} }]);
 
     return {
-        release => $release,
-        artwork => $artwork,
+        release => to_json_object($release),
+        artwork => to_json_object($artwork),
         position => $self->data->{cover_art_position},
     };
 }
@@ -134,22 +146,12 @@ sub restore {
 
 1;
 
-=head1 COPYRIGHT
+=head1 COPYRIGHT AND LICENSE
 
 Copyright (C) 2012,2013 MetaBrainz Foundation
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program; if not, write to the Free Software
-Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+This file is part of MusicBrainz, the open internet music database,
+and is licensed under the GPL version 2, or (at your option) any
+later version: http://www.gnu.org/licenses/gpl-2.0.txt
 
 =cut

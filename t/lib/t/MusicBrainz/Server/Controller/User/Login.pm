@@ -27,10 +27,13 @@ test all => sub {
     $mech->get_ok('https://localhost/login');
     html_ok($mech->content);
     $mech->submit_form( with_fields => { username => '', password => '' } );
-    $mech->content_contains('Incorrect username or password');
+    $mech->content_contains('Username field is required');
+    $mech->content_contains('Password field is required');
     $mech->submit_form( with_fields => { username => 'new_editor', password => '' } );
-    $mech->content_contains('Incorrect username or password');
+    $mech->content_contains('Password field is required');
     $mech->submit_form( with_fields => { username => '', password => 'password' } );
+    $mech->content_contains('Username field is required');
+    $mech->submit_form( with_fields => { username => 'new_editor', password => 'ıaa' } );
     $mech->content_contains('Incorrect username or password');
     $mech->submit_form( with_fields => { username => 'new_editor', password => 'ıaa2' } );
     is($mech->uri->path, '/user/new_editor');
@@ -78,9 +81,10 @@ test 'Can login with usernames that contain the "/" character"' => sub {
     my $mech = $test->mech;
     my $enable_ssl = enable_ssl();
 
-    $test->c->sql->do(<<'EOSQL');
-INSERT INTO editor (id, name, password, ha1) VALUES (100, 'ocharles/bot', '{CLEARTEXT}mb', 'f067d1b82bbf64c403cbbc996de73cda');
-EOSQL
+    $test->c->sql->do(<<~'EOSQL');
+        INSERT INTO editor (id, name, password, ha1)
+            VALUES (100, 'ocharles/bot', '{CLEARTEXT}mb', 'f067d1b82bbf64c403cbbc996de73cda');
+        EOSQL
 
     $mech->get_ok('/user/ocharles%2Fbot');
     html_ok($mech->content);

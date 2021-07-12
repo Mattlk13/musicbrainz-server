@@ -16,9 +16,8 @@ with 'MusicBrainz::Server::Entity::Role::Type' => { model => 'EventType' };
 
 use MooseX::Types::Structured qw( Dict );
 use MooseX::Types::Moose qw( ArrayRef Object Str );
-use MusicBrainz::Server::Data::Utils qw( boolean_to_json );
-use MusicBrainz::Server::Entity::Util::JSON qw( add_linked_entity );
-use MusicBrainz::Server::Filters qw( format_setlist );
+use MusicBrainz::Server::Data::Utils qw( boolean_to_json non_empty );
+use MusicBrainz::Server::Entity::Util::JSON qw( add_linked_entity to_json_object );
 use MusicBrainz::Server::Types qw( Time );
 use List::UtilsBy qw( uniq_by );
 
@@ -51,6 +50,7 @@ has 'performers' => (
     is => 'ro',
     isa => ArrayRef[
         Dict[
+            credit => Str,
             roles => ArrayRef[Str],
             entity => Object
         ]
@@ -67,6 +67,7 @@ has 'places' => (
     is => 'ro',
     isa => ArrayRef[
         Dict[
+            credit => Str,
             entity => Object
         ]
     ],
@@ -82,6 +83,7 @@ has 'areas' => (
     is => 'ro',
     isa => ArrayRef[
         Dict[
+            credit => Str,
             entity => Object
         ]
     ],
@@ -108,21 +110,26 @@ around TO_JSON => sub {
     my @related_series = $self->related_series;
     add_linked_entity('series', $_->id, $_) for @related_series;
 
+    my $setlist = $self->setlist;
+
     return {
         %{ $self->$orig },
         areas => [map +{
-            entity => $_->{entity},
+            credit => $_->{credit},
+            entity => to_json_object($_->{entity}),
         }, $self->all_areas],
         cancelled => boolean_to_json($self->cancelled),
         performers => [map +{
-            entity => $_->{entity},
+            credit => $_->{credit},
+            entity => to_json_object($_->{entity}),
             roles => $_->{roles},
         }, $self->all_performers],
         places => [map +{
-            entity => $_->{entity},
+            credit => $_->{credit},
+            entity => to_json_object($_->{entity}),
         }, $self->all_places],
         related_series => [map { $_->id } @related_series],
-        setlist => format_setlist($self->setlist),
+        (non_empty($setlist) ? (setlist => $setlist) : ()),
         time => $self->formatted_time,
     };
 };
@@ -131,22 +138,12 @@ __PACKAGE__->meta->make_immutable;
 no Moose;
 1;
 
-=head1 COPYRIGHT
+=head1 COPYRIGHT AND LICENSE
 
 Copyright (C) 2014 MetaBrainz Foundation
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program; if not, write to the Free Software
-Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+This file is part of MusicBrainz, the open internet music database,
+and is licensed under the GPL version 2, or (at your option) any
+later version: http://www.gnu.org/licenses/gpl-2.0.txt
 
 =cut

@@ -11,7 +11,7 @@ import * as React from 'react';
 
 import {PART_OF_SERIES_LINK_TYPES} from '../static/scripts/common/constants';
 import linkedEntities from '../static/scripts/common/linkedEntities';
-import groupRelationships, {type GroupedRelationshipsT}
+import groupRelationships, {type RelationshipTargetTypeGroupT}
   from '../utility/groupRelationships';
 
 import RelatedSeries from './RelatedSeries';
@@ -19,7 +19,8 @@ import RelatedWorks from './RelatedWorks';
 import StaticRelationshipsDisplay from './StaticRelationshipsDisplay';
 
 type DisplayTargets = {
-  +[CoreEntityTypeT]: ?$ReadOnlyArray<CoreEntityTypeT>,
+  +[coreEntityType: CoreEntityTypeT]: ?$ReadOnlyArray<CoreEntityTypeT>,
+  ...
 };
 
 const displayTargets: DisplayTargets = {
@@ -60,21 +61,21 @@ const seriesPartLinkTypes = new Set(
   Object.values(PART_OF_SERIES_LINK_TYPES),
 );
 
-function isNotSeriesPart(r: RelationshipT) {
+export function isNotSeriesPart(r: RelationshipT): boolean {
   return !seriesPartLinkTypes.has(linkedEntities.link_type[r.linkTypeID].gid);
 }
 
-type Props = {|
+type PropsT = {
   +noRelationshipsHeading?: boolean,
-  +relationships?: GroupedRelationshipsT,
+  +relationships?: $ReadOnlyArray<RelationshipTargetTypeGroupT>,
   +source: CoreEntityT,
-|};
+};
 
-const Relationships = ({
+const Relationships = (React.memo<PropsT>(({
   noRelationshipsHeading = false,
   relationships,
   source,
-}: Props) => {
+}: PropsT): React.Element<typeof React.Fragment> => {
   if (!relationships) {
     let srcRels = source.relationships;
     if (srcRels && source.entityType === 'series') {
@@ -82,7 +83,7 @@ const Relationships = ({
     }
     relationships = groupRelationships(
       srcRels,
-      displayTargets[source.entityType],
+      {types: displayTargets[source.entityType]},
     );
   }
 
@@ -92,7 +93,7 @@ const Relationships = ({
 
   return (
     <>
-      {source.relationships && source.relationships.length ? (
+      {relationships.length ? (
         <>
           {noRelationshipsHeading ? null : (
             <h2 className="relationships">{l('Relationships')}</h2>
@@ -111,6 +112,6 @@ const Relationships = ({
       ) : null}
     </>
   );
-};
+}): React.AbstractComponent<PropsT>);
 
 export default Relationships;

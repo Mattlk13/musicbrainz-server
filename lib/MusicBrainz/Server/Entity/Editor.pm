@@ -10,7 +10,9 @@ use MusicBrainz::Server::Constants qw( $PASSPHRASE_BCRYPT_COST );
 use MusicBrainz::Server::Data::Utils qw( boolean_to_json datetime_to_iso8601 );
 use MusicBrainz::Server::Entity::Preferences;
 use MusicBrainz::Server::Entity::Types qw( Area );
+use MusicBrainz::Server::Entity::Util::JSON qw( to_json_array to_json_object );
 use MusicBrainz::Server::Constants qw( :privileges $EDITOR_MODBOT);
+use MusicBrainz::Server::Filters qw( format_wikitext );
 use MusicBrainz::Server::Types DateTime => { -as => 'DateTimeType' };
 
 my $LATEST_SECURITY_VULNERABILITY = DateTime->new( year => 2013, month => 3, day => 28 );
@@ -103,6 +105,14 @@ sub is_editing_enabled {
     (shift->privileges & $EDITING_DISABLED_FLAG) == 0;
 }
 
+sub is_adding_notes_disabled {
+    (shift->privileges & $ADDING_NOTES_DISABLED_FLAG) > 0;
+}
+
+sub public_privileges {
+    shift->privileges & $PUBLIC_PRIVILEGE_FLAGS;
+}
+
 has 'email' => (
     is        => 'rw',
     isa       => 'Str',
@@ -156,18 +166,6 @@ sub is_newbie
         DateTime->now - $self->registration_date,
         DateTime::Duration->new( weeks => 2 )
       ) == -1;
-}
-
-sub is_admin
-{
-    my $self = shift;
-    return (
-        $self->is_account_admin ||
-        $self->is_banner_editor ||
-        $self->is_location_editor ||
-        $self->is_relationship_editor ||
-        $self->is_wiki_transcluder
-    );
 }
 
 has 'preferences' => (
@@ -280,7 +278,7 @@ sub new_privileged {
 sub gravatar {
     my $self = shift;
 
-    if ($self->preferences->show_gravatar) {
+    if ($self->preferences->show_gravatar && $self->email) {
         my $hex = md5_hex(lc $self->email);
         return "//gravatar.com/avatar/$hex?d=mm";
     }
@@ -288,40 +286,52 @@ sub gravatar {
     return '//gravatar.com/avatar/placeholder?d=mm';
 }
 
-around TO_JSON => sub {
-    my ($orig, $self) = @_;
+sub _unsanitized_json {
+    my ($self) = @_;
 
-    my $birth_partial_date;
+    my $age = $self->age;
+    my $json = {
+        %{$self->TO_JSON},
+        age                         => $age ? ($age + 0) : undef,
+        area                        => to_json_object($self->area),
+        biography                   => format_wikitext($self->biography),
+        birth_date                  => undef,
+        email                       => undef,
+        email_confirmation_date     => datetime_to_iso8601($self->email_confirmation_date),
+        gender                      => to_json_object($self->gender),
+        has_confirmed_email_address => boolean_to_json($self->has_confirmed_email_address),
+        has_email_address           => boolean_to_json($self->has_email_address),
+        is_charter                  => boolean_to_json($self->is_charter),
+        is_limited                  => boolean_to_json($self->is_limited),
+        languages                   => to_json_array($self->languages),
+        last_login_date             => datetime_to_iso8601($self->last_login_date),
+        preferences                 => $self->preferences->TO_JSON,
+        privileges                  => 0 + $self->privileges,
+        registration_date           => datetime_to_iso8601($self->registration_date),
+        website                     => $self->website,
+    };
 
-    if ($self->birth_date) {
-        my $bd = $self->birth_date;
-        $birth_partial_date = { year => $bd->year, month => $bd->month, day => $bd->day };
+    for my $restricted_key (qw( birth_date email )) {
+        die "Use \$c->unsanitized_editor_json to access $restricted_key"
+            if defined $json->{$restricted_key};
     }
 
+    return $json;
+}
+
+sub TO_JSON {
+    my ($self) = @_;
+
     return {
-        %{$self->$orig},
-        biography               => $self->biography,
-        birth_date              => $birth_partial_date,
-        deleted                 => boolean_to_json($self->deleted),
-        email                   => $self->email,
-        email_confirmation_date => datetime_to_iso8601($self->email_confirmation_date),
-        gravatar                => $self->gravatar,
-        is_account_admin        => boolean_to_json($self->is_account_admin),
-        is_admin                => boolean_to_json($self->is_admin),
-        is_auto_editor          => boolean_to_json($self->is_auto_editor),
-        is_banner_editor        => boolean_to_json($self->is_banner_editor),
-        is_bot                  => boolean_to_json($self->is_bot),
-        is_editing_disabled     => boolean_to_json($self->is_editing_disabled),
-        is_limited              => boolean_to_json($self->is_limited),
-        is_location_editor      => boolean_to_json($self->is_location_editor),
-        is_relationship_editor  => boolean_to_json($self->is_relationship_editor),
-        is_wiki_transcluder     => boolean_to_json($self->is_wiki_transcluder),
-        name                    => $self->name,
-        preferences             => $self->preferences->TO_JSON,
-        registration_date       => datetime_to_iso8601($self->registration_date),
-        website                 => $self->website,
+        deleted => boolean_to_json($self->deleted),
+        entityType => 'editor',
+        gravatar => $self->gravatar,
+        id => $self->id,
+        is_limited => boolean_to_json($self->is_limited),
+        name => $self->name,
+        privileges => 0 + $self->public_privileges,
     };
-};
+}
 
 no Moose;
 __PACKAGE__->meta->make_immutable;
@@ -433,23 +443,13 @@ The editor is able to change the banner message
 
 Returns a dummy instance with high editing privileges.
 
-=head1 COPYRIGHT
+=head1 COPYRIGHT AND LICENSE
 
 Copyright (C) 2009 Oliver Charles
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program; if not, write to the Free Software
-Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+This file is part of MusicBrainz, the open internet music database,
+and is licensed under the GPL version 2, or (at your option) any
+later version: http://www.gnu.org/licenses/gpl-2.0.txt
 
 =cut
 

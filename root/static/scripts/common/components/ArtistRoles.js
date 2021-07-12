@@ -1,5 +1,5 @@
 /*
- * @flow
+ * @flow strict-local
  * Copyright (C) 2018 MetaBrainz Foundation
  *
  * This file is part of MusicBrainz, the open internet music database,
@@ -14,19 +14,20 @@ import localizeArtistRoles from '../i18n/localizeArtistRoles';
 
 import EntityLink from './EntityLink';
 
-type Props = {|
-  +relations: $ReadOnlyArray<{|
+type Props = {
+  +relations: $ReadOnlyArray<{
+    +credit: string,
     +entity: ArtistT,
     +roles: $ReadOnlyArray<string>,
-  |}>,
-|};
+  }>,
+};
 
-const ArtistRoles = ({relations}: Props) => (
+const ArtistRoles = ({relations}: Props): React.Element<'ul'> => (
   <ul>
     {relations.map(r => (
       <li key={r.entity.id}>
         {exp.l('{artist} ({roles})', {
-          artist: <EntityLink entity={r.entity} />,
+          artist: <EntityLink content={r.credit} entity={r.entity} />,
           roles: commaOnlyList(localizeArtistRoles(r.roles)),
         })}
       </li>

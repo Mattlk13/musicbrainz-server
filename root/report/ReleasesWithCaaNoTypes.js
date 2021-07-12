@@ -1,5 +1,5 @@
 /*
- * @flow
+ * @flow strict-local
  * Copyright (C) 2018 MetaBrainz Foundation
  *
  * This file is part of MusicBrainz, the open internet music database,
@@ -9,53 +9,34 @@
 
 import * as React from 'react';
 
-import {withCatalystContext} from '../context';
-import Layout from '../layout';
-import formatUserDate from '../utility/formatUserDate';
-
 import ReleaseList from './components/ReleaseList';
-import FilterLink from './FilterLink';
+import ReportLayout from './components/ReportLayout';
 import type {ReportDataT, ReportReleaseT} from './types';
 
 const ReleasesWithCaaNoTypes = ({
-  $c,
   canBeFiltered,
   filtered,
   generated,
   items,
   pager,
-}: ReportDataT<ReportReleaseT>) => (
-  <Layout
-    fullWidth
-    title={l(`Releases in the Cover Art Archive where no cover art piece
-              has types`)}
+}: ReportDataT<ReportReleaseT>): React.Element<typeof ReportLayout> => (
+  <ReportLayout
+    canBeFiltered={canBeFiltered}
+    description={l(
+      `This report shows releases which have cover art in the Cover Art
+       Archive, but where none of it has any types set. This often means
+       a front cover was added, but not marked as such.`,
+    )}
+    entityType="release"
+    filtered={filtered}
+    generated={generated}
+    title={l(
+      'Releases in the Cover Art Archive where no cover art piece has types',
+    )}
+    totalEntries={pager.total_entries}
   >
-    <h1>
-      {l(`Releases in the Cover Art Archive where no cover art piece
-          has types`)}
-    </h1>
-
-    <ul>
-      <li>
-        {l(`This report shows releases which have cover art in the Cover Art
-            Archive, but where none of it has any types set. This often means
-            a front cover was added, but not marked as such.`)}
-      </li>
-      <li>
-        {texp.l('Total releases found: {count}',
-                {count: pager.total_entries})}
-      </li>
-      <li>
-        {texp.l('Generated on {date}',
-                {date: formatUserDate($c.user, generated)})}
-      </li>
-
-      {canBeFiltered ? <FilterLink filtered={filtered} /> : null}
-    </ul>
-
     <ReleaseList items={items} pager={pager} />
-
-  </Layout>
+  </ReportLayout>
 );
 
-export default withCatalystContext(ReleasesWithCaaNoTypes);
+export default ReleasesWithCaaNoTypes;

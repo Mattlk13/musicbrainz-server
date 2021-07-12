@@ -1,5 +1,5 @@
 /*
- * @flow
+ * @flow strict-local
  * Copyright (C) 2019 Anirudh Jain
  * Copyright (C) 2014 MetaBrainz Foundation
  *
@@ -8,7 +8,7 @@
  * later version: http://www.gnu.org/licenses/gpl-2.0.txt
  */
 
-import React from 'react';
+import * as React from 'react';
 
 import Layout from '../../layout';
 import {compare} from '../../static/scripts/common/i18n';
@@ -21,16 +21,19 @@ const frequencyLabels = {
 };
 
 type Props = {
-  attributes: Array<LanguageT>,
-  model: string,
+  +attributes: Array<LanguageT>,
+  +model: string,
 };
 
-const Language = ({model, attributes}: Props) => {
+const Language = ({
+  model,
+  attributes,
+}: Props): React.Element<typeof Layout> => {
   return (
     <Layout fullWidth title={model || l('Language')}>
       <h1>
         <a href="/admin/attributes">{l('Attributes')}</a>
-        <text>{' / ' + l('Language')}</text>
+        {' / ' + l('Language')}
       </h1>
       <table className="tbl">
         <thead>

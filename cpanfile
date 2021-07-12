@@ -1,4 +1,4 @@
-requires 'perl' => '5.18.2';
+requires 'perl' => '5.30.0';
 
 # Mandatory modules
 requires 'Algorithm::Diff'                            => '1.1902';
@@ -10,9 +10,10 @@ requires 'Catalyst::Plugin::Authentication'           => '0.10023';
 requires 'Catalyst::Plugin::Cache'                    => '0.12';
 requires 'Catalyst::Plugin::Cache::HTTP'              => '0.001000';
 requires 'Catalyst::Plugin::Session::State::Cookie'   => '0.17';
-requires 'Catalyst::Runtime'                          => '5.90097';
+requires 'Catalyst::Runtime'                          => '5.90126';
 requires 'Catalyst::View::TT'                         => '0.41';
 requires 'CGI::Expand'                                => '2.05';
+requires 'CGI::Simple'                                => '1.25';
 requires 'Class::Load'                                => '0.20';
 requires 'Class::MOP'                                 => '2.1600';
 requires 'Clone'                                      => '0.36';
@@ -24,13 +25,13 @@ requires 'Data::Page'                                 => '2.02';
 requires 'Data::UUID::MT'                             => '1.000';
 requires 'Date::Calc'                                 => '6.3';
 requires 'DateTime::Format::ISO8601'                  => '0.08';
-requires 'DateTime::Format::Natural'                  => '1.02';
-requires 'DateTime::Format::Pg'                       => '0.16009';
-requires 'DateTime::Locale'                           => '1.11';
-requires 'DateTime::TimeZone'                         => '2.19';
-requires 'DBD::Pg'                                    => '3.5.3';
-requires 'DBI'                                        => '1.63';
-requires 'DBIx::Connector'                            => '0.53';
+requires 'DateTime::Format::Natural'                  => '1.08';
+requires 'DateTime::Format::Pg'                       => '0.16013';
+requires 'DateTime::Locale'                           => '1.25';
+requires 'DateTime::TimeZone'                         => '2.38';
+requires 'DBD::Pg'                                    => '3.10.0';
+requires 'DBI'                                        => '1.642';
+requires 'DBIx::Connector'                            => '0.56';
 requires 'Digest::HMAC_SHA1'                          => '1.03';
 requires 'Digest::MD5'                                => '2.52';
 requires 'Digest::MD5::File'                          => '0.08';
@@ -90,6 +91,9 @@ requires 'Sys::Hostname'                              => '1.17';
 requires 'Template::Plugin::Class'                    => '0.13';
 requires 'Template::Plugin::JavaScript'               => '0.02';
 requires 'Template::Plugin::JSON::Escape'             => '0.02';
+# Template::Toolkit == 3.008 is broken:
+# https://github.com/abw/Template2/issues/263
+requires 'Template::Toolkit'                          => '== 3.007';
 requires 'Text::Diff3'                                => '0.10';
 requires 'Text::Markdown'                             => '1.000026';
 requires 'Text::Trim'                                 => '1.02';
@@ -98,6 +102,7 @@ requires 'Text::WikiFormat'                           => '0.81';
 requires 'Throwable'                                  => '0.200009';
 requires 'Unicode::ICU::Collator'                     => '0.002';
 requires 'URI'                                        => '1.69';
+requires 'XML::LibXML'                                => '1.70';
 requires 'XML::Parser::Lite'                          => '0.719';
 requires 'XML::RSS::Parser::Lite'                     => '0.10';
 requires 'XML::Simple'                                => '2.20';
@@ -105,8 +110,7 @@ requires 'XML::XPath'                                 => '1.13';
 
 # Production server features
 feature production => sub {
-    requires 'DateTime::Format::W3CDTF'         => '0.06';
-    requires 'Locale::PO'                       => '0.27';
+    requires 'DateTime::Format::W3CDTF'         => '0.07';
     requires 'Parallel::ForkManager'            => '0.7.6';
     requires 'Sentry::Raven'                    => '1.09';
     requires 'Server::Starter'                  => '0.31';
@@ -115,15 +119,13 @@ feature production => sub {
 };
 
 author_requires 'Catalyst::Devel'               => '1.39';
+author_requires 'Locale::PO'                    => '0.27';
 author_requires 'Test::EOL';
 author_requires 'Test::NoTabs';
 
 test_requires 'Cache::Null';
 test_requires 'Catalyst::Plugin::Static::Simple';
-# Broken in Perl >= 5.22; the one test that requires it is disabled for now.
-# test_requires 'Coro';
 test_requires 'HTML::HTML5::Parser';
-test_requires 'HTML::HTML5::Sanity';
 test_requires 'HTML::Selector::XPath';
 test_requires 'LWP::UserAgent::Mockable';
 test_requires 'Perl::Critic';

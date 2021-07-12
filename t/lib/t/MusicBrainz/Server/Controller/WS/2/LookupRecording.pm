@@ -17,13 +17,16 @@ my $c = $test->c;
 
 MusicBrainz::Server::Test->prepare_test_database($c, '+webservice');
 MusicBrainz::Server::Test->prepare_test_database($c, '+webservice_annotation');
+MusicBrainz::Server::Test->prepare_test_database($c, '+standalone_recording');
 
 ws_test 'basic recording lookup',
     '/recording/162630d9-36d2-4a8d-ade1-1c77440b34e7' =>
     '<?xml version="1.0" encoding="UTF-8"?>
 <metadata xmlns="http://musicbrainz.org/ns/mmd-2.0#">
     <recording id="162630d9-36d2-4a8d-ade1-1c77440b34e7">
-        <title>サマーれげぇ!レインボー</title><length>296026</length>
+        <title>サマーれげぇ!レインボー</title>
+        <length>296026</length>
+        <first-release-date>2001-07-04</first-release-date>
     </recording>
 </metadata>';
 
@@ -33,13 +36,14 @@ ws_test 'recording lookup with releases',
 <metadata xmlns="http://musicbrainz.org/ns/mmd-2.0#">
     <recording id="162630d9-36d2-4a8d-ade1-1c77440b34e7">
         <title>サマーれげぇ!レインボー</title><length>296026</length>
+        <first-release-date>2001-07-04</first-release-date>
         <release-list count="2">
-          <release id="0385f276-5f4f-4c81-a7a4-6bd7b8d85a7e">
-            <title>サマーれげぇ!レインボー</title>
-            <status id="4e304316-386d-3409-af2e-78857eec5cfe">Official</status>
-            <quality>normal</quality>
+          <release id="b3b7e934-445b-4c68-a097-730c6a6d47e6">
+            <title>Summer Reggae! Rainbow</title>
+            <status id="41121bb9-3413-3818-8a9a-9742318349aa">Pseudo-Release</status>
+            <quality>high</quality>
             <text-representation>
-              <language>jpn</language><script>Jpan</script>
+              <language>jpn</language><script>Latn</script>
             </text-representation>
             <date>2001-07-04</date>
             <country>JP</country>
@@ -57,12 +61,12 @@ ws_test 'recording lookup with releases',
             </release-event-list>
             <barcode>4942463511227</barcode>
           </release>
-          <release id="b3b7e934-445b-4c68-a097-730c6a6d47e6">
-            <title>Summer Reggae! Rainbow</title>
-            <status id="41121bb9-3413-3818-8a9a-9742318349aa">Pseudo-Release</status>
+          <release id="0385f276-5f4f-4c81-a7a4-6bd7b8d85a7e">
+            <title>サマーれげぇ!レインボー</title>
+            <status id="4e304316-386d-3409-af2e-78857eec5cfe">Official</status>
             <quality>normal</quality>
             <text-representation>
-              <language>jpn</language><script>Latn</script>
+              <language>jpn</language><script>Jpan</script>
             </text-representation>
             <date>2001-07-04</date>
             <country>JP</country>
@@ -92,6 +96,7 @@ ws_test 'recording lookup, inc=annotation',
         <title>Plock</title>
         <length>237133</length>
         <annotation><text>this is a recording annotation</text></annotation>
+        <first-release-date>1999-09-13</first-release-date>
     </recording>
 </metadata>';
 
@@ -100,7 +105,9 @@ ws_test 'lookup recording with official singles',
     '<?xml version="1.0" encoding="UTF-8"?>
 <metadata xmlns="http://musicbrainz.org/ns/mmd-2.0#">
     <recording id="162630d9-36d2-4a8d-ade1-1c77440b34e7">
-        <title>サマーれげぇ!レインボー</title><length>296026</length>
+        <title>サマーれげぇ!レインボー</title>
+        <length>296026</length>
+        <first-release-date>2001-07-04</first-release-date>
         <release-list count="1">
             <release id="0385f276-5f4f-4c81-a7a4-6bd7b8d85a7e">
             <title>サマーれげぇ!レインボー</title>
@@ -135,6 +142,7 @@ ws_test 'lookup recording with official singles (+media)',
 <metadata xmlns="http://musicbrainz.org/ns/mmd-2.0#">
     <recording id="162630d9-36d2-4a8d-ade1-1c77440b34e7">
         <title>サマーれげぇ!レインボー</title><length>296026</length>
+        <first-release-date>2001-07-04</first-release-date>
         <release-list count="1">
             <release id="0385f276-5f4f-4c81-a7a4-6bd7b8d85a7e">
                 <title>サマーれげぇ!レインボー</title>
@@ -185,44 +193,66 @@ ws_test 'recording lookup with artists',
         <title>the Love Bug</title><length>243000</length>
         <artist-credit>
             <name-credit joinphrase="♥">
-                <artist id="22dd2db3-88ea-4428-a7a8-5cd3acf23175">
+                <artist id="22dd2db3-88ea-4428-a7a8-5cd3acf23175" type="Group" type-id="e431f5f6-b5d2-343d-8b36-72607fffb74b">
                     <name>m-flo</name><sort-name>m-flo</sort-name>
                 </artist>
             </name-credit>
             <name-credit>
-                <artist id="a16d1433-ba89-4f72-a47b-a370add0bb55">
+                <artist id="a16d1433-ba89-4f72-a47b-a370add0bb55" type="Person" type-id="b6e035f4-3ce9-331c-97df-83397230b0df">
                     <name>BoA</name><sort-name>BoA</sort-name>
                 </artist>
             </name-credit>
         </artist-credit>
+        <first-release-date>2004-03-17</first-release-date>
     </recording>
 </metadata>';
 
-ws_test 'recording lookup with puids and isrcs',
+ws_test 'recording lookup with puids (no-op) and isrcs',
     '/recording/162630d9-36d2-4a8d-ade1-1c77440b34e7?inc=puids+isrcs' =>
     '<?xml version="1.0" encoding="UTF-8"?>
 <metadata xmlns="http://musicbrainz.org/ns/mmd-2.0#">
     <recording id="162630d9-36d2-4a8d-ade1-1c77440b34e7">
-        <title>サマーれげぇ!レインボー</title><length>296026</length>
+        <title>サマーれげぇ!レインボー</title>
+        <length>296026</length>
+        <first-release-date>2001-07-04</first-release-date>
         <isrc-list count="1">
             <isrc id="JPA600102450" />
         </isrc-list>
     </recording>
 </metadata>';
 
-ws_test 'recording lookup with release relationships',
-    '/recording/37a8d72a-a9c9-4edc-9ecf-b5b58e6197a9?inc=release-rels' =>
+ws_test 'recording lookup with release relationships and artist credits',
+    '/recording/37a8d72a-a9c9-4edc-9ecf-b5b58e6197a9?inc=release-rels+artist-credits' =>
     '<?xml version="1.0" encoding="UTF-8"?>
 <metadata xmlns="http://musicbrainz.org/ns/mmd-2.0#">
     <recording id="37a8d72a-a9c9-4edc-9ecf-b5b58e6197a9">
         <title>Dear Diary</title>
+        <artist-credit>
+            <name-credit>
+                <artist id="6fe9f838-112e-44f1-af83-97464f08285b" type="Group" type-id="e431f5f6-b5d2-343d-8b36-72607fffb74b">
+                    <name>Wedlock</name>
+                    <sort-name>Wedlock</sort-name>
+                    <disambiguation>USA electro pop</disambiguation>
+                </artist>
+            </name-credit>
+        </artist-credit>
         <length>86666</length>
+        <first-release-date>2008-04-29</first-release-date>
         <relation-list target-type="release">
             <relation type-id="967746f9-9d79-456c-9d1e-50116f0b27fc" type="samples material">
                 <target>4ccb3e54-caab-4ad4-94a6-a598e0e52eec</target>
+                <direction>forward</direction>
                 <begin>2008</begin>
                 <release id="4ccb3e54-caab-4ad4-94a6-a598e0e52eec">
                     <title>An Inextricable Tale Audiobook</title>
+                    <artist-credit>
+                        <name-credit>
+                            <artist id="05d83760-08b5-42bb-a8d7-00d80b3bf47c">
+                                <name>Paul Allgood</name>
+                                <sort-name>Allgood, Paul</sort-name>
+                            </artist>
+                        </name-credit>
+                    </artist-credit>
                     <quality>normal</quality>
                     <text-representation>
                         <language>eng</language>
@@ -243,6 +273,17 @@ ws_test 'recording lookup with release relationships',
                 </release>
             </relation>
         </relation-list>
+    </recording>
+</metadata>';
+
+
+ws_test 'standalone recording lookup',
+    '/recording/c289a368-867e-4ae0-a1ac-ba28a99822f3' =>
+    '<?xml version="1.0" encoding="UTF-8"?>
+<metadata xmlns="http://musicbrainz.org/ns/mmd-2.0#">
+    <recording id="c289a368-867e-4ae0-a1ac-ba28a99822f3">
+        <title>[silence]</title>
+        <length>10000</length>
     </recording>
 </metadata>';
 

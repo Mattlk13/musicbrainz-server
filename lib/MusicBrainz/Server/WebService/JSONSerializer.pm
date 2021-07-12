@@ -30,10 +30,8 @@ sub serialize
             my $ret = {
                 $plural => [ map { serialize_entity($_, $inc, $opts, 1) } sort_by { $_->gid } @{ $entity->{items} } ],
             };
-            if (defined($entity->{offset}) || defined($entity->{total})) {
-                $ret->{$singular . '-offset'} = number($entity->{offset});
-                $ret->{$singular . '-count' } = number($entity->{total});
-            }
+            $ret->{$singular . '-offset'} = number($entity->{offset}) if defined($entity->{offset});
+            $ret->{$singular . '-count' } = number($entity->{total}) if defined($entity->{total});
             return encode_json($ret);
         }
     }
@@ -191,7 +189,7 @@ sub autocomplete_work {
             my $result = shift;
 
             my $out = get_entity_json($result);
-            $out->{artists} = $result->{artists};
+            $out->{related_artists} = $result->{related_artists};
 
             return $out;
         }
@@ -240,7 +238,7 @@ sub _with_primary_alias {
                 } @{ $result->{aliases} };
 
             $out->{primaryAlias} = undef;
-            if ($primary_alias && $alias_preference{$munge_lang->($primary_alias->locale)} > 0) {
+            if ($primary_alias && ($alias_preference{$munge_lang->($primary_alias->locale)} // 0) > 0) {
                 $out->{primaryAlias} = $primary_alias->name;
             }
             push @output, $out;
@@ -312,26 +310,54 @@ sub autocomplete_series {
     return encode_json($output);
 }
 
+sub autocomplete_genre {
+    my ($self, $results, $pager) = @_;
+
+    my $output = _with_primary_alias($results, sub {
+        shift->TO_JSON
+    });
+
+    push @$output, {
+        pages => $pager->last_page,
+        current => $pager->current_page
+    } if $pager;
+
+    return encode_json($output);
+}
+
+sub user_rating {
+    my ($self, $entity, $inc, $opts) = @_;
+
+    my $user_rating = $opts->store($entity)->{user_ratings};
+
+    return encode_json({
+        'user-rating' => {value => $user_rating},
+    });
+}
+
+sub user_tag_list {
+    my ($self, $entity, $inc, $opts) = @_;
+
+    my $user_tags = $opts->store($entity)->{user_tags};
+
+    return encode_json({
+        'user-tags' => [
+            sort { $a->{name} cmp $b->{name} }
+            map +{ name => $_->tag->name }, @{ $user_tags }
+        ],
+    });
+}
+
 __PACKAGE__->meta->make_immutable;
 no Moose;
 1;
 
-=head1 COPYRIGHT
+=head1 COPYRIGHT AND LICENSE
 
 Copyright (C) 2010 MetaBrainz Foundation
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program; if not, write to the Free Software
-Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+This file is part of MusicBrainz, the open internet music database,
+and is licensed under the GPL version 2, or (at your option) any
+later version: http://www.gnu.org/licenses/gpl-2.0.txt
 
 =cut

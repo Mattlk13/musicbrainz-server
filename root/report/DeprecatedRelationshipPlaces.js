@@ -1,5 +1,5 @@
 /*
- * @flow
+ * @flow strict-local
  * Copyright (C) 2018 MetaBrainz Foundation
  *
  * This file is part of MusicBrainz, the open internet music database,
@@ -9,45 +9,40 @@
 
 import * as React from 'react';
 
-import {withCatalystContext} from '../context';
-import Layout from '../layout';
-import formatUserDate from '../utility/formatUserDate';
+import {
+  relTypeColumn,
+} from '../utility/tableColumns';
 
-import PlaceRelationshipList from './components/PlaceRelationshipList';
-import FilterLink from './FilterLink';
+import PlaceList from './components/PlaceList';
+import ReportLayout from './components/ReportLayout';
 import type {ReportDataT, ReportPlaceRelationshipT} from './types';
 
 const DeprecatedRelationshipPlaces = ({
-  $c,
   canBeFiltered,
   filtered,
   generated,
   items,
   pager,
-}: ReportDataT<ReportPlaceRelationshipT>) => (
-  <Layout fullWidth title={l('Places with deprecated relationships')}>
-    <h1>{l('Places with deprecated relationships')}</h1>
-
-    <ul>
-      <li>
-        {l(`This report lists places which have relationships using
-            deprecated and grouping-only relationship types.`)}
-      </li>
-      <li>
-        {texp.l('Total places found: {count}',
-                {count: pager.total_entries})}
-      </li>
-      <li>
-        {texp.l('Generated on {date}',
-                {date: formatUserDate($c.user, generated)})}
-      </li>
-
-      {canBeFiltered ? <FilterLink filtered={filtered} /> : null}
-    </ul>
-
-    <PlaceRelationshipList items={items} pager={pager} />
-
-  </Layout>
+}: ReportDataT<ReportPlaceRelationshipT>):
+React.Element<typeof ReportLayout> => (
+  <ReportLayout
+    canBeFiltered={canBeFiltered}
+    description={l(
+      `This report lists places which have relationships using
+       deprecated and grouping-only relationship types.`,
+    )}
+    entityType="place"
+    filtered={filtered}
+    generated={generated}
+    title={l('Places with deprecated relationships')}
+    totalEntries={pager.total_entries}
+  >
+    <PlaceList
+      columnsBefore={[relTypeColumn]}
+      items={items}
+      pager={pager}
+    />
+  </ReportLayout>
 );
 
-export default withCatalystContext(DeprecatedRelationshipPlaces);
+export default DeprecatedRelationshipPlaces;

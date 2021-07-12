@@ -8,6 +8,7 @@ use MooseX::Types::Structured qw( Dict Optional );
 use MusicBrainz::Server::Constants qw( $EDIT_RELEASE_EDIT_COVER_ART );
 use MusicBrainz::Server::Edit::Exceptions;
 use MusicBrainz::Server::Edit::Utils qw( changed_display_data );
+use MusicBrainz::Server::Entity::Util::JSON qw( to_json_object );
 use MusicBrainz::Server::Translation qw( N_l );
 use MusicBrainz::Server::Validation qw( normalise_strings );
 
@@ -25,6 +26,7 @@ sub edit_kind { 'edit' }
 sub edit_type { $EDIT_RELEASE_EDIT_COVER_ART }
 sub release_ids { shift->data->{entity}{id} }
 sub cover_art_id { shift->data->{id} }
+sub edit_template_react { 'EditCoverArt' }
 
 sub change_fields
 {
@@ -124,46 +126,46 @@ sub foreign_keys {
     return \%fk;
 }
 
-sub display_cover_art_types
-{
-    my ($loaded, $types) = @_;
-
-    # FIXME: sort these.
-    # hardcode (front, back, alphabetical) sorting in CoverArtType somehow?
-    return join(", ", map { $loaded->{CoverArtType}->{$_}->l_name } @$types);
-}
-
 sub build_display_data {
     my ($self, $loaded) = @_;
 
     my %data;
 
-    $data{release} = $loaded->{Release}{ $self->data->{entity}{id} } ||
-        Release->new( name => $self->data->{entity}{name} );
+    my $release = (
+        $loaded->{Release}{ $self->data->{entity}{id} } ||
+        Release->new( name => $self->data->{entity}{name} )
+    );
 
-    $data{artwork} = $loaded->{Artwork}{ $self->data->{id} } ||
-        Artwork->new(release => $data{release},
+    $data{release} = to_json_object($release);
+
+    $data{artwork} = to_json_object(
+        $loaded->{Artwork}{ $self->data->{id} } ||
+        Artwork->new(release => $release,
                      id => $self->data->{id},
-                     comment => $self->data->{new}->{comment} // '',
+                     comment => $self->data->{new}{comment} // '',
                      cover_art_types => [ map {
                          $loaded->{CoverArtType}{$_}
-                     } @{ $self->data->{new}->{types} // [] }]
-        );
+                     } @{ $self->data->{new}{types} // [] }]
+        )
+    );
 
-
-    if ($self->data->{old}->{types})
+    if ($self->data->{old}{types})
     {
         $data{types} = {
-            old => display_cover_art_types($loaded, $self->data->{old}->{types}),
-            new => display_cover_art_types($loaded, $self->data->{new}->{types}),
+            old => [ map {
+                to_json_object($loaded->{CoverArtType}{$_})
+            } @{ $self->data->{old}{types} // [] } ],
+            new => [ map {
+                to_json_object($loaded->{CoverArtType}{$_})
+            } @{ $self->data->{new}{types} // [] } ],
         }
     }
 
-    if (exists $self->data->{old}->{comment})
+    if (exists $self->data->{old}{comment})
     {
         $data{comment} = {
-            old => $self->data->{old}->{comment},
-            new => $self->data->{new}->{comment}
+            old => $self->data->{old}{comment},
+            new => $self->data->{new}{comment}
         }
     }
 
@@ -172,22 +174,12 @@ sub build_display_data {
 
 1;
 
-=head1 COPYRIGHT
+=head1 COPYRIGHT AND LICENSE
 
 Copyright (C) 2012 MetaBrainz Foundation
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program; if not, write to the Free Software
-Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+This file is part of MusicBrainz, the open internet music database,
+and is licensed under the GPL version 2, or (at your option) any
+later version: http://www.gnu.org/licenses/gpl-2.0.txt
 
 =cut

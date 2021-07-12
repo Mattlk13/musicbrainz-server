@@ -45,15 +45,22 @@ sub options_type_id {
 
     my $types = select_options_tree($self->ctx, 'CollectionType');
     my $collection = $self->init_object;
+    my $type_filter;
 
     if ($collection && blessed $collection) {
         my $entity_type = $collection->type->item_entity_type;
         unless ($self->ctx->model('Collection')->is_empty($entity_type, $collection->{id})) {
-            my %valid_types =
-                map { $_->id => 1 }
-                    $self->ctx->model('CollectionType')->find_by_entity_type($entity_type);
-            $types = [grep {$valid_types{$_->{value}}} @$types];
+            $type_filter = $entity_type;
         }
+    } elsif ($collection && $collection->{allowed_entity_type}) {
+        $type_filter = $collection->{allowed_entity_type};
+    }
+
+    if (defined $type_filter) {
+        my %valid_types =
+            map { $_->id => 1 }
+                $self->ctx->model('CollectionType')->find_by_entity_type($type_filter);
+        $types = [grep {$valid_types{$_->{value}}} @$types];
     }
 
     return $types;
@@ -76,6 +83,34 @@ sub validate_type_id {
             );
         }
     }
+}
+
+sub validate_collaborators {
+    my $self = shift;
+
+    my @collaborators = $self->field('collaborators')->fields;
+    my $is_valid = 1;
+    for my $collaborator (@collaborators) {
+        my $id_field = $collaborator->field('id');
+        my $name_field = $collaborator->field('name');
+        if (defined $name_field->value && !(defined $id_field->value)) {
+            my $editor = $self->ctx->model('Editor')->get_by_name($name_field->value);
+            if (defined $editor) {
+                $id_field->add_error(
+                    l('To add “{editor}” as a collaborator, please select them from the dropdown.',
+                      {editor => $name_field->value})
+                );
+            } else {
+                $id_field->add_error(
+                    l('Editor “{editor}” does not exist.',
+                      {editor => $name_field->value})
+                );
+            }
+            $is_valid = 0;
+        }
+    }
+
+    return $is_valid;
 }
 
 1;

@@ -1,5 +1,5 @@
 /*
- * @flow
+ * @flow strict-local
  * Copyright (C) 2019 MetaBrainz Foundation
  *
  * This file is part of MusicBrainz, the open internet music database,
@@ -7,37 +7,50 @@
  * later version: http://www.gnu.org/licenses/gpl-2.0.txt
  */
 
-import React from 'react';
+import * as React from 'react';
 
 import {ENTITIES} from '../static/scripts/common/constants';
 import DBDefs from '../static/scripts/common/DBDefs';
-import {withCatalystContext} from '../context';
 import EntityLink from '../static/scripts/common/components/EntityLink';
 import chooseLayoutComponent from '../utility/chooseLayoutComponent';
 import formatUserDate from '../utility/formatUserDate';
 
-type Props = {|
+type WSLinkProps = {
+  +entityGid: string,
+  +entityProperties: {
+    aliases: {[edit_type: string]: number},
+    artist_credits: boolean,
+    url: string,
+    ...
+  },
+  +entityType: CoreEntityTypeT,
+  +isJson?: boolean,
+  +isSecureConnection: boolean,
+};
+type DetailsProps = {
   +$c: CatalystContextT,
   +entity: CoreEntityT,
-|};
+};
 
-const XMLLink = ({
+const WSLink = ({
   entityGid,
   entityProperties,
   entityType,
+  isJson = false,
   isSecureConnection,
-}) => {
-  const xmlInc = [];
+}: WSLinkProps) => {
+  const inc = [];
   const entityTypeForUrl = entityProperties.url
     ? entityProperties.url : entityType;
-  entityProperties.aliases && xmlInc.push('aliases');
-  entityProperties.artist_credits && xmlInc.push('artist-credits');
+  entityProperties.aliases && inc.push('aliases');
+  entityProperties.artist_credits && inc.push('artist-credits');
   (entityType === 'recording' || entityType === 'release_group') &&
-    xmlInc.push('releases');
-  entityType === 'release' && xmlInc.push('labels', 'discids', 'recordings');
+    inc.push('releases');
+  entityType === 'release' && inc.push('labels', 'discids', 'recordings');
   const protocol = isSecureConnection ? 'https://' : 'http://';
   const link = '/ws/2/' + entityTypeForUrl + '/' + entityGid +
-               '?inc=' + xmlInc.join('+');
+               (inc.length ? '?inc=' : '') + inc.join('+') +
+               (isJson ? '&fmt=json' : '');
   return (
     <a href={link}>{protocol + DBDefs.WEB_SERVER + link}</a>
   );
@@ -46,7 +59,7 @@ const XMLLink = ({
 const Details = ({
   $c,
   entity,
-}: Props) => {
+}: DetailsProps): React.MixedElement => {
   const entityType = entity.entityType;
   const entityProperties = ENTITIES[entityType];
   const entityTypeForUrl = entityProperties.url
@@ -56,11 +69,15 @@ const Details = ({
   const LayoutComponent = chooseLayoutComponent(entityType);
 
   return (
-    <LayoutComponent entity={entity} page="details" title={l('Details')}>
+    <LayoutComponent
+      entity={entity}
+      page="details"
+      title={l('Details')}
+    >
       <h2>{l('Details')}</h2>
       <table className="details">
         <tr>
-          <th>{l('Name:')}</th>
+          <th>{addColonText(l('Name'))}</th>
           <td>
             <EntityLink entity={entity} />
           </td>
@@ -73,11 +90,11 @@ const Details = ({
           <td><code>{entity.gid}</code></td>
         </tr>
         <tr>
-          <th>{l('Last updated:')}</th>
+          <th>{addColonText(l('Last updated'))}</th>
           <td>
-            {entity.last_updated
-              ? formatUserDate($c.user, entity.last_updated)
-              : l('(unknown)')}
+            {nonEmpty(entity.last_updated)
+              ? formatUserDate($c, entity.last_updated)
+              : lp('(unknown)', 'last updated')}
           </td>
         </tr>
         <tr>
@@ -86,20 +103,39 @@ const Details = ({
             <a href={canonicalLink}>{canonicalLink}</a>
           </td>
         </tr>
-        {/* TODO: remove conditon once genres have WS pages (MBS-10166) */}
-        {entityType === 'genre' ? null : (
-          <tr>
-            <th>{l('XML:')}</th>
-            <td>
-              <XMLLink
-                entityGid={entity.gid}
-                entityProperties={entityProperties}
-                entityType={entityType}
-                isSecureConnection={$c.req.secure}
-              />
-            </td>
-          </tr>
-        )}
+        <tr>
+          <th>
+            {addColon(exp.l(
+              '{xml_ws_docs|XML}',
+              {xml_ws_docs: '/doc/MusicBrainz_API'},
+            ))}
+          </th>
+          <td>
+            <WSLink
+              entityGid={entity.gid}
+              entityProperties={entityProperties}
+              entityType={entityType}
+              isSecureConnection={$c.req.secure}
+            />
+          </td>
+        </tr>
+        <tr>
+          <th>
+            {addColon(exp.l(
+              '{json_ws_docs|JSON}',
+              {json_ws_docs: '/doc/MusicBrainz_API'},
+            ))}
+          </th>
+          <td>
+            <WSLink
+              entityGid={entity.gid}
+              entityProperties={entityProperties}
+              entityType={entityType}
+              isJson
+              isSecureConnection={$c.req.secure}
+            />
+          </td>
+        </tr>
         {entityType === 'recording' ? (
           <tr>
             <th>{l('AcousticBrainz entry:')}</th>
@@ -115,4 +151,4 @@ const Details = ({
   );
 };
 
-export default withCatalystContext(Details);
+export default Details;

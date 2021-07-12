@@ -7,19 +7,19 @@
  * later version: http://www.gnu.org/licenses/gpl-2.0.txt
  */
 
-import React from 'react';
+import * as React from 'react';
 
 import hydrate, {minimalEntity} from '../../../../utility/hydrate';
 import entityHref from '../utility/entityHref';
 
-type Props = {|
+type Props = {
   +cachedImage: ?CommonsImageT,
   +entity: CoreEntityT,
-|};
+};
 
-type State = {|
+type State = {
   image: ?CommonsImageT,
-|};
+};
 
 class CommonsImage extends React.Component<Props, State> {
   constructor(props: Props) {
@@ -52,4 +52,8 @@ class CommonsImage extends React.Component<Props, State> {
   }
 }
 
-export default hydrate<Props>('div.commons-image', CommonsImage, minimalEntity);
+export default (hydrate<Props>(
+  'div.commons-image',
+  CommonsImage,
+  minimalEntity,
+): React.AbstractComponent<Props, void>);

@@ -11,6 +11,7 @@ use MusicBrainz::Server::Data::Utils qw(
     add_partial_date_to_row
     get_area_containment_query
     hash_to_row
+    is_special_label
     load_subobjects
     merge_table_attributes
     merge_date_period
@@ -62,7 +63,6 @@ sub _column_mapping
         id => 'id',
         gid => 'gid',
         name => 'name',
-        unaccented_name => 'unaccented_name',
         type_id => 'type',
         area_id => 'area',
         label_code => 'label_code',
@@ -82,7 +82,7 @@ sub find_by_subscribed_editor
                  FROM " . $self->_table . "
                     JOIN editor_subscribe_label s ON label.id = s.label
                  WHERE s.editor = ?
-                 ORDER BY musicbrainz_collate(label.name), label.id";
+                 ORDER BY label.name COLLATE musicbrainz, label.id";
     $self->query_to_list_limited($query, [$editor_id], $limit, $offset);
 }
 
@@ -98,7 +98,7 @@ sub find_by_area {
                     SELECT 1 FROM ($containment_query) ac
                      WHERE ac.descendant = area AND ac.parent = \$1
                  )
-                 ORDER BY musicbrainz_collate(label.name), label.id";
+                 ORDER BY label.name COLLATE musicbrainz, label.id";
     $self->query_to_list_limited(
         $query, [$area_id, @containment_query_args], $limit, $offset, undef,
         dollar_placeholders => 1,
@@ -113,7 +113,7 @@ sub find_by_release
                  FROM " . $self->_table . "
                      JOIN release_label ON release_label.label = label.id
                  WHERE release_label.release = ?
-                 ORDER BY musicbrainz_collate(label.name)";
+                 ORDER BY label.name COLLATE musicbrainz";
 
     $self->query_to_list_limited($query, [$release_id], $limit, $offset);
 }
@@ -122,22 +122,22 @@ sub _order_by {
     my ($self, $order) = @_;
     my $order_by = order_by($order, "name", {
         "name" => sub {
-            return "musicbrainz_collate(name)"
+            return "name COLLATE musicbrainz"
         },
-        "code" => sub {
-            return "label_code, musicbrainz_collate(name)"
+        "label_code" => sub {
+            return "label_code, name COLLATE musicbrainz"
         },
         "area" => sub {
-            return "area, musicbrainz_collate(name)"
+            return "area, name COLLATE musicbrainz"
         },
         "begin_date" => sub {
-            return "begin_date_year, begin_date_month, begin_date_day, musicbrainz_collate(name)"
+            return "begin_date_year, begin_date_month, begin_date_day, name COLLATE musicbrainz"
         },
         "end_date" => sub {
-            return "end_date_year, end_date_month, end_date_day, musicbrainz_collate(name)"
+            return "end_date_year, end_date_month, end_date_day, name COLLATE musicbrainz"
         },
         "type" => sub {
-            return "type, musicbrainz_collate(name)"
+            return "type, name COLLATE musicbrainz"
         }
     });
 
@@ -178,6 +178,7 @@ sub update
 sub can_delete
 {
     my ($self, $label_id) = @_;
+    return 0 if is_special_label($label_id);
     my $refcount = $self->sql->select_single_column_array('SELECT 1 FROM release_label WHERE label = ?', $label_id);
     return @$refcount == 0;
 }
@@ -205,34 +206,39 @@ sub _merge_impl
 {
     my ($self, $new_id, @old_ids) = @_;
 
+    if (grep { is_special_label($_) } @old_ids) {
+        confess('Attempt to merge a special purpose label into another label');
+    }
+
     $self->alias->merge($new_id, @old_ids);
-    $self->ipi->merge($new_id, @old_ids);
-    $self->isni->merge($new_id, @old_ids);
+    $self->ipi->merge($new_id, @old_ids) unless is_special_label($new_id);
+    $self->isni->merge($new_id, @old_ids) unless is_special_label($new_id);
     $self->tags->merge($new_id, @old_ids);
     $self->rating->merge($new_id, @old_ids);
-    $self->subscription->merge_entities($new_id, @old_ids);
     $self->annotation->merge($new_id, @old_ids);
     $self->c->model('Collection')->merge_entities('label', $new_id, @old_ids);
     $self->c->model('ReleaseLabel')->merge_labels($new_id, @old_ids);
     $self->c->model('Edit')->merge_entities('label', $new_id, @old_ids);
     $self->c->model('Relationship')->merge_entities('label', $new_id, \@old_ids);
 
-    merge_table_attributes(
-        $self->sql => (
-            table => 'label',
-            columns => [ qw( type area label_code ) ],
-            old_ids => \@old_ids,
-            new_id => $new_id
-        )
-    );
+    unless (is_special_label($new_id)) {
+        merge_table_attributes(
+            $self->sql => (
+                table => 'label',
+                columns => [ qw( type area label_code ) ],
+                old_ids => \@old_ids,
+                new_id => $new_id
+            )
+        );
 
-    merge_date_period(
-        $self->sql => (
-            table => 'label',
-            old_ids => \@old_ids,
-            new_id => $new_id
-        )
-    );
+        merge_date_period(
+            $self->sql => (
+                table => 'label',
+                old_ids => \@old_ids,
+                new_id => $new_id
+            )
+        );
+    }
 
     $self->_delete_and_redirect_gids('label', $new_id, @old_ids);
 
@@ -269,23 +275,23 @@ sub is_empty {
     my ($self, $label_id) = @_;
 
     my $used_in_relationship = used_in_relationship($self->c, label => 'label_row.id');
-    return $self->sql->select_single_value(<<EOSQL, $label_id, $STATUS_OPEN);
+    return $self->sql->select_single_value(<<~"EOSQL", $label_id, $STATUS_OPEN);
         SELECT TRUE
         FROM label label_row
         WHERE id = ?
         AND edits_pending = 0
         AND NOT (
-          EXISTS (
-            SELECT TRUE FROM edit_label
-            WHERE status = ? AND label = label_row.id
-          ) OR
-          EXISTS (
-            SELECT TRUE FROM release_label
-            WHERE label = label_row.id
-          ) OR
-          $used_in_relationship
+            EXISTS (
+                SELECT TRUE FROM edit_label
+                WHERE status = ? AND label = label_row.id
+            ) OR
+            EXISTS (
+                SELECT TRUE FROM release_label
+                WHERE label = label_row.id
+            ) OR
+            $used_in_relationship
         )
-EOSQL
+        EOSQL
 }
 
 __PACKAGE__->meta->make_immutable;

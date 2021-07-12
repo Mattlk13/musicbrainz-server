@@ -1,5 +1,5 @@
 /*
- * @flow
+ * @flow strict-local
  * Copyright (C) 2019 MetaBrainz Foundation
  *
  * This file is part of MusicBrainz, the open internet music database,
@@ -9,23 +9,25 @@
 
 import * as React from 'react';
 
+import FormCsrfToken from '../components/FormCsrfToken';
 import {ACCESS_SCOPE_PERMISSIONS} from '../constants';
-import {withCatalystContext} from '../context';
 import Layout from '../layout';
 
-type Props = {|
+type Props = {
   +$c: CatalystContextT,
   +application: ApplicationT,
+  +form: SecureConfirmFormT,
   +offline: boolean,
   +permissions: $ReadOnlyArray<number>,
-|};
+};
 
 const OAuth2Authorize = ({
   $c,
   application,
+  form,
   offline,
   permissions,
-}: Props) => (
+}: Props): React.Element<typeof Layout> => (
   <Layout fullWidth title={l('OAuth Authorization')}>
     <h1>{l('Authorization')}</h1>
 
@@ -46,8 +48,14 @@ const OAuth2Authorize = ({
     </ul>
 
     <form action={$c.req.uri} method="post" name="confirm">
+      <FormCsrfToken form={form} />
       <span className="buttons">
-        <button className="negative" name="confirm.cancel" type="submit" value="1">
+        <button
+          className="negative"
+          name="confirm.cancel"
+          type="submit"
+          value="1"
+        >
           {l('No thanks')}
         </button>
         <button name="confirm.submit" type="submit" value="1">
@@ -58,4 +66,4 @@ const OAuth2Authorize = ({
   </Layout>
 );
 
-export default withCatalystContext(OAuth2Authorize);
+export default OAuth2Authorize;

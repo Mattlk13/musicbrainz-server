@@ -1,5 +1,5 @@
 /*
- * @flow
+ * @flow strict-local
  * Copyright (C) 2015 MetaBrainz Foundation
  *
  * This file is part of MusicBrainz, the open internet music database,
@@ -7,11 +7,12 @@
  * later version: http://www.gnu.org/licenses/gpl-2.0.txt
  */
 
-import _ from 'lodash';
-import React from 'react';
+import * as React from 'react';
 
-import {withCatalystContext} from '../../context';
+import {CatalystContext} from '../../context';
 import {VARTIST_GID} from '../../static/scripts/common/constants';
+import {capitalize} from '../../static/scripts/common/utility/strings';
+import {returnToCurrentPage} from '../../utility/returnUri';
 
 function languageName(language, selected) {
   if (!language) {
@@ -27,10 +28,10 @@ function languageName(language, selected) {
   let text = `[${id}]`;
 
   if (nativeLanguage) {
-    text = _.capitalize(nativeLanguage);
+    text = capitalize(nativeLanguage);
 
     if (nativeTerritory) {
-      text += ' (' + _.capitalize(nativeTerritory) + ')';
+      text += ' (' + capitalize(nativeTerritory) + ')';
     }
   }
 
@@ -41,31 +42,38 @@ function languageName(language, selected) {
   return text;
 }
 
-const LanguageLink = ({language}: {|+language: ServerLanguageT|}) => (
-  <a href={'/set-language/' + encodeURIComponent(language.name)}>
+const LanguageLink = ({$c, language}) => (
+  <a
+    href={
+      '/set-language/' + encodeURIComponent(language.name) +
+      '?' + returnToCurrentPage($c)
+    }
+  >
     {languageName(language, false)}
   </a>
 );
 
-type LanguageMenuProps = {|
+type LanguageMenuProps = {
+  +$c: CatalystContextT,
   +currentBCP47Language: string,
   +serverLanguages: $ReadOnlyArray<ServerLanguageT>,
-|};
+};
 
 const LanguageMenu = ({
+  $c,
   currentBCP47Language,
   serverLanguages,
 }: LanguageMenuProps) => (
   <li className="language-selector" tabIndex="-1">
     <span className="menu-header">
       {languageName(
-        _.find(serverLanguages, x => x.name === currentBCP47Language),
+        serverLanguages.find(x => x.name === currentBCP47Language),
         true,
       )}
     </span>
     <ul>
       {serverLanguages.map(function (language, index) {
-        let inner = <LanguageLink language={language} />;
+        let inner = <LanguageLink $c={$c} language={language} />;
 
         if (language.name === currentBCP47Language) {
           inner = <strong>{inner}</strong>;
@@ -74,7 +82,7 @@ const LanguageMenu = ({
         return <li key={index}>{inner}</li>;
       })}
       <li>
-        <a href="/set-language/unset">
+        <a href={'/set-language/unset?' + returnToCurrentPage($c)}>
           {l('(reset language)')}
         </a>
       </li>
@@ -124,6 +132,9 @@ const AboutMenu = () => (
       <li>
         <a href="https://metabrainz.org/gdpr">{l('GDPR Compliance')}</a>
       </li>
+      <li>
+        <a href="/doc/Data_Removal_Policy">{l('Data Removal Policy')}</a>
+      </li>
       <li className="separator">
         <a href="/elections">{l('Auto-editor Elections')}</a>
       </li>
@@ -151,13 +162,18 @@ const ProductsMenu = () => (
         <a href="//picard.musicbrainz.org">{l('MusicBrainz Picard')}</a>
       </li>
       <li>
-        <a href="/doc/Magic_MP3_Tagger">{l('Magic MP3 Tagger')}</a>
+        <a href="/doc/AudioRanger">{l('AudioRanger')}</a>
+      </li>
+      <li>
+        <a href="/doc/Mp3tag">{l('Mp3tag')}</a>
       </li>
       <li>
         <a href="/doc/Yate_Music_Tagger">{l('Yate Music Tagger')}</a>
       </li>
       <li className="separator">
-        <a href="/doc/MusicBrainz_for_Android">{l('MusicBrainz for Android')}</a>
+        <a href="/doc/MusicBrainz_for_Android">
+          {l('MusicBrainz for Android')}
+        </a>
       </li>
       <li className="separator">
         <a href="/doc/MusicBrainz_Server">{l('MusicBrainz Server')}</a>
@@ -169,19 +185,16 @@ const ProductsMenu = () => (
         <a href="/doc/Developer_Resources">{l('Developer Resources')}</a>
       </li>
       <li>
-        <a href="/doc/XML_Web_Service">{l('XML Web Service')}</a>
+        <a href="/doc/MusicBrainz_API">{l('MusicBrainz API')}</a>
       </li>
       <li>
         <a href="/doc/Live_Data_Feed">{l('Live Data Feed')}</a>
-      </li>
-      <li className="separator">
-        <a href="/doc/FreeDB_Gateway">{l('FreeDB Gateway')}</a>
       </li>
     </ul>
   </li>
 );
 
-const SearchMenu = withCatalystContext(({$c}: {+$c: CatalystContextT}) => (
+const SearchMenu = () => (
   <li className="search" tabIndex="-1">
     <span className="menu-header">
       {l('Search')}
@@ -191,11 +204,9 @@ const SearchMenu = withCatalystContext(({$c}: {+$c: CatalystContextT}) => (
       <li>
         <a href="/search">{l('Search Entities')}</a>
       </li>
-      {$c.user_exists ? (
-        <li>
-          <a href="/search/edits">{l('Search Edits')}</a>
-        </li>
-      ) : null}
+      <li>
+        <a href="/search/edits">{l('Search Edits')}</a>
+      </li>
       <li>
         <a href="/tags">{l('Tags')}</a>
       </li>
@@ -204,7 +215,7 @@ const SearchMenu = withCatalystContext(({$c}: {+$c: CatalystContextT}) => (
       </li>
     </ul>
   </li>
-));
+);
 
 const EditingMenu = () => (
   <li className="editing" tabIndex="-1">
@@ -220,7 +231,9 @@ const EditingMenu = () => (
         <a href="/label/create">{lp('Add Label', 'button/menu')}</a>
       </li>
       <li>
-        <a href="/release-group/create">{lp('Add Release Group', 'button/menu')}</a>
+        <a href="/release-group/create">
+          {lp('Add Release Group', 'button/menu')}
+        </a>
       </li>
       <li>
         <a href="/release/add">{lp('Add Release', 'button/menu')}</a>
@@ -231,7 +244,9 @@ const EditingMenu = () => (
         </a>
       </li>
       <li>
-        <a href="/recording/create">{lp('Add Standalone Recording', 'button/menu')}</a>
+        <a href="/recording/create">
+          {lp('Add Standalone Recording', 'button/menu')}
+        </a>
       </li>
       <li>
         <a href="/work/create">{lp('Add Work', 'button/menu')}</a>
@@ -246,7 +261,7 @@ const EditingMenu = () => (
         <a href="/event/create">{lp('Add Event', 'button/menu')}</a>
       </li>
       <li className="separator">
-        <a href="/edit/open">{l('Vote on Edits')}</a>
+        <a href="/vote">{l('Vote on Edits')}</a>
       </li>
       <li>
         <a href="/reports">{l('Reports')}</a>
@@ -275,7 +290,9 @@ const DocumentationMenu = () => (
         <a href="/doc/Frequently_Asked_Questions">{l('FAQs')}</a>
       </li>
       <li>
-        <a href="/doc/MusicBrainz_Documentation">{l('Documentation Index')}</a>
+        <a href="/doc/MusicBrainz_Documentation">
+          {l('Documentation Index')}
+        </a>
       </li>
       <li className="separator">
         <a href="/doc/Edit_Types">{l('Edit Types')}</a>
@@ -296,7 +313,8 @@ const DocumentationMenu = () => (
   </li>
 );
 
-const BottomMenu = ({$c}: {|+$c: CatalystContextT|}) => {
+const BottomMenu = (): React.Element<'div'> => {
+  const $c = React.useContext(CatalystContext);
   const serverLanguages = $c.stash.server_languages;
   return (
     <div className="bottom">
@@ -304,10 +322,11 @@ const BottomMenu = ({$c}: {|+$c: CatalystContextT|}) => {
         <AboutMenu />
         <ProductsMenu />
         <SearchMenu />
-        {$c.user_exists ? <EditingMenu /> : null}
+        {$c.user ? <EditingMenu /> : null}
         <DocumentationMenu />
         {serverLanguages && serverLanguages.length > 1 ? (
           <LanguageMenu
+            $c={$c}
             currentBCP47Language={$c.stash.current_language.replace('_', '-')}
             serverLanguages={serverLanguages}
           />
@@ -317,4 +336,4 @@ const BottomMenu = ({$c}: {|+$c: CatalystContextT|}) => {
   );
 };
 
-export default withCatalystContext(BottomMenu);
+export default BottomMenu;

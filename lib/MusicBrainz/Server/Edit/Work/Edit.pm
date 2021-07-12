@@ -16,6 +16,7 @@ use MusicBrainz::Server::Edit::Utils qw(
     changed_display_data
 );
 use MusicBrainz::Server::Edit::Exceptions;
+use MusicBrainz::Server::Entity::Util::JSON qw( to_json_object );
 use MusicBrainz::Server::Translation qw( l N_l );
 use Set::Scalar;
 
@@ -85,6 +86,7 @@ sub _work_attribute_to_edit {
 
 sub edit_type { $EDIT_WORK_EDIT }
 sub edit_name { N_l('Edit work') }
+sub edit_template_react { 'EditWork' }
 sub _edit_model { 'Work' }
 sub work_id { shift->entity_id }
 
@@ -124,7 +126,6 @@ sub foreign_keys
     my $relations = {};
     changed_relations($data, $relations,
         WorkType => 'type_id',
-        Language => 'language_id',
     );
 
     $relations->{Work} = [ $self->entity_id ];
@@ -146,14 +147,15 @@ sub build_display_data
         comment   => 'comment',
         type      => [ qw( type_id WorkType ) ],
         iswc      => 'iswc',
-        language  => [ qw( language_id Language ) ],
     );
 
     my $data = $self->data;
     my $display = changed_display_data($data, $loaded, %map);
 
-    $display->{work} = $loaded->{Work}{ $self->entity_id }
-        || Work->new( name => $data->{entity}{name} );
+    $display->{work} = to_json_object(
+        $loaded->{Work}{ $self->entity_id } ||
+        Work->new( name => $data->{entity}{name} )
+    );
 
     if (exists $data->{new}{attributes}) {
         $display->{attributes} = {};
@@ -168,7 +170,7 @@ sub build_display_data
             my @old_values = map { $_->l_value } @{ $old{$type} //= [] };
 
             unless (Set::Scalar->new(@new_values) == Set::Scalar->new(@old_values)) {
-                $display->{attributes}->{$type} = { new => \@new_values, old => \@old_values };
+                $display->{attributes}{$type} = { new => \@new_values, old => \@old_values };
             }
         }
     }
@@ -187,6 +189,11 @@ sub build_display_data
         }
     }
 
+    if (exists $display->{type}) {
+        $display->{type}{old} = to_json_object($display->{type}{old});
+        $display->{type}{new} = to_json_object($display->{type}{new});
+    }
+
     return $display;
 }
 
@@ -195,7 +202,6 @@ around allow_auto_edit => sub {
 
     return 1 if $self->can_amend($self->entity_id);
 
-    return 0 if defined $self->data->{old}{language_id};
     return 0 if @{ $self->data->{old}{languages} // [] };
 
     return 0 if !$self->$orig(@args);

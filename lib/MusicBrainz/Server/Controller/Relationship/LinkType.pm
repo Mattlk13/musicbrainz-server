@@ -8,6 +8,7 @@ use List::UtilsBy qw( partition_by sort_by );
 use MusicBrainz::Server::Data::Relationship;
 use MusicBrainz::Server::Data::Utils qw( partial_date_to_hash type_to_model );
 use MusicBrainz::Server::Constants qw(
+    :direction
     $EDIT_RELATIONSHIP_ADD_TYPE
     $EDIT_RELATIONSHIP_EDIT_LINK_TYPE
     $EDIT_RELATIONSHIP_REMOVE_LINK_TYPE
@@ -21,7 +22,22 @@ with 'MusicBrainz::Server::Controller::Role::Load' => {
 
 sub base : Chained('/') PathPart('relationship') CaptureArgs(0) { }
 
-sub index : Path('/relationships') Args(0)
+sub show : PathPart('') Chained('load')
+{
+    my ($self, $c) = @_;
+
+    my $relationship_type = $c->stash->{link_type};
+
+    $c->model('LinkAttributeType')->load($relationship_type->all_attributes);
+    $c->model('LinkType')->load_documentation($relationship_type);
+    $c->stash(
+        component_path  => 'relationship/linktype/RelationshipTypeIndex',
+        component_props => { relType => $relationship_type->TO_JSON },
+        current_view => 'Node',
+    );
+}
+
+sub list : Path('/relationships') Args(0)
 {
     my ($self, $c) = @_;
 
@@ -30,9 +46,15 @@ sub index : Path('/relationships') Args(0)
 
     my @types = sort keys %by_second_type;
 
-    $c->stash(
+    my %props = (
         types => \@types,
         table => [ map { [ sort_by { $_->[0] } @{ $by_second_type{$_} } ] } @types ]
+    );
+
+    $c->stash(
+        component_path  => 'relationship/linktype/RelationshipTypesList',
+        component_props => \%props,
+        current_view    => 'Node',
     );
 }
 
@@ -67,9 +89,13 @@ sub tree : Chained('type_specific') PathPart('')
 {
     my ($self, $c) = @_;
 
+    my $root = $c->model('LinkType')->get_tree($c->stash->{type0},
+                                                $c->stash->{type1});
+
     $c->stash(
-        root => $c->model('LinkType')->get_tree($c->stash->{type0},
-                                                $c->stash->{type1})
+        component_path  => 'relationship/linktype/RelationshipTypePairTree',
+        component_props => {root => $root->TO_JSON},
+        current_view    => 'Node',
     );
 }
 
@@ -105,7 +131,7 @@ sub create : Chained('type_specific') PathPart('create') RequireAuth(relationshi
     );
     $form->field('parent_id')->_load_options;
 
-    if ($c->form_posted && $form->process( params => $c->req->params )) {
+    if ($c->form_posted_and_valid($form)) {
         my $values = { map { $_->name => $_->value } $form->edit_fields };
         $values->{entity0_type} = $c->stash->{type0};
         $values->{entity1_type} = $c->stash->{type1};
@@ -164,6 +190,7 @@ sub edit : Chained('load') RequireAuth(relationship_editor)
             min => $_->{min},
             max => $_->{max},
             type => $_->{type},
+            name => $attrib_names{$_->{type}},
         }, grep { $_->{active} } @{ $old_values->{attributes} }
     ];
 
@@ -193,7 +220,12 @@ sub edit : Chained('load') RequireAuth(relationship_editor)
 
         if ($valid) {
             my $values = { map { $_->name => $_->value } $form->edit_fields };
-            $values->{attributes} = $self->_get_attribute_values($form);
+            $values->{attributes} = [
+                map {
+                    my %attr = (%{$_}, name => $attrib_names{$_->{type}});
+                    \%attr
+                } @{ $self->_get_attribute_values($form) }
+            ];
 
             # Inflate the provided example relationships so we have sufficient
             # information for edit history.
@@ -206,7 +238,7 @@ sub edit : Chained('load') RequireAuth(relationship_editor)
 
                 # We have to store relationships in the forward direction.
                 my ($e0, $e1) =
-                    $relationship->direction == $MusicBrainz::Server::Entity::Relationship::DIRECTION_FORWARD
+                    $relationship->direction == $DIRECTION_FORWARD
                         ? ($relationship->entity0, $relationship->entity1)
                         : ($relationship->entity1, $relationship->entity0);
 
@@ -263,26 +295,30 @@ sub edit : Chained('load') RequireAuth(relationship_editor)
                 );
             });
 
-            $c->response->redirect($c->uri_for_action('/doc/relationship_type', [ $link_type->gid ]));
+            $c->response->redirect($c->uri_for_action('/relationship/linktype/show', [ $link_type->gid ]));
             $c->detach;
         }
     }
 }
 
-sub delete : Chained('load') RequireAuth(relationship_editor)
+sub delete : Chained('load') RequireAuth(relationship_editor) SecureForm
 {
     my ($self, $c, $gid) = @_;
 
     my $link_type = $c->stash->{link_type};
 
     if ($c->model('LinkType')->in_use($link_type->id)) {
-        $c->stash( template => 'relationship/linktype/in_use.tt' );
+        $c->stash(
+            component_path  => 'relationship/linktype/RelationshipTypeInUse',
+            component_props => {type => $link_type->TO_JSON},
+            current_view    => 'Node',
+        );
         $c->detach;
     }
 
-    my $form = $c->form( form => 'Confirm' );
+    my $form = $c->form( form => 'SecureConfirm' );
 
-    if ($c->form_posted && $form->process( params => $c->req->params )) {
+    if ($c->form_posted_and_valid($form)) {
         $c->model('MB')->with_transaction(sub {
             $self->_insert_edit(
                 $c, $form,
@@ -311,23 +347,13 @@ sub delete : Chained('load') RequireAuth(relationship_editor)
 
 1;
 
-=head1 COPYRIGHT
+=head1 COPYRIGHT AND LICENSE
 
 Copyright (C) 2009 Lukas Lalinsky
 Copyright (C) 2011 MetaBrainz Foundation
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program; if not, write to the Free Software
-Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+This file is part of MusicBrainz, the open internet music database,
+and is licensed under the GPL version 2, or (at your option) any
+later version: http://www.gnu.org/licenses/gpl-2.0.txt
 
 =cut

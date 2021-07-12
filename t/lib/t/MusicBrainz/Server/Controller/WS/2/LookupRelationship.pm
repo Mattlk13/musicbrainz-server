@@ -25,16 +25,20 @@ ws_test 'artist lookup with url relationships',
         <name>Distance</name><sort-name>Distance</sort-name><disambiguation>UK dubstep artist Greg Sanders</disambiguation>
         <relation-list target-type="url">
             <relation type-id="eb535226-f8ca-499d-9b18-6a144df4ae6f" type="blog">
+                <direction>forward</direction>
                 <target id="5eb2c075-3c3b-4cf7-ab77-2dacaee19366">http://dj-distance.blogspot.com/</target>
             </relation>
-            <relation type-id="29651736-fa6d-48e4-aadc-a557c6add1cb" type="wikipedia">
-                <target id="651248e8-6a8f-4365-948a-aa43559caf58">http://en.wikipedia.org/wiki/Distance_(musician)</target>
-            </relation>
             <relation type-id="04a5b104-a4c2-4bac-99a1-7b837c37d9e4" type="discogs">
+                <direction>forward</direction>
                 <target id="03e3d0be-d336-447e-b7da-06d0adcd15cd">http://www.discogs.com/artist/DJ+Distance</target>
             </relation>
             <relation type-id="bac47923-ecde-4b59-822e-d08f0cd10156" type="myspace">
+                <direction>forward</direction>
                 <target id="63854ab2-4804-481f-8b07-e2cbe8192c0f">http://www.myspace.com/djdistancedub</target>
+            </relation>
+            <relation type-id="29651736-fa6d-48e4-aadc-a557c6add1cb" type="wikipedia">
+                <direction>forward</direction>
+                <target id="651248e8-6a8f-4365-948a-aa43559caf58">http://en.wikipedia.org/wiki/Distance_(musician)</target>
             </relation>
         </relation-list>
     </artist>
@@ -52,6 +56,7 @@ ws_test 'artist lookup with non-url relationships',
         <relation-list target-type="recording">
             <relation type-id="0fdbe3c6-7700-4a31-ae54-b53f06ae1cfa" type="vocal">
                 <target>0cf3008f-e246-428f-abc1-35f87d584d60</target>
+                <direction>forward</direction>
                 <attribute-list><attribute type-id="b3045913-62ac-433e-9211-ac683cdf6b5c">guest</attribute></attribute-list>
                 <recording id="0cf3008f-e246-428f-abc1-35f87d584d60">
                     <title>the Love Bug</title><length>243000</length>
@@ -97,6 +102,7 @@ ws_test 'release lookup with release relationships',
         <relation-list target-type="release">
             <relation type-id="fc399d47-23a7-4c28-bfcf-0607a562b644" type="transl-tracklisting">
                 <target>b3b7e934-445b-4c68-a097-730c6a6d47e6</target>
+                <direction>forward</direction>
                 <release id="b3b7e934-445b-4c68-a097-730c6a6d47e6">
                     <title>Summer Reggae! Rainbow</title>
                     <text-representation>
@@ -115,7 +121,7 @@ ws_test 'release lookup with release relationships',
                       </release-event>
                     </release-event-list>
                     <barcode>4942463511227</barcode>
-                    <quality>normal</quality>
+                    <quality>high</quality>
                 </release>
             </relation>
         </relation-list>
@@ -130,30 +136,31 @@ ws_test 'recording lookup with artist relationships and credits',
         <title>the Love Bug</title><length>243000</length>
         <artist-credit>
             <name-credit joinphrase="♥">
-                <artist id="22dd2db3-88ea-4428-a7a8-5cd3acf23175">
+                <artist id="22dd2db3-88ea-4428-a7a8-5cd3acf23175" type="Group" type-id="e431f5f6-b5d2-343d-8b36-72607fffb74b">
                     <name>m-flo</name>
                     <sort-name>m-flo</sort-name>
                 </artist>
             </name-credit>
             <name-credit>
-                <artist id="a16d1433-ba89-4f72-a47b-a370add0bb55">
+                <artist id="a16d1433-ba89-4f72-a47b-a370add0bb55" type="Person" type-id="b6e035f4-3ce9-331c-97df-83397230b0df">
                   <name>BoA</name>
                   <sort-name>BoA</sort-name>
                 </artist>
             </name-credit>
         </artist-credit>
+        <first-release-date>2004-03-17</first-release-date>
         <relation-list target-type="artist">
             <relation type-id="5c0ceac3-feb4-41f0-868d-dc06f6e27fc0" type="producer">
                 <target>22dd2db3-88ea-4428-a7a8-5cd3acf23175</target>
                 <direction>backward</direction>
-                <artist id="22dd2db3-88ea-4428-a7a8-5cd3acf23175">
+                <artist id="22dd2db3-88ea-4428-a7a8-5cd3acf23175" type="Group" type-id="e431f5f6-b5d2-343d-8b36-72607fffb74b">
                     <name>m-flo</name><sort-name>m-flo</sort-name>
                 </artist>
             </relation>
             <relation type-id="36c50022-44e0-488d-994b-33f11d20301e" type="programming">
                 <target>22dd2db3-88ea-4428-a7a8-5cd3acf23175</target>
                 <direction>backward</direction>
-                <artist id="22dd2db3-88ea-4428-a7a8-5cd3acf23175">
+                <artist id="22dd2db3-88ea-4428-a7a8-5cd3acf23175" type="Group" type-id="e431f5f6-b5d2-343d-8b36-72607fffb74b">
                     <name>m-flo</name><sort-name>m-flo</sort-name>
                 </artist>
             </relation>
@@ -161,7 +168,7 @@ ws_test 'recording lookup with artist relationships and credits',
                 <target>a16d1433-ba89-4f72-a47b-a370add0bb55</target>
                 <direction>backward</direction>
                 <attribute-list><attribute type-id="b3045913-62ac-433e-9211-ac683cdf6b5c">guest</attribute></attribute-list>
-                <artist id="a16d1433-ba89-4f72-a47b-a370add0bb55">
+                <artist id="a16d1433-ba89-4f72-a47b-a370add0bb55" type="Person" type-id="b6e035f4-3ce9-331c-97df-83397230b0df">
                     <name>BoA</name><sort-name>BoA</sort-name>
                 </artist>
             </relation>
@@ -183,17 +190,21 @@ ws_test 'label lookup with label and url relationships',
             </iso-3166-1-code-list>
         </area>
         <relation-list target-type="url">
+            <relation type-id="5b987f87-25bc-4a2d-b3f1-3618795b8207" type="discogs">
+                <direction>forward</direction>
+                <target id="baaf9d35-392a-407a-b1bb-564015b146c6">http://www.discogs.com/label/Rhythm+Zone</target>
+            </relation>
+            <relation type-id="fe108f43-acb9-4ad1-8be3-57e6ec5b17b6" type="official site">
+                <direction>forward</direction>
+                <target id="2a545d02-5447-4f16-a9c5-6239d98ea3f0">http://rzn.jp/</target>
+            </relation>
             <relation type-id="51e9db21-8864-49b3-aa58-470d7b81fa50" type="wikipedia">
+                <direction>forward</direction>
                 <target id="4e5f8e53-a6fc-46e2-8fe4-2b3192be57e1">http://en.wikipedia.org/wiki/Rhythm_Zone</target>
             </relation>
             <relation type-id="51e9db21-8864-49b3-aa58-470d7b81fa50" type="wikipedia">
+                <direction>forward</direction>
                 <target id="e697226c-7752-47d5-9192-5722babd9c32">http://ja.wikipedia.org/wiki/Rhythm_zone</target>
-            </relation>
-            <relation type-id="fe108f43-acb9-4ad1-8be3-57e6ec5b17b6" type="official site">
-                <target id="2a545d02-5447-4f16-a9c5-6239d98ea3f0">http://rzn.jp/</target>
-            </relation>
-            <relation type-id="5b987f87-25bc-4a2d-b3f1-3618795b8207" type="discogs">
-                <target id="baaf9d35-392a-407a-b1bb-564015b146c6">http://www.discogs.com/label/Rhythm+Zone</target>
             </relation>
         </relation-list>
     </label>
@@ -209,9 +220,11 @@ ws_test 'release group lookup with url relationships',
         <primary-type id="d6038452-8ee0-3f68-affc-2de9a1ede0b9">Single</primary-type>
         <relation-list target-type="url">
             <relation type-id="6578f0e9-1ace-4095-9de8-6e517ddb1ceb" type="wikipedia">
+                <direction>forward</direction>
                 <target id="5e766c4e-16dd-47f2-b032-d96ef23c0cf1">http://en.wikipedia.org/wiki/The_Love_Bug_(song)</target>
             </relation>
             <relation type-id="6578f0e9-1ace-4095-9de8-6e517ddb1ceb" type="wikipedia">
+                <direction>forward</direction>
                 <target id="dff9a8ca-2029-4818-92d4-d45b91484b0a">http://ja.wikipedia.org/wiki/The_Love_Bug</target>
             </relation>
         </relation-list>
@@ -265,12 +278,14 @@ ws_test 'release lookup with recording-level relationships',
                             <length>256666</length>
                             <relation-list target-type="work">
                                 <relation type-id="a3005666-a872-32c3-ad06-98af558e99b0" type="performance">
+                                    <direction>forward</direction>
                                     <target>e8d55116-1ea6-339a-a059-228d71c2f27d</target>
                                     <work id="e8d55116-1ea6-339a-a059-228d71c2f27d">
                                         <title>Reverend Charisma</title>
                                     </work>
                                 </relation>
                             </relation-list>
+                            <first-release-date>2008-04-29</first-release-date>
                         </recording>
                     </track>
                     <track id="5a0b7a30-4297-3cda-ba0f-2547c4b7ae9b">
@@ -282,11 +297,13 @@ ws_test 'release lookup with recording-level relationships',
                             <relation-list target-type="work">
                                 <relation type-id="a3005666-a872-32c3-ad06-98af558e99b0" type="performance">
                                     <target>2cd04f80-fbd7-343f-8499-bf0028f0f530</target>
+                                    <direction>forward</direction>
                                     <work id="2cd04f80-fbd7-343f-8499-bf0028f0f530">
                                         <title>Dear Diary</title>
                                     </work>
                                 </relation>
                             </relation-list>
+                            <first-release-date>2008-04-29</first-release-date>
                         </recording>
                     </track>
                     <track id="a5b038bf-6e36-362b-9397-9cecda03e9bc">
@@ -298,11 +315,13 @@ ws_test 'release lookup with recording-level relationships',
                             <relation-list target-type="work">
                                 <relation type-id="a3005666-a872-32c3-ad06-98af558e99b0" type="performance">
                                     <target>b07e71c7-1cc7-3c6f-8c31-22be30a472dd</target>
+                                    <direction>forward</direction>
                                     <work id="b07e71c7-1cc7-3c6f-8c31-22be30a472dd">
                                         <title>Black Sundress</title>
                                     </work>
                                 </relation>
                             </relation-list>
+                            <first-release-date>2008-04-29</first-release-date>
                         </recording>
                     </track>
                     <track id="7c66606c-8a1b-3407-a856-21e4622da140">
@@ -314,11 +333,13 @@ ws_test 'release lookup with recording-level relationships',
                             <relation-list target-type="work">
                                 <relation type-id="a3005666-a872-32c3-ad06-98af558e99b0" type="performance">
                                     <target>c4a1c334-ccd3-37df-b248-40653cefb181</target>
+                                    <direction>forward</direction>
                                     <work id="c4a1c334-ccd3-37df-b248-40653cefb181">
                                         <title>Allegiance?WTF?</title>
                                     </work>
                                 </relation>
                             </relation-list>
+                            <first-release-date>2008-04-29</first-release-date>
                         </recording>
                     </track>
                     <track id="2d11d4ec-b9c0-3bfe-86d9-df5034e2522e">
@@ -330,11 +351,13 @@ ws_test 'release lookup with recording-level relationships',
                             <relation-list target-type="work">
                                 <relation type-id="a3005666-a872-32c3-ad06-98af558e99b0" type="performance">
                                     <target>b26203e5-73cb-3579-b575-a12d8b3f8209</target>
+                                    <direction>forward</direction>
                                     <work id="b26203e5-73cb-3579-b575-a12d8b3f8209">
                                         <title>Maggie&amp;Heidi</title>
                                     </work>
                                 </relation>
                             </relation-list>
+                            <first-release-date>2008-04-29</first-release-date>
                         </recording>
                     </track>
                     <track id="3ec79596-482b-3d1b-8f48-325a1b332366">
@@ -343,6 +366,7 @@ ws_test 'release lookup with recording-level relationships',
                         <recording id="9815c3e5-f842-41c2-bb5c-bcd0dd97dbe5">
                             <title>Discopharma</title>
                             <length>236666</length>
+                            <first-release-date>2008-04-29</first-release-date>
                         </recording>
                     </track>
                     <track id="baaa07d9-6c32-31e6-bbea-1796fd79a8f1">
@@ -354,11 +378,13 @@ ws_test 'release lookup with recording-level relationships',
                             <relation-list target-type="work">
                                 <relation type-id="a3005666-a872-32c3-ad06-98af558e99b0" type="performance">
                                     <target>9c38c012-9b30-30a2-a2fb-4b44afdc3973</target>
+                                    <direction>forward</direction>
                                     <work id="9c38c012-9b30-30a2-a2fb-4b44afdc3973">
                                         <title>Still Unsatisfied</title>
                                     </work>
                                 </relation>
                             </relation-list>
+                            <first-release-date>2008-04-29</first-release-date>
                         </recording>
                     </track>
                     <track id="61add1a9-5a53-3eb3-afa6-fb503998a909">
@@ -370,6 +396,7 @@ ws_test 'release lookup with recording-level relationships',
                             <relation-list target-type="work">
                                 <relation type-id="a3005666-a872-32c3-ad06-98af558e99b0" type="performance">
                                     <target>f5cdd40d-6dc3-358b-8d7d-22dd9d8f87a8</target>
+                                    <direction>forward</direction>
                                     <work id="f5cdd40d-6dc3-358b-8d7d-22dd9d8f87a8">
                                         <title>Asseswaving</title>
                                         <language>jpn</language>
@@ -380,7 +407,7 @@ ws_test 'release lookup with recording-level relationships',
                                             <relation type-id="d59d99ea-23d4-4a80-b066-edca32ee158f" type="composer">
                                                 <target>472bc127-8861-45e8-bc9e-31e8dd32de7a</target>
                                                 <direction>backward</direction>
-                                                <artist id="472bc127-8861-45e8-bc9e-31e8dd32de7a">
+                                                <artist id="472bc127-8861-45e8-bc9e-31e8dd32de7a" type="Person" type-id="b6e035f4-3ce9-331c-97df-83397230b0df">
                                                     <name>Distance</name>
                                                     <sort-name>Distance</sort-name>
                                                     <disambiguation>UK dubstep artist Greg Sanders</disambiguation>
@@ -390,6 +417,7 @@ ws_test 'release lookup with recording-level relationships',
                                     </work>
                                 </relation>
                             </relation-list>
+                            <first-release-date>2008-04-29</first-release-date>
                         </recording>
                     </track>
                     <track id="8cef791e-3363-3c36-8b29-1f5dd2982902">
@@ -398,6 +426,7 @@ ws_test 'release lookup with recording-level relationships',
                         <recording id="15918f5f-20b1-4e1a-888d-8762790017a9">
                             <title>Just Because</title>
                             <length>249653</length>
+                            <first-release-date>2008-04-29</first-release-date>
                         </recording>
                     </track>
                 </track-list>
@@ -415,9 +444,11 @@ ws_test 'recording lookup with work-level relationships',
     <recording id="4878bc36-7306-497a-b45a-561d9f7f8573">
         <title>Asseswaving</title>
         <length>274666</length>
+        <first-release-date>2008-04-29</first-release-date>
         <relation-list target-type="work">
             <relation type-id="a3005666-a872-32c3-ad06-98af558e99b0" type="performance">
                 <target>f5cdd40d-6dc3-358b-8d7d-22dd9d8f87a8</target>
+                <direction>forward</direction>
                 <work id="f5cdd40d-6dc3-358b-8d7d-22dd9d8f87a8">
                     <title>Asseswaving</title>
                     <language>jpn</language>
@@ -428,7 +459,7 @@ ws_test 'recording lookup with work-level relationships',
                         <relation type-id="d59d99ea-23d4-4a80-b066-edca32ee158f" type="composer">
                             <target>472bc127-8861-45e8-bc9e-31e8dd32de7a</target>
                             <direction>backward</direction>
-                            <artist id="472bc127-8861-45e8-bc9e-31e8dd32de7a">
+                            <artist id="472bc127-8861-45e8-bc9e-31e8dd32de7a" type="Person" type-id="b6e035f4-3ce9-331c-97df-83397230b0df">
                                 <name>Distance</name>
                                 <sort-name>Distance</sort-name>
                                 <disambiguation>UK dubstep artist Greg Sanders</disambiguation>
@@ -449,6 +480,7 @@ ws_test 'recording lookup with instrument credit',
     <recording id="0982e813-a279-482c-8057-285d07372fb9">
         <title>Orange Wedge</title>
         <length>186826</length>
+        <first-release-date>1999-06-21</first-release-date>
         <relation-list target-type="artist">
             <relation type-id="59054b12-01ac-43ee-a618-285fd397e461" type="instrument">
                 <target>97fa3f6e-557c-4227-bc0e-95a7f9f3285d</target>

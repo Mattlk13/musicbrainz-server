@@ -1,5 +1,5 @@
 /*
- * @flow
+ * @flow strict-local
  * Copyright (C) 2018 MetaBrainz Foundation
  *
  * This file is part of MusicBrainz, the open internet music database,
@@ -9,8 +9,9 @@
 
 import * as React from 'react';
 
-import {withCatalystContext} from '../../../context';
-import CommonsImage from '../../../static/scripts/common/components/CommonsImage';
+import {CatalystContext} from '../../../context';
+import CommonsImage
+  from '../../../static/scripts/common/components/CommonsImage';
 import linkedEntities from '../../../static/scripts/common/linkedEntities';
 import ExternalLinks from '../ExternalLinks';
 
@@ -25,13 +26,12 @@ import SidebarTags from './SidebarTags';
 import SidebarType from './SidebarType';
 import SubscriptionLinks from './SubscriptionLinks';
 
-type Props = {|
-  +$c: CatalystContextT,
+type Props = {
   +series: SeriesT,
-|};
+};
 
-const SeriesSidebar = ({$c, series}: Props) => {
-  const gid = encodeURIComponent(series.gid);
+const SeriesSidebar = ({series}: Props): React.Element<'div'> => {
+  const $c = React.useContext(CatalystContext);
 
   return (
     <div id="sidebar">
@@ -47,19 +47,18 @@ const SeriesSidebar = ({$c, series}: Props) => {
       <SidebarProperties>
         <SidebarType entity={series} typeType="series_type" />
 
-        <SidebarProperty className="series-code" label={addColonText(l('Ordering Type'))}>
-          {l_attributes(
+        <SidebarProperty
+          className="series-code"
+          label={addColonText(l('Ordering Type'))}
+        >
+          {lp_attributes(
             linkedEntities.series_ordering_type[series.orderingTypeID].name,
+            'series_ordering_type',
           )}
         </SidebarProperty>
       </SidebarProperties>
 
-      <SidebarTags
-        aggregatedTags={$c.stash.top_tags}
-        entity={series}
-        more={!!$c.stash.more_tags}
-        userTags={$c.stash.user_tags}
-      />
+      <SidebarTags entity={series} />
 
       <ExternalLinks empty entity={series} />
 
@@ -82,4 +81,4 @@ const SeriesSidebar = ({$c, series}: Props) => {
   );
 };
 
-export default withCatalystContext(SeriesSidebar);
+export default SeriesSidebar;

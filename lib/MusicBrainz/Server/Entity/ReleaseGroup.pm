@@ -6,6 +6,7 @@ use DBDefs;
 use List::AllUtils qw( any );
 use MusicBrainz::Server::Entity::PartialDate;
 use MusicBrainz::Server::Entity::Types;
+use MusicBrainz::Server::Entity::Util::JSON qw( to_json_object );
 
 extends 'MusicBrainz::Server::Entity::CoreEntity';
 with 'MusicBrainz::Server::Entity::Role::Taggable';
@@ -124,7 +125,7 @@ around TO_JSON => sub {
 
     return {
         %{ $self->$orig },
-        $self->has_cover_art ? (cover_art => $self->cover_art) : (),
+        $self->has_cover_art ? (cover_art => to_json_object($self->cover_art)) : (),
         firstReleaseDate    => $self->first_release_date ? $self->first_release_date->format : undef,
         # TODO: remove this once Autocomplete.js can use $c and releaseGroupType.js
         l_type_name         => $self->l_type_name,
@@ -140,22 +141,12 @@ __PACKAGE__->meta->make_immutable;
 no Moose;
 1;
 
-=head1 COPYRIGHT
+=head1 COPYRIGHT AND LICENSE
 
 Copyright (C) 2009 Lukas Lalinsky
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program; if not, write to the Free Software
-Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+This file is part of MusicBrainz, the open internet music database,
+and is licensed under the GPL version 2, or (at your option) any
+later version: http://www.gnu.org/licenses/gpl-2.0.txt
 
 =cut

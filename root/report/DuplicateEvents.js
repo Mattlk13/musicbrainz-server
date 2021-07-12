@@ -1,5 +1,5 @@
 /*
- * @flow
+ * @flow strict-local
  * Copyright (C) 2018 MetaBrainz Foundation
  *
  * This file is part of MusicBrainz, the open internet music database,
@@ -9,47 +9,33 @@
 
 import * as React from 'react';
 
-import {withCatalystContext} from '../context';
-import Layout from '../layout';
-import formatUserDate from '../utility/formatUserDate';
-
 import EventList from './components/EventList';
-import FilterLink from './FilterLink';
+import ReportLayout from './components/ReportLayout';
 import type {ReportDataT, ReportEventT} from './types';
 
 const DuplicateEvents = ({
-  $c,
   canBeFiltered,
   filtered,
   generated,
   items,
   pager,
-}: ReportDataT<ReportEventT>) => (
-  <Layout fullWidth title={l('Possible duplicate events')}>
-    <h1>{l('Possible duplicate events')}</h1>
-
-    <ul>
-      <li>
-        {l(`This report lists events happening at the same place
-            on the same date. If there are duplicates (for example,
-            if there are separate events for headliner and supporting artist)
-            please merge them.`)}
-      </li>
-      <li>
-        {texp.l('Total events found: {count}',
-                {count: pager.total_entries})}
-      </li>
-      <li>
-        {texp.l('Generated on {date}',
-                {date: formatUserDate($c.user, generated)})}
-      </li>
-
-      {canBeFiltered ? <FilterLink filtered={filtered} /> : null}
-    </ul>
-
+}: ReportDataT<ReportEventT>): React.Element<typeof ReportLayout> => (
+  <ReportLayout
+    canBeFiltered={canBeFiltered}
+    description={l(
+      `This report lists events happening at the same place
+       on the same date. If there are duplicates (for example,
+       if there are separate events for headliner and supporting artist)
+       please merge them.`,
+    )}
+    entityType="event"
+    filtered={filtered}
+    generated={generated}
+    title={l('Possible duplicate events')}
+    totalEntries={pager.total_entries}
+  >
     <EventList items={items} pager={pager} />
-
-  </Layout>
+  </ReportLayout>
 );
 
-export default withCatalystContext(DuplicateEvents);
+export default DuplicateEvents;

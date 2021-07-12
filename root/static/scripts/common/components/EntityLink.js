@@ -1,9 +1,10 @@
 /*
  * @flow
- * This file is part of MusicBrainz, the open internet music database.
  * Copyright (C) 2015–2016 MetaBrainz Foundation
- * Licensed under the GPL version 2, or (at your option) any later version:
- * http://www.gnu.org/licenses/gpl-2.0.txt
+ *
+ * This file is part of MusicBrainz, the open internet music database,
+ * and is licensed under the GPL version 2, or (at your option) any
+ * later version: http://www.gnu.org/licenses/gpl-2.0.txt
  */
 
 import ko from 'knockout';
@@ -15,19 +16,28 @@ import bracketed, {bracketedText} from '../utility/bracketed';
 import entityHref from '../utility/entityHref';
 import formatDatePeriod from '../utility/formatDatePeriod';
 import isolateText from '../utility/isolateText';
-import nonEmpty from '../utility/nonEmpty';
-import reactTextContent from '../utility/reactTextContent';
+import isGreyedOut from '../../../../url/utility/isGreyedOut';
+
+type DeletedLinkProps = {
+  +allowNew: boolean,
+  +deletedCaption?: string,
+  +name: ?Expand2ReactOutput,
+};
 
 export const DeletedLink = ({
   allowNew,
+  deletedCaption,
   name,
-}: {|+allowNew: boolean, +name: React.Node|}) => {
-  const caption = allowNew
+}: DeletedLinkProps): React.Element<'span'> => {
+  const caption = deletedCaption || (allowNew
     ? l('This entity will be created by this edit.')
-    : l('This entity has been removed, and cannot be displayed correctly.');
+    : l('This entity has been removed, and cannot be displayed correctly.'));
 
   return (
-    <span className={(allowNew ? '' : 'deleted ') + 'tooltip'} title={caption}>
+    <span
+      className={(allowNew ? '' : 'deleted ') + 'tooltip'}
+      title={caption}
+    >
       {isolateText(name || l('[removed]'))}
     </span>
   );
@@ -36,7 +46,7 @@ export const DeletedLink = ({
 const Comment = ({
   className,
   comment,
-}: {|+className: string, +comment: string|}) => (
+}: {+className: string, +comment: string}) => (
   <>
     {' '}
     <span className={className}>
@@ -48,7 +58,7 @@ const Comment = ({
 const EventDisambiguation = ({
   event,
   showDate,
-}: {|+event: EventT, +showDate: boolean|}) => {
+}: {+event: EventT, +showDate: boolean}) => {
   const dates = formatDatePeriod(event);
   if ((!dates || !showDate) && !event.cancelled) {
     return null;
@@ -63,7 +73,7 @@ const EventDisambiguation = ({
   );
 };
 
-const AreaDisambiguation = ({area}: {|+area: AreaT|}) => {
+const AreaDisambiguation = ({area}: {+area: AreaT}) => {
   if (!area.ended) {
     return null;
   }
@@ -86,9 +96,19 @@ const AreaDisambiguation = ({area}: {|+area: AreaT|}) => {
   return <Comment className="historical" comment={comment} />;
 };
 
-const NoInfoURL = ({allowNew, url}: {|+allowNew: boolean, +url: string|}) => (
+const disabledLinkText = N_l(`This link has been temporarily disabled because
+                              it has been reported as potentially harmful.`);
+
+const NoInfoURL = ({allowNew, url}: {+allowNew: boolean, +url: string}) => (
   <>
-    <a href={url}>{url}</a>
+    {isGreyedOut(url) ? (
+      <span
+        className="deleted"
+        title={disabledLinkText()}
+      >
+        {isolateText(url)}
+      </span>
+    ) : <a href={url}>{url}</a>}
     {' '}
     <DeletedLink
       allowNew={allowNew}
@@ -100,13 +120,17 @@ const NoInfoURL = ({allowNew, url}: {|+allowNew: boolean, +url: string|}) => (
 /* eslint-disable sort-keys, flowtype/sort-keys */
 type EntityLinkProps = {
   +allowNew?: boolean,
-  +content?: React.Node,
-  +entity: CoreEntityT | CollectionT,
+  +content?: ?Expand2ReactOutput,
+  +deletedCaption?: string,
+  +disableLink?: boolean,
+  +entity: CoreEntityT | CollectionT | LinkTypeT,
   +hover?: string,
-  +showEditsPending?: boolean,
-  +showEventDate?: boolean,
+  +nameVariation?: boolean,
+  +showCaaPresence?: boolean,
   +showDeleted?: boolean,
   +showDisambiguation?: boolean,
+  +showEditsPending?: boolean,
+  +showEventDate?: boolean,
   +subPath?: string,
 
   // ...anchorProps
@@ -119,15 +143,20 @@ type EntityLinkProps = {
 const EntityLink = ({
   allowNew = false,
   content,
+  deletedCaption,
+  disableLink = false,
   entity,
   hover,
-  showEditsPending = true,
-  showEventDate = true,
+  nameVariation,
+  showCaaPresence,
   showDeleted = true,
   showDisambiguation,
+  showEditsPending = true,
+  showEventDate = true,
   subPath,
   ...anchorProps
-}: EntityLinkProps) => {
+}: EntityLinkProps):
+$ReadOnlyArray<Expand2ReactOutput> | Expand2ReactOutput | null => {
   const hasCustomContent = nonEmpty(content);
   const comment = entity.comment ? ko.unwrap(entity.comment) : '';
 
@@ -143,6 +172,8 @@ const EntityLink = ({
     content = content || localizeAreaName(entity);
   } else if (entity.entityType === 'instrument') {
     content = content || localizeInstrumentName(entity);
+  } else if (entity.entityType === 'link_type') {
+    content = content || l_relationships(entity.name);
   }
 
   content = content || ko.unwrap(entity.name);
@@ -152,13 +183,18 @@ const EntityLink = ({
       return <NoInfoURL allowNew={allowNew} url={entity.href_url} />;
     }
     if (showDeleted) {
-      return <DeletedLink allowNew={allowNew} name={content} />;
+      return (
+        <DeletedLink
+          allowNew={allowNew}
+          deletedCaption={deletedCaption}
+          name={content}
+        />
+      );
     }
     return null;
   }
 
   let href = entityHref(entity, subPath);
-  let nameVariation;
   let infoLink;
 
   if (entity.entityType === 'url' && !hasCustomContent) {
@@ -167,14 +203,11 @@ const EntityLink = ({
     href = entity.href_url;
   }
 
-  // TODO: support name variations for all entity types?
-  if (!subPath &&
-      (entity.entityType === 'artist' || entity.entityType === 'recording')) {
-    nameVariation = (
-      React.isValidElement(content)
-        ? reactTextContent(content)
-        : content
-    ) !== entity.name;
+  // URLs are kind of weird and we probably don't care to set this for them
+  if (!subPath && entity.entityType !== 'url') {
+    if (nameVariation === undefined && typeof content === 'string') {
+      nameVariation = content !== entity.name;
+    }
 
     if (nameVariation) {
       if (hover) {
@@ -192,7 +225,17 @@ const EntityLink = ({
   if (hover) {
     anchorProps.title = hover;
   }
-  content = <a key="link" {...anchorProps}>{isolateText(content)}</a>;
+  content = disableLink
+    ? (
+      <span
+        className="deleted"
+        title={entity.entityType === 'url' && isGreyedOut(href)
+          ? disabledLinkText()
+          : null}
+      >
+        {isolateText(content)}
+      </span>
+    ) : <a key="link" {...anchorProps}>{isolateText(content)}</a>;
 
   if (nameVariation) {
     content = (
@@ -224,6 +267,52 @@ const EntityLink = ({
         {content}
       </>
     );
+  }
+
+  if (showCaaPresence &&
+    entity.entityType === 'release' &&
+    entity.cover_art_presence === 'present') {
+    content = (
+      <>
+        <a href={'/release/' + entity.gid + '/cover-art'}>
+          <span
+            className="caa-icon"
+            title={l('This release has artwork in the Cover Art Archive')}
+          />
+        </a>
+        {content}
+      </>
+    );
+  }
+
+  if (!subPath && entity.entityType === 'release') {
+    if (entity.quality === 2) {
+      content = (
+        <>
+          <span
+            className="high-data-quality"
+            title={l(
+              `High quality: All available data has been added, if possible
+               including cover art with liner info that proves it`,
+            )}
+          />
+          {content}
+        </>
+      );
+    } else if (entity.quality === 0) {
+      content = (
+        <>
+          <span
+            className="low-data-quality"
+            title={l(
+              `Low quality: The release needs serious fixes, or its existence
+               is hard to prove (but it’s not clearly fake)`,
+            )}
+          />
+          {content}
+        </>
+      );
+    }
   }
 
   if (!showDisambiguation && !infoLink) {
@@ -262,7 +351,7 @@ const EntityLink = ({
     );
   }
 
-  return parts;
+  return React.createElement(React.Fragment, null, ...parts);
 };
 
 export default EntityLink;

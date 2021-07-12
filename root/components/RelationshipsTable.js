@@ -1,5 +1,5 @@
 /*
- * @flow
+ * @flow strict-local
  * Copyright (C) 2019 MetaBrainz Foundation
  *
  * This file is part of MusicBrainz, the open internet music database,
@@ -11,163 +11,349 @@ import * as React from 'react';
 
 import EntityLink from '../static/scripts/common/components/EntityLink';
 import loopParity from '../utility/loopParity';
-import generateRelationshipAppearancesList
-  from '../utility/generateRelationshipAppearancesList';
 import ArtistCreditLink
   from '../static/scripts/common/components/ArtistCreditLink';
+import {compare} from '../static/scripts/common/i18n';
 import commaList from '../static/scripts/common/i18n/commaList';
+import linkedEntities from '../static/scripts/common/linkedEntities';
 import formatDatePeriod
   from '../static/scripts/common/utility/formatDatePeriod';
 import formatTrackLength
   from '../static/scripts/common/utility/formatTrackLength';
 import displayLinkAttribute
   from '../static/scripts/common/utility/displayLinkAttribute';
+import {interpolateText} from '../static/scripts/edit/utility/linkPhrase';
+import {formatCount} from '../statistics/utilities';
+import uriWith from '../utility/uriWith';
 
-type Props = {|
+import PaginatedResults from './PaginatedResults';
+
+type Props = {
+  +$c: CatalystContextT,
   +entity: CoreEntityT,
   +fallbackMessage?: string,
   +heading: string,
-  +showCredits?: boolean,
-|};
+  +pagedLinkTypeGroup: ?PagedLinkTypeGroupT,
+  +pager: ?PagerT,
+};
+
+const generalTypesList = ['recording', 'release', 'release_group', 'work'];
+const recordingOnlyTypesList = ['recording'];
+
+const pickAppearancesTypes = (entityType) => {
+  switch (entityType) {
+    case 'area':
+    case 'artist':
+    case 'label':
+    case 'place': {
+      return generalTypesList;
+    }
+    case 'work': {
+      return recordingOnlyTypesList;
+    }
+    default: return [];
+  }
+};
+
+const getLinkPhraseForGroup = (linkTypeGroup) => (
+  interpolateText(
+    linkedEntities.link_type[linkTypeGroup.link_type_id],
+    [],
+    linkTypeGroup.backward
+      ? 'reverse_link_phrase'
+      : 'link_phrase',
+    true, /* forGrouping */
+  )
+);
+
+/*
+ * Matches $DIRECTION_FORWARD and $DIRECTION_BACKWARD from
+ * lib/MusicBrainz/Server/Constants.pm.
+ */
+const getDirectionInteger = (backward) => {
+  return backward ? 2 : 1;
+};
 
 const RelationshipsTable = ({
+  $c,
   entity,
   fallbackMessage,
   heading,
-  showCredits,
-}: Props) => {
-  const appearances = generateRelationshipAppearancesList(entity);
-  const relationshipTypes = Object.keys(appearances);
-  if (!appearances || relationshipTypes.length === 0) {
-    return <p>{fallbackMessage}</p> || null;
-  }
-  let hasCreditColumn = 0;
-  let hasAttributeColumn = 0;
-  let hasArtistColumn = 0;
-  let hasLengthColumn = 0;
-  for (const relationshipType of relationshipTypes) {
-    for (const relationship of appearances[relationshipType]) {
-      const sourceCredit = (relationship.direction === 'backward')
-        ? relationship.entity1_credit
-        : relationship.entity0_credit;
-
-      if (!hasCreditColumn && showCredits && sourceCredit) {
-        hasCreditColumn = 1;
-      }
-      if (!hasAttributeColumn && relationship.attributes &&
-        relationship.attributes.length > 0) {
-        hasAttributeColumn = 1;
-      }
-      if (!hasArtistColumn && relationship.target.artistCredit) {
-        hasArtistColumn = 1;
-      }
-      if (!hasLengthColumn && relationship.target.length) {
-        hasLengthColumn = 1;
-      }
-      if (hasCreditColumn && hasAttributeColumn &&
-        hasArtistColumn && hasLengthColumn) {
-        break;
-      }
-    }
-
-    if (hasCreditColumn && hasAttributeColumn &&
-      hasArtistColumn && hasLengthColumn) {
-      break;
-    }
+  pagedLinkTypeGroup,
+  pager,
+}: Props): React.MixedElement | null => {
+  if (pagedLinkTypeGroup && !pager) {
+    throw new Error('Expected a pager');
   }
 
-  const columnsCount = 1 + hasCreditColumn +
-                       hasAttributeColumn + hasArtistColumn + hasLengthColumn;
+  const appearanceTypes = pickAppearancesTypes(entity.entityType);
+
+  let hasCreditColumn = false;
+  let hasAttributeColumn = false;
+  let hasArtistColumn = false;
+  let hasLengthColumn = false;
+  let columnsCount = 1;
+  let totalRelationships = 0;
+
+  const RelationshipsTableGroup = ({
+    group,
+    relationshipRows,
+  }) => {
+    const isLimited = (
+      group.total_relationships >
+      (group.offset + group.relationships.length)
+    );
+
+    return (
+      <>
+        <tr className="subh">
+          <th />
+          <th colSpan={columnsCount}>
+            {group.phrase}
+          </th>
+        </tr>
+        {relationshipRows}
+        {isLimited ? (
+          <tr>
+            <td />
+            <td colSpan={columnsCount} style={{padding: '1em'}}>
+              <a
+                href={uriWith(
+                  $c.req.uri, {
+                    direction: getDirectionInteger(group.backward),
+                    link_type_id: group.link_type_id,
+                    page: 1,
+                  },
+                )}
+              >
+                {texp.l('See all {num} relationships', {
+                  num: formatCount($c, group.total_relationships),
+                })}
+              </a>
+            </td>
+          </tr>
+        ) : null}
+      </>
+    );
+  };
+
+  const RelationshipsTableRow = ({
+    artistCredit,
+    index,
+    relationship,
+    sourceCredit,
+    targetCredit,
+  }) => {
+    return (
+      <tr className={loopParity(index)} key={relationship.id}>
+        <td>{formatDatePeriod(relationship)}</td>
+        <td>
+          {relationship.editsPending ? (
+            <span className="mp mp-rel">
+              <EntityLink
+                content={targetCredit}
+                entity={relationship.target}
+              />
+            </span>
+          ) : (
+            <EntityLink
+              content={targetCredit}
+              entity={relationship.target}
+            />
+          )}
+        </td>
+        {hasCreditColumn ? (
+          <td>
+            {sourceCredit || null}
+          </td>
+        ) : null}
+        {hasAttributeColumn ? (
+          <td>
+            {relationship.attributes?.length ? (
+              commaList(
+                relationship.attributes.map(displayLinkAttribute),
+              )
+            ) : null}
+          </td>
+        ) : null}
+        {hasArtistColumn ? (
+          <td>
+            {artistCredit ? (
+              <ArtistCreditLink
+                artistCredit={artistCredit}
+              />
+            ) : null}
+          </td>
+        ) : null}
+        {hasLengthColumn ? (
+          <td>
+            {relationship.target.entityType === 'recording' ? (
+              formatTrackLength(relationship.target.length)
+            ) : null}
+          </td>
+        ) : null}
+      </tr>
+    );
+  };
+
+  const tableRows = [];
+
+  const getRelationshipRows = (
+    linkTypeGroup,
+    rows,
+  ) => {
+    let index = 0;
+
+    totalRelationships += linkTypeGroup.total_relationships;
+
+    for (const relationship of linkTypeGroup.relationships) {
+      let sourceCredit = '';
+      let targetCredit = '';
+      if (relationship.backward) {
+        targetCredit = relationship.entity0_credit;
+        sourceCredit = relationship.entity1_credit;
+      } else {
+        sourceCredit = relationship.entity0_credit;
+        targetCredit = relationship.entity1_credit;
+      }
+
+      const target = relationship.target;
+      const artistCredit = hasOwnProp(target, 'artistCredit')
+        // $FlowIgnore[prop-missing]
+        ? target.artistCredit
+        : null;
+
+      hasCreditColumn = hasCreditColumn || nonEmpty(sourceCredit);
+      hasAttributeColumn = hasAttributeColumn ||
+        !!(relationship.attributes?.length);
+      hasArtistColumn = hasArtistColumn || (artistCredit != null);
+      hasLengthColumn = hasLengthColumn || (
+        hasOwnProp(target, 'length') &&
+        // $FlowIgnore[prop-missing]
+        target.length != null
+      );
+      columnsCount = (
+        1 +
+        hasCreditColumn +
+        hasAttributeColumn +
+        hasArtistColumn +
+        hasLengthColumn
+      );
+
+      rows.push(
+        <RelationshipsTableRow
+          artistCredit={artistCredit}
+          index={index}
+          key={relationship.id}
+          relationship={relationship}
+          sourceCredit={sourceCredit}
+          targetCredit={targetCredit}
+        />,
+      );
+      index++;
+    }
+  };
+
+  const pagedRelationshipGroups = entity.paged_relationship_groups;
+  if (pagedLinkTypeGroup) {
+    getRelationshipRows(pagedLinkTypeGroup, tableRows);
+  } else if (pagedRelationshipGroups) {
+    const sortedTargetTypes =
+      Object.keys(pagedRelationshipGroups).sort();
+    for (const targetType of sortedTargetTypes) {
+      if (!appearanceTypes.includes(targetType)) {
+        continue;
+      }
+
+      const targetTypeGroup: ?PagedTargetTypeGroupT =
+        pagedRelationshipGroups[targetType];
+      if (!targetTypeGroup) {
+        continue;
+      }
+
+      const linkTypeGroups: $ReadOnlyArray<$ReadOnly<{
+        ...PagedLinkTypeGroupT,
+        +phrase: string,
+      }>> = Object.values(targetTypeGroup)
+        // $FlowIgnore[incompatible-call]
+        .map((group: PagedLinkTypeGroupT) => ({
+          ...group,
+          phrase: getLinkPhraseForGroup(group),
+        }))
+        .sort((a, b) => compare(a.phrase, b.phrase));
+
+      for (const linkTypeGroup of linkTypeGroups) {
+        const relationshipRows = [];
+        getRelationshipRows(linkTypeGroup, relationshipRows);
+
+        tableRows.push(
+          <RelationshipsTableGroup
+            group={linkTypeGroup}
+            key={linkTypeGroup.link_type_id + '-' +
+              String(linkTypeGroup.backward)}
+            relationshipRows={relationshipRows}
+          />,
+        );
+      }
+    }
+  }
+
+  if (totalRelationships === 0 && !pagedLinkTypeGroup) {
+    return nonEmpty(fallbackMessage) ? (
+      <>
+        <h2>{heading}</h2>
+        <p>{fallbackMessage}</p>
+      </>
+    ) : null;
+  }
+
+  const tableElement = (
+    <table className="tbl">
+      <thead>
+        <tr>
+          <th>{l('Date')}</th>
+          <th>{l('Title')}</th>
+          {hasCreditColumn ? <th>{l('Credited As')}</th> : null}
+          {hasAttributeColumn ? <th>{l('Attributes')}</th> : null}
+          {hasArtistColumn ? <th>{l('Artist')}</th> : null}
+          {hasLengthColumn ? <th>{l('Length')}</th> : null}
+        </tr>
+      </thead>
+      <tbody>
+        {tableRows}
+      </tbody>
+    </table>
+  );
+  let pageContent = tableElement;
+  let finalHeading = heading;
+
+  if (pagedLinkTypeGroup /*:: && pager */) {
+    const linkPhrase = getLinkPhraseForGroup(pagedLinkTypeGroup);
+    finalHeading = linkPhrase ? exp.l(
+      '“{link_phrase}” relationships',
+      {link_phrase: getLinkPhraseForGroup(pagedLinkTypeGroup)},
+    ) : l('Invalid relationship type');
+    if (pagedLinkTypeGroup.total_relationships > 0) {
+      pageContent = (
+        <PaginatedResults pager={pager}>
+          {tableElement}
+        </PaginatedResults>
+      );
+    } else {
+      pageContent = (
+        <p>
+          {linkPhrase
+            ? l('No relationships of the selected type were found.')
+            : l('The provided relationship type ID is not valid.')}
+        </p>
+      );
+    }
+  }
+
   return (
     <>
-      <h2>{heading}</h2>
-      <table className="tbl">
-        <thead>
-          <tr>
-            <th>{l('Date')}</th>
-            <th>{l('Title')}</th>
-            {hasCreditColumn ? <th>{l('Credited As')}</th> : null}
-            {hasAttributeColumn ? <th>{l('Attributes')}</th> : null}
-            {hasArtistColumn ? <th>{l('Artist')}</th> : null}
-            {hasLengthColumn ? <th>{l('Length')}</th> : null}
-          </tr>
-        </thead>
-        <tbody>
-          {relationshipTypes.sort().map(relationshipType => (
-            <React.Fragment key={relationshipType}>
-              <tr className="subh">
-                <th />
-                <th colSpan={columnsCount}>
-                  {l_relationships(relationshipType)}
-                </th>
-              </tr>
-              {appearances[relationshipType].map((relationship, index) => {
-                const attributes = relationship.attributes;
-                let sourceCredit = '';
-                let targetCredit = '';
-                if (relationship.direction === 'backward') {
-                  targetCredit = relationship.entity0_credit;
-                  sourceCredit = relationship.entity1_credit;
-                } else {
-                  sourceCredit = relationship.entity0_credit;
-                  targetCredit = relationship.entity1_credit;
-                }
-
-                return (
-                  <tr className={loopParity(index)} key={relationship.id}>
-                    <td>{formatDatePeriod(relationship)}</td>
-                    <td>
-                      {relationship.editsPending ? (
-                        <span className="mp mp-rel">
-                          <EntityLink
-                            content={targetCredit}
-                            entity={relationship.target}
-                          />
-                        </span>
-                      ) : (
-                        <EntityLink
-                          content={targetCredit}
-                          entity={relationship.target}
-                        />
-                      )}
-                    </td>
-                    {hasCreditColumn ? (
-                      <td>
-                        {sourceCredit || null}
-                      </td>
-                    ) : null}
-                    {hasAttributeColumn ? (
-                      <td>
-                        {attributes && attributes.length > 0 ? (
-                          commaList(
-                            attributes.map(displayLinkAttribute),
-                          )
-                        ) : null}
-                      </td>
-                    ) : null}
-                    {hasArtistColumn ? (
-                      <td>
-                        {relationship.target.artistCredit ? (
-                          <ArtistCreditLink
-                            artistCredit={relationship.target.artistCredit}
-                          />
-                        ) : null}
-                      </td>
-                    ) : null}
-                    {hasLengthColumn ? (
-                      <td>
-                        {relationship.target.entityType === 'recording' ? (
-                          formatTrackLength(relationship.target.length)
-                        ) : null}
-                      </td>
-                    ) : null}
-                  </tr>
-                );
-              })}
-            </React.Fragment>
-          ))}
-        </tbody>
-      </table>
+      <h2>{finalHeading}</h2>
+      {pageContent}
     </>
   );
 };

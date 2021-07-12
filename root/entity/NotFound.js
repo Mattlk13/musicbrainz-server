@@ -1,5 +1,5 @@
 /*
- * @flow
+ * @flow strict-local
  * Copyright (C) 2018 Shamroy Pellew
  * Copyright (C) 2019 MetaBrainz Foundation
  *  *
@@ -8,7 +8,7 @@
  * later version: http://www.gnu.org/licenses/gpl-2.0.txt
  */
 
-import React from 'react';
+import * as React from 'react';
 
 import expand2react from '../static/scripts/common/i18n/expand2react';
 import NotFoundComponent from '../components/NotFound';
@@ -155,6 +155,15 @@ const notFoundPages = {
     args: {},
     footer: null,
   },
+  'relationship/linktype': {
+    title: N_l('Relationship Type Not Found'),
+    message: N_l(
+      `Sorry, we could not find a relationship type
+       with that MusicBrainz ID.`,
+    ),
+    args: {},
+    footer: null,
+  },
   'release': {
     title: N_l('Release Not Found'),
     message: N_l(
@@ -219,7 +228,13 @@ const notFoundPages = {
 };
 /* eslint-enable sort-keys */
 
-const NotFound = ({namespace}: {namespace: string}) => {
+type Props = {
+  +namespace: string,
+};
+
+const NotFound = ({
+  namespace,
+}: Props): React.Element<typeof NotFoundComponent> => {
   const parameters = notFoundPages[namespace];
   return (
     <NotFoundComponent title={parameters.title()}>

@@ -7,6 +7,7 @@ use JSON;
 use Text::Markdown qw( markdown );
 use Text::Trim qw( trim );
 use URI;
+use MusicBrainz::Server::Data::Utils qw( non_empty );
 use MusicBrainz::Server::Translation qw( l );
 use MusicBrainz::Server::Validation qw( encode_entities );
 use aliased 'MusicBrainz::Server::Entity::CritiqueBrainz::Review';
@@ -23,7 +24,7 @@ sub load_display_reviews {
         release_group => $release_group->gid,
         offset => 0,
         limit => 1,
-        sort => 'created'
+        sort => 'published_on'
     );
 
     $url->query_form(%params);
@@ -63,7 +64,7 @@ sub _parse_review {
     return Review->new(
         id => $data->{id},
         created => DateTime->from_epoch(epoch => str2time($data->{created})),
-        body => markdown($data->{text}),
+        body => non_empty($data->{text}) ? markdown($data->{text}) : '',
         author => User->new(id => $data->{user}{id}, name => $data->{user}{display_name})
     );
 }
@@ -73,11 +74,12 @@ no Moose;
 
 1;
 
-=head1 COPYRIGHT
+=head1 COPYRIGHT AND LICENSE
 
-This file is part of MusicBrainz, the open internet music database.
 Copyright (C) 2015 MetaBrainz Foundation
-Licensed under the GPL version 2, or (at your option) any later version:
-http://www.gnu.org/licenses/gpl-2.0.txt
+
+This file is part of MusicBrainz, the open internet music database,
+and is licensed under the GPL version 2, or (at your option) any
+later version: http://www.gnu.org/licenses/gpl-2.0.txt
 
 =cut

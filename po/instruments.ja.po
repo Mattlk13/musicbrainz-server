@@ -1,18 +1,20 @@
 # 
 # Translators:
 # nikki, 2014
+# Atsushi Nakamura <email address hidden>, 2020
 # nikki2 <email address hidden>, 2012
 # john doe, 2016
 # mai inoue, 2015
 # Nozomu KURASAWA <email address hidden>, 2013,2016
+# ffff23 <email address hidden>, 2021
 # Osamu Takahashi, 2014
 # Shunsuke Shimizu <email address hidden>, 2016
 # th1rtyf0ur, 2013
-# wa2c <email address hidden>, 2019
+# 和田篤 <email address hidden>, 2019
 msgid ""
 msgstr ""
 "Project-Id-Version: MusicBrainz\n"
-"PO-Revision-Date: 2019-06-03 13:42+0000\n"
+"PO-Revision-Date: 2021-06-08 21:42+0000\n"
 "Last-Translator: Shunsuke Shimizu <email address hidden>\n"
 "Language-Team: Japanese (http://www.transifex.com/musicbrainz/musicbrainz/language/ja/)\n"
 "MIME-Version: 1.0\n"
@@ -29,12 +31,8 @@ msgstr "12弦ギター"
 msgid "17-string bass koto"
 msgstr "十七弦箏"
 
-#: DB:instrument/name:108
-msgid "Afuche/Cabasa"
-msgstr ""
-
 #: DB:instrument/name:839
-msgctxt "historical hybrid between English and German style concertinas"
+msgctxt "Historical hybrid between English and German style concertinas"
 msgid "Anglo concertina"
 msgstr "アングロ コンサー ティーナ"
 
@@ -66,10 +64,6 @@ msgstr "チェンバレット"
 msgid "Chapman stick"
 msgstr "チャップマン・スティック"
 
-#: DB:instrument/name:175
-msgid "Clavinet"
-msgstr "クラビネット"
-
 #: DB:instrument/name:482
 msgid "Cretan lyra"
 msgstr "クレタン・リラ"
@@ -92,10 +86,10 @@ msgstr "E♭クラリネット"
 
 #: DB:instrument/name:441
 msgid "EWI"
-msgstr "ＥＷＩ"
+msgstr "EWI"
 
 #: DB:instrument/name:837
-msgctxt "unisonoric concertina"
+msgctxt "Unisonoric concertina"
 msgid "English concertina"
 msgstr "イングリッシュ・コンサーティーナ"
 
@@ -109,7 +103,7 @@ msgid "French horn"
 msgstr "フレンチホルン"
 
 #: DB:instrument/name:838
-msgctxt "bisonoric concertina"
+msgctxt "Bisonoric concertina"
 msgid "German concertina"
 msgstr "ジャーマン・コンサーティーナ"
 
@@ -121,10 +115,6 @@ msgstr "ジャーマンハープ"
 msgctxt "Modern 24-stringed stainless steel kora"
 msgid "Gravikord"
 msgstr "クラヴィコード"
-
-#: DB:instrument/name:236
-msgid "Greek baglama"
-msgstr "バグラマ"
 
 #: DB:instrument/name:795
 msgctxt "electric lamellophone"
@@ -139,9 +129,10 @@ msgstr "ハモンドオルガン"
 msgid "Hawaiian guitar"
 msgstr "ハワイ・ギター"
 
-#: DB:instrument/name:417
-msgid "Indian bamboo flutes"
-msgstr "バンスリ"
+#: DB:instrument/name:1011
+msgctxt "Indonesian spike-fiddle used in gamelan"
+msgid "Indonesian rebab"
+msgstr ""
 
 #: DB:instrument/name:406
 msgid "Irish bouzouki"
@@ -159,6 +150,11 @@ msgstr "アイリッシュハープ"
 #: DB:instrument/name:561
 msgid "Lyricon"
 msgstr "リリコン"
+
+#: DB:instrument/name:637
+msgctxt "Mark Stevens' bar chime"
+msgid "Mark tree"
+msgstr ""
 
 #: DB:instrument/name:442
 msgid "Marxophone"
@@ -194,6 +190,11 @@ msgctxt "an electromechanical piano"
 msgid "Pianet"
 msgstr "プラネット"
 
+#: DB:instrument/name:1023
+msgctxt "ensemble flute, clarinet, violin, cello and piano"
+msgid "Pierrot ensemble"
+msgstr ""
+
 #: DB:instrument/name:647
 msgid "Portuguese guitar"
 msgstr "ポルトガル・ギター"
@@ -203,6 +204,7 @@ msgid "Reactable"
 msgstr "リアクテーブル"
 
 #: DB:instrument/name:139
+msgctxt "Electric keyboard tuning fork idiophone"
 msgid "Rhodes piano"
 msgstr "ローズ・ピアノ"
 
@@ -248,10 +250,6 @@ msgstr "チベット・ウォーター・ドラム"
 msgctxt "plastic fipple flute"
 msgid "Tonette"
 msgstr "トネット"
-
-#: DB:instrument/name:235
-msgid "Turkish baglama"
-msgstr "バーラマ"
 
 #: DB:instrument/name:562
 msgid "Vienna horn"
@@ -319,6 +317,11 @@ msgctxt "set of Nyabinghi drums"
 msgid "akete"
 msgstr "アケテ"
 
+#: DB:instrument/name:1029
+msgctxt "German keyed box zither"
+msgid "akkordolia"
+msgstr "アコルドリア"
+
 #: DB:instrument/name:718
 msgid "alfaia"
 msgstr "アウファイア"
@@ -358,7 +361,7 @@ msgid "amadinda"
 msgstr "アマディンダ"
 
 #: DB:instrument/name:809
-msgctxt "mongolian jew's harp"
+msgctxt "mongolian mouth harp"
 msgid "aman khuur"
 msgstr ""
 
@@ -368,7 +371,7 @@ msgid "analog synthesizer"
 msgstr "アナログ・シンセサイザー"
 
 #: DB:instrument/name:371
-msgctxt "single pitch bamboo rattle xylophone"
+msgctxt "Single pitch bamboo rattle xylophone used in Sundanese gamelan"
 msgid "angklung"
 msgstr ""
 
@@ -425,9 +428,10 @@ msgctxt "Nyabinghi bass drum"
 msgid "baandu"
 msgstr ""
 
-#: DB:instrument/name:426
-msgid "baglama"
-msgstr "バーラマ/バグラマ"
+#: DB:instrument/name:236
+msgctxt "Treble bouzouki"
+msgid "baglamas"
+msgstr ""
 
 #: DB:instrument/name:4
 msgid "bagpipe"
@@ -512,6 +516,7 @@ msgid "baritone saxophone"
 msgstr "バリトン・サクソフォン"
 
 #: DB:instrument/name:917
+msgctxt "Baroque gut string guitar"
 msgid "baroque guitar"
 msgstr "バロック・ギター"
 
@@ -621,8 +626,18 @@ msgid "bayan"
 msgstr "バヤン"
 
 #: DB:instrument/name:741
+msgctxt "telescoping brass tube"
 msgid "bazooka"
 msgstr "バズーカ"
+
+#: DB:instrument/name:235
+msgctxt "Turkish long-necked bowl lute"
+msgid "bağlama"
+msgstr "バーラマ"
+
+#: DB:instrument/name:426
+msgid "bağlama (saz) family"
+msgstr "バーラマ(サズ)・ファミリー"
 
 #: DB:instrument/name:968
 msgctxt "Very large suspended Javanese barrel drum"
@@ -640,6 +655,10 @@ msgstr "ベルツリー"
 
 #: DB:instrument/name:428
 msgid "bellow-blown bagpipes"
+msgstr ""
+
+#: DB:instrument/name:983
+msgid "bellowed reed"
 msgstr ""
 
 #: DB:instrument/name:343
@@ -667,6 +686,11 @@ msgstr "自転車ベル"
 #: DB:instrument/name:380
 msgid "bin-sasara"
 msgstr "びんざさら"
+
+#: DB:instrument/name:1013
+msgctxt "Hybrid fretted stick-zither"
+msgid "bin-sitar"
+msgstr ""
 
 #: DB:instrument/name:884
 msgid "birbynė"
@@ -706,6 +730,26 @@ msgstr "ボロン"
 msgid "bombarde"
 msgstr "ボルバルド"
 
+#: DB:instrument/name:969
+msgctxt "Family of bronze gong-chime sets used in Javanese gamelan"
+msgid "bonang"
+msgstr ""
+
+#: DB:instrument/name:970
+msgctxt "Medium pitched gong-chime set in Javanese gamelan"
+msgid "bonang barung"
+msgstr ""
+
+#: DB:instrument/name:972
+msgctxt "Lowest pitched gong-chime set in Javanese gamelan"
+msgid "bonang panembung"
+msgstr ""
+
+#: DB:instrument/name:971
+msgctxt "Highest pitched gong-chime set in Javanese gamelan"
+msgid "bonang panerus"
+msgstr ""
+
 #: DB:instrument/name:357
 msgctxt "Folk music idiophone"
 msgid "bones"
@@ -733,6 +777,14 @@ msgstr ""
 #: DB:instrument/name:71
 msgid "bouzouki"
 msgstr "ブズーキ"
+
+#: DB:instrument/name:1017
+msgid "bowed lute"
+msgstr ""
+
+#: DB:instrument/name:1018
+msgid "bowed lyre"
+msgstr ""
 
 #: DB:instrument/name:504
 msgid "bowed piano"
@@ -782,6 +834,7 @@ msgid "buk"
 msgstr "プク"
 
 #: DB:instrument/name:528
+msgctxt "Indian keyed box zither"
 msgid "bulbul tarang"
 msgstr ""
 
@@ -796,6 +849,16 @@ msgstr "ボタン式アコーディオン"
 #: DB:instrument/name:655
 msgid "buzuq"
 msgstr "ブズク"
+
+#: DB:instrument/name:1012
+msgctxt "Family of ancient Indian stick zither chordophones"
+msgid "bīn"
+msgstr ""
+
+#: DB:instrument/name:108
+msgctxt "Modern wood and metal-bead shaker"
+msgid "cabasa"
+msgstr ""
 
 #: DB:instrument/name:903
 msgctxt "Brazilian Samba snare-drum"
@@ -814,7 +877,13 @@ msgstr ""
 msgid "calliope"
 msgstr "カリオペ"
 
+#: DB:instrument/name:974
+msgctxt "Bamboo xylophone used in Sundanese gamelan"
+msgid "calung"
+msgstr ""
+
 #: DB:instrument/name:128
+msgctxt "belfry tower bell set"
 msgid "carillon"
 msgstr "カリヨン"
 
@@ -832,6 +901,7 @@ msgid "caxixi"
 msgstr "カシシ"
 
 #: DB:instrument/name:129
+msgctxt "Struck metal plate keyboard instrument"
 msgid "celesta"
 msgstr "チェレスタ"
 
@@ -885,10 +955,12 @@ msgid "chikuzen biwa"
 msgstr "筑前琵琶"
 
 #: DB:instrument/name:638
+msgctxt "Individual percussion plates."
 msgid "chime bar"
 msgstr ""
 
 #: DB:instrument/name:338
+msgctxt "Arrangement of hanging struck tuned metal rods."
 msgid "chimes"
 msgstr "チャイム"
 
@@ -912,11 +984,12 @@ msgid "chitarra battente"
 msgstr ""
 
 #: DB:instrument/name:744
-msgctxt "Ancient South Indian fretless Carnatic slide lute"
+msgctxt "Large South Indian fretless Carnatic slide lute"
 msgid "chitra veena"
 msgstr "チトラ・ヴィーナ"
 
 #: DB:instrument/name:433
+msgctxt "Accordion with buttons arranged chromatically"
 msgid "chromatic button accordion"
 msgstr "クロマティック・ボタン式アコーディオン"
 
@@ -932,7 +1005,7 @@ msgstr ""
 #: DB:instrument/name:256
 msgctxt "European hammered dulcimer"
 msgid "cimbalom"
-msgstr ""
+msgstr "ツィンバロム"
 
 #: DB:instrument/name:929
 msgctxt "19th century bass trombone"
@@ -967,6 +1040,7 @@ msgid "clarinet"
 msgstr "クラリネット"
 
 #: DB:instrument/name:54
+msgctxt "Classical nylon string guitar"
 msgid "classical guitar"
 msgstr "クラシック・ギター"
 
@@ -981,6 +1055,11 @@ msgstr "クラベス"
 #: DB:instrument/name:130
 msgid "clavichord"
 msgstr "クラヴィコード"
+
+#: DB:instrument/name:175
+msgctxt "Electro-mechanical amplified clavichord"
+msgid "clavinet"
+msgstr "クラビネット"
 
 #: DB:instrument/name:780
 msgctxt "free reed aerophone with pitching pipes."
@@ -1157,8 +1236,9 @@ msgid "dholak"
 msgstr "ドーラク"
 
 #: DB:instrument/name:361
-msgid "diatonic accordion / melodeon"
-msgstr "ダイアトニック・アコーディオン/メロディオン"
+msgctxt "Accordion with buttons arranged diatonically"
+msgid "diatonic button accordion"
+msgstr ""
 
 #: DB:instrument/name:635
 msgid "diddley bow"
@@ -1219,6 +1299,7 @@ msgid "domra"
 msgstr "ドムラ"
 
 #: DB:instrument/name:776
+msgctxt "West African calabash lute-harp"
 msgid "donso ngɔni"
 msgstr ""
 
@@ -1250,7 +1331,7 @@ msgstr "ドラムマシン"
 #: DB:instrument/name:101
 msgctxt "Set of drums in modern music"
 msgid "drums (drum set)"
-msgstr ""
+msgstr "ドラム(ドラムセット)"
 
 #: DB:instrument/name:649
 msgid "duck call"
@@ -1274,7 +1355,7 @@ msgid "dulcian"
 msgstr "ダルシアン"
 
 #: DB:instrument/name:841
-msgctxt "idiophone keyboard instrument with tuning forks"
+msgctxt "Acoustic keyboard tuning fork idiophone"
 msgid "dulcitone"
 msgstr ""
 
@@ -1301,10 +1382,6 @@ msgstr "ebow"
 #: DB:instrument/name:677
 msgid "effects"
 msgstr "エフェクター"
-
-#: DB:instrument/name:643
-msgid "ektara"
-msgstr "エークターラ"
 
 #: DB:instrument/name:51
 msgid "electric bass guitar"
@@ -1370,7 +1447,7 @@ msgstr "電子オルガン"
 #: DB:instrument/name:848
 msgctxt "electronic keyboard accordion"
 msgid "elektronium"
-msgstr ""
+msgstr "エレクトロニウム"
 
 #: DB:instrument/name:14
 msgid "end-blown flute"
@@ -1459,7 +1536,12 @@ msgid "folk harp"
 msgstr "フォークハープ"
 
 #: DB:instrument/name:478
-msgid "foot percussion"
+msgid "foot stomps"
+msgstr ""
+
+#: DB:instrument/name:1020
+msgctxt "Foot operated bass bellows"
+msgid "footbass"
 msgstr ""
 
 #: DB:instrument/name:384
@@ -1511,6 +1593,16 @@ msgstr ""
 msgid "gadulka"
 msgstr "ガドゥルカ"
 
+#: DB:instrument/name:977
+msgctxt "Indonesian wood box-resonated xylophone"
+msgid "gambang"
+msgstr ""
+
+#: DB:instrument/name:853
+msgctxt "sound chip from gaming consoles"
+msgid "game console sound chip"
+msgstr ""
+
 #: DB:instrument/name:365
 msgctxt "Indonesian traditional ensemble"
 msgid "gamelan"
@@ -1556,6 +1648,21 @@ msgctxt "Family of Indonesian metallophones"
 msgid "gendèr"
 msgstr ""
 
+#: DB:instrument/name:1004
+msgctxt "Middle pitch metallophone used in Javanese gamelan"
+msgid "gendèr barung"
+msgstr ""
+
+#: DB:instrument/name:1003
+msgctxt "Higest pitch metallophone used in Javanese gamelan"
+msgid "gendèr panerus"
+msgstr ""
+
+#: DB:instrument/name:1005
+msgctxt "Ten key metallophone used in Bali wayang."
+msgid "gendèr wayang"
+msgstr ""
+
 #: DB:instrument/name:76
 msgid "geomungo"
 msgstr "コムンゴ"
@@ -1565,7 +1672,7 @@ msgid "ghatam"
 msgstr "ガタム"
 
 #: DB:instrument/name:931
-msgctxt "Perisan double-chambered bowl lute"
+msgctxt "Persian double-chambered bowl lute"
 msgid "ghaychak"
 msgstr ""
 
@@ -1605,11 +1712,21 @@ msgstr "杯形太鼓"
 #: DB:instrument/name:270
 msgctxt "Tuned metal discs"
 msgid "gong"
-msgstr ""
+msgstr "ゴング"
 
 #: DB:instrument/name:639
 msgid "gong bass drum"
 msgstr "ゴング・ドラム"
+
+#: DB:instrument/name:981
+msgctxt "Arrangement of kettle shaped gongs"
+msgid "gong-chime"
+msgstr ""
+
+#: DB:instrument/name:643
+msgctxt "Indian drum-zither"
+msgid "gopichant"
+msgstr ""
 
 #: DB:instrument/name:582
 msgid "gralla"
@@ -1651,7 +1768,7 @@ msgstr "ギター"
 #: DB:instrument/name:52
 msgctxt "DO NOT USE"
 msgid "guitar family"
-msgstr ""
+msgstr "ギター・ファミリー"
 
 #: DB:instrument/name:763
 msgid "guitar synthesizer"
@@ -1698,6 +1815,7 @@ msgid "güira"
 msgstr ""
 
 #: DB:instrument/name:112
+msgctxt "Latin American gourd scraper"
 msgid "güiro"
 msgstr "ギロ"
 
@@ -1713,7 +1831,7 @@ msgstr "ハンマード・ダルシマー"
 #: DB:instrument/name:275
 msgctxt "Open hand-rung bell"
 msgid "handbell"
-msgstr ""
+msgstr "ハンドベル"
 
 #: DB:instrument/name:321
 msgid "handclaps"
@@ -1735,12 +1853,12 @@ msgstr "ハーディングフェーレ"
 #: DB:instrument/name:43
 msgctxt "mouth organ"
 msgid "harmonica"
-msgstr ""
+msgstr "ハーモニカ"
 
 #: DB:instrument/name:135
 msgctxt "reed organ"
 msgid "harmonium"
-msgstr ""
+msgstr "ハーモニウム"
 
 #: DB:instrument/name:58
 msgid "harp"
@@ -1809,6 +1927,11 @@ msgstr ""
 msgid "hulusi"
 msgstr "ひょうたん笛/葫蘆絲"
 
+#: DB:instrument/name:1030
+msgctxt "Medieval pear-shaped drone zither"
+msgid "hummel"
+msgstr ""
+
 #: DB:instrument/name:213
 msgid "huqin"
 msgstr "胡琴（フーチン）"
@@ -1825,7 +1948,7 @@ msgstr ""
 #: DB:instrument/name:905
 msgctxt "Japanese concussion idiophone"
 msgid "hyoshigi"
-msgstr ""
+msgstr "拍子木"
 
 #: DB:instrument/name:818
 msgctxt "fipple flute from Härjedalen, sweden"
@@ -1844,14 +1967,20 @@ msgstr "イギル"
 msgid "janggu"
 msgstr "杖鼓（チャング）"
 
+#: DB:instrument/name:1032
+msgctxt "Rajasthani stick zither"
+msgid "jantar"
+msgstr ""
+
+#: DB:instrument/name:979
+msgctxt "Deepest pitch gangsa used in Balinese gamelan"
+msgid "jegogan"
+msgstr ""
+
 #: DB:instrument/name:854
 msgctxt "West African four-stringed grigot lute"
 msgid "jeli ngɔni"
 msgstr ""
-
-#: DB:instrument/name:80
-msgid "jew's harp"
-msgstr "口琴"
 
 #: DB:instrument/name:552
 msgid "jing"
@@ -1871,6 +2000,11 @@ msgstr "京胡（ジンフー）"
 msgid "jouhikko"
 msgstr "ヨウヒッコ"
 
+#: DB:instrument/name:980
+msgctxt "Second deepest pitch gangsa used in Balinese gamelan"
+msgid "jublag"
+msgstr ""
+
 #: DB:instrument/name:505
 msgid "jug"
 msgstr "ジャグ"
@@ -1885,6 +2019,26 @@ msgctxt "Vietnamese Air Xylophone"
 msgid "k'lông pút"
 msgstr "クロン・プット"
 
+#: DB:instrument/name:999
+msgctxt "Family of Sundanese string zithers"
+msgid "kacapi"
+msgstr ""
+
+#: DB:instrument/name:1001
+msgctxt "Boat shaped zither used in Sundanese gamelan"
+msgid "kacapi indung"
+msgstr ""
+
+#: DB:instrument/name:1002
+msgctxt "Small boat shaped zither used in Sundanese gamelan"
+msgid "kacapi rincik"
+msgstr ""
+
+#: DB:instrument/name:1000
+msgctxt "Box zither used in Sundanese gamelan"
+msgid "kacapi siter"
+msgstr ""
+
 #: DB:instrument/name:947
 msgctxt "Flat-cut gourd sitar"
 msgid "kachva sitar"
@@ -1896,11 +2050,12 @@ msgid "kagurabue"
 msgstr ""
 
 #: DB:instrument/name:817
-msgctxt "modern ngoni made of calabash with more strings"
-msgid "kamalen ngɔni"
+msgctxt "Modern ngoni made of calabash with more strings"
+msgid "kamale ngɔni"
 msgstr ""
 
 #: DB:instrument/name:503
+msgctxt "Persian spike-fiddle"
 msgid "kamancheh"
 msgstr "カマンチェ"
 
@@ -1923,6 +2078,11 @@ msgctxt "Traditional Finnish plucked psaltery"
 msgid "kantele"
 msgstr ""
 
+#: DB:instrument/name:975
+msgctxt "High pitch gangsa used in Balinese gamelan"
+msgid "kantilan"
+msgstr ""
+
 #: DB:instrument/name:288
 msgid "kanun"
 msgstr "カーヌーン"
@@ -1939,13 +2099,99 @@ msgstr "カバル"
 msgid "kazoo"
 msgstr "カズー"
 
+#: DB:instrument/name:978
+msgctxt "Indonesian racked cymbals"
+msgid "kecer"
+msgstr ""
+
+#: DB:instrument/name:988
+msgctxt "Banana shaped bronze slit-drum used in javanese gamelan"
+msgid "kemanak"
+msgstr ""
+
 #: DB:instrument/name:211
+msgctxt "Eastern Mediterranean bowed lute"
 msgid "kemenche"
 msgstr "ケメンチェ"
 
 #: DB:instrument/name:541
 msgid "kemençe of the Black Sea"
 msgstr "黒海ケメンチェ"
+
+#: DB:instrument/name:982
+msgctxt "Singular metal timekeeping gong-chime used in Balinese gamelan"
+msgid "kempli"
+msgstr ""
+
+#: DB:instrument/name:984
+msgctxt "Javanese hanging gong-set"
+msgid "kempul"
+msgstr ""
+
+#: DB:instrument/name:987
+msgctxt "Small boxed double gong-chime used in Javanese gamelan"
+msgid "kempyang"
+msgstr ""
+
+#: DB:instrument/name:989
+msgctxt "Family of two sided laced drums used in various gamelan"
+msgid "kendang"
+msgstr ""
+
+#: DB:instrument/name:994
+msgctxt "High pitched cylindrical kendang used in Bali gamelan."
+msgid "kendang lanang"
+msgstr ""
+
+#: DB:instrument/name:995
+msgctxt "Low pitched cylindrical kendang used in Bali gamelan."
+msgid "kendang wadon"
+msgstr ""
+
+#: DB:instrument/name:992
+msgctxt "Middle conical kendang used in both Javanese/Sundanese gamelan"
+msgid "kendhang batangan"
+msgstr ""
+
+#: DB:instrument/name:990
+msgctxt "Largest conical kendang used in both Javanese/Sundanese gamelan"
+msgid "kendhang gendhing"
+msgstr ""
+
+#: DB:instrument/name:996
+msgctxt "King-Size truncated cone kendang used in Sundanese gamelan"
+msgid "kendhang indung"
+msgstr ""
+
+#: DB:instrument/name:991
+msgctxt "Smallest conical kendang used in both Javanese/Sundanese gamelan"
+msgid "kendhang ketipung"
+msgstr ""
+
+#: DB:instrument/name:997
+msgctxt "Paired truncated cone kendang used in Sundanese gamelan"
+msgid "kendhang kulanter"
+msgstr ""
+
+#: DB:instrument/name:993
+msgctxt "Middle conical kendang used in javanese gamelan"
+msgid "kendhang wayangan"
+msgstr ""
+
+#: DB:instrument/name:985
+msgctxt "Large high-pitch gong-chime used in Indonesian Gamelan"
+msgid "kenong"
+msgstr ""
+
+#: DB:instrument/name:998
+msgctxt "Metal plate percussion used in Javanese gamelan"
+msgid "kepyak"
+msgstr ""
+
+#: DB:instrument/name:986
+msgctxt "Small boxed gong-chime used in Javanese gamelan"
+msgid "kethuk"
+msgstr ""
 
 #: DB:instrument/name:367
 msgid "kettle drum"
@@ -1960,13 +2206,19 @@ msgstr "キーボード"
 msgid "keyboard bass"
 msgstr "キーボード・ベース"
 
+#: DB:instrument/name:1028
+msgctxt "Composite chordophone"
+msgid "keyed box zither"
+msgstr ""
+
 #: DB:instrument/name:154
 msgid "keyed brass instruments"
 msgstr "キー式金管楽器"
 
 #: DB:instrument/name:774
+msgctxt "Shoulder-strapped electric keyboard"
 msgid "keytar"
-msgstr ""
+msgstr "ショルダーキーボード"
 
 #: DB:instrument/name:611
 msgid "khene"
@@ -1975,7 +2227,7 @@ msgstr "ケーン"
 #: DB:instrument/name:287
 msgctxt "Thai and Cambodian hammered dulcimer"
 msgid "khim"
-msgstr ""
+msgstr "キム"
 
 #: DB:instrument/name:666
 msgctxt "Vertical bamboo duct flute"
@@ -2043,9 +2295,10 @@ msgstr ""
 #: DB:instrument/name:223
 msgctxt "Traditional Japanese bowed spikefiddle."
 msgid "kokyu"
-msgstr ""
+msgstr "胡弓"
 
 #: DB:instrument/name:543
+msgctxt "Ancient Kyrgys fretless string"
 msgid "komuz"
 msgstr "コムズ"
 
@@ -2098,6 +2351,7 @@ msgid "kudüm"
 msgstr "クデュム"
 
 #: DB:instrument/name:303
+msgctxt "Vietnamese double reed"
 msgid "kèn bầu"
 msgstr "ケン・バウ"
 
@@ -2164,13 +2418,19 @@ msgstr "ラウタ"
 #: DB:instrument/name:803
 msgctxt "spanish plucked chordophone"
 msgid "laúd"
-msgstr ""
+msgstr "ウード"
 
 #: DB:instrument/name:573
 msgid "limbe"
 msgstr "リンベ"
 
+#: DB:instrument/name:1016
+msgctxt "Renaissance violin"
+msgid "lira da braccio"
+msgstr ""
+
 #: DB:instrument/name:697
+msgctxt "Bass renaissance violin"
 msgid "lirone"
 msgstr "リローネ"
 
@@ -2191,6 +2451,10 @@ msgstr "ロー・ホイッスル"
 #: DB:instrument/name:83
 msgid "lute"
 msgstr "リュート"
+
+#: DB:instrument/name:1015
+msgid "lute family"
+msgstr "リュート・ファミリー"
 
 #: DB:instrument/name:737
 msgid "luthéal"
@@ -2251,10 +2515,6 @@ msgstr "マリンバ"
 msgid "marimba lumina"
 msgstr "marimba lumina"
 
-#: DB:instrument/name:637
-msgid "mark tree"
-msgstr ""
-
 #: DB:instrument/name:633
 msgid "marímbula"
 msgstr "マリンブラ"
@@ -2270,11 +2530,16 @@ msgstr "メロフォン"
 #: DB:instrument/name:132
 msgctxt "An electromechanical piano"
 msgid "mellotron"
-msgstr ""
+msgstr "メロトロン"
 
 #: DB:instrument/name:44
 msgctxt "Free-reed keyboard mouth-organ"
 msgid "melodica"
+msgstr ""
+
+#: DB:instrument/name:1022
+msgctxt "Bellowed free reed in a lute-like casing"
+msgid "melophone"
 msgstr ""
 
 #: DB:instrument/name:100
@@ -2286,7 +2551,7 @@ msgid "mendoza"
 msgstr ""
 
 #: DB:instrument/name:349
-msgctxt "Arrangements of struck tuned metal bars."
+msgctxt "Arrangement of struck tuned metal bars."
 msgid "metallophone"
 msgstr "鉄琴"
 
@@ -2313,16 +2578,21 @@ msgctxt "Indian mouth harp"
 msgid "morsing"
 msgstr "モールシン"
 
+#: DB:instrument/name:80
+msgctxt "Family of mouth plucked idiophones"
+msgid "mouth harp"
+msgstr ""
+
 #: DB:instrument/name:610
 msgid "mouth organ"
-msgstr ""
+msgstr "ハーモニカ"
 
 #: DB:instrument/name:475
 msgid "mridangam"
 msgstr "ムリダンガム"
 
 #: DB:instrument/name:710
-msgctxt "Ainu jew's harp"
+msgctxt "Ainu mouth harp"
 msgid "mukkuri"
 msgstr "ムックリ"
 
@@ -2336,9 +2606,10 @@ msgstr "楽弓"
 
 #: DB:instrument/name:464
 msgid "musical box"
-msgstr ""
+msgstr "オルゴール"
 
 #: DB:instrument/name:145
+msgctxt "Bowed metal plaque idiophone"
 msgid "musical saw"
 msgstr "ミュージックソー"
 
@@ -2347,6 +2618,7 @@ msgid "nabal"
 msgstr "喇叭（ナッパル）"
 
 #: DB:instrument/name:738
+msgctxt "South Indian large double reed"
 msgid "nadaswaram"
 msgstr "ナーダスワラム"
 
@@ -2378,11 +2650,11 @@ msgstr "ナチュラル・ホルン"
 #: DB:instrument/name:913
 msgctxt "Brass valveless ancestor of the modern trumpet"
 msgid "natural trumpet"
-msgstr ""
+msgstr "ナチュラル・トランペット"
 
 #: DB:instrument/name:540
 msgid "ney"
-msgstr ""
+msgstr "ナーイ"
 
 #: DB:instrument/name:783
 msgctxt "Māori taonga pūoro small vessel flute"
@@ -2390,6 +2662,7 @@ msgid "nguru"
 msgstr ""
 
 #: DB:instrument/name:729
+msgctxt "West African gourd-lute"
 msgid "ngɔni"
 msgstr ""
 
@@ -2466,7 +2739,7 @@ msgstr ""
 #: DB:instrument/name:935
 msgctxt "Extralarge 3-string Bass"
 msgid "octobass"
-msgstr ""
+msgstr "オクトバス"
 
 #: DB:instrument/name:759
 msgid "oktawka"
@@ -2499,6 +2772,7 @@ msgid "organ"
 msgstr "オルガン"
 
 #: DB:instrument/name:519
+msgctxt "Metal stringed renaissance lute."
 msgid "orpharion"
 msgstr "オルファリオン"
 
@@ -2561,6 +2835,11 @@ msgstr "ペダル・ピアノ"
 msgid "pedal steel guitar"
 msgstr "ペダルスティール・ギター"
 
+#: DB:instrument/name:976
+msgctxt "Lower pitch gangsa used in Balinese gamelan"
+msgid "pemade"
+msgstr ""
+
 #: DB:instrument/name:99
 msgid "percussion"
 msgstr "パーカッション"
@@ -2589,19 +2868,30 @@ msgstr "ピアノ"
 msgid "piano accordion"
 msgstr "ピアノアコーディオン"
 
+#: DB:instrument/name:1024
+msgctxt "ensemble of two pianists playing on separate pianos"
+msgid "piano duo"
+msgstr "ピアノ二重奏"
+
+#: DB:instrument/name:1025
+msgctxt "ensemble of two pianists playing on one piano"
+msgid "piano four hands"
+msgstr "ピアノ連弾"
+
 #: DB:instrument/name:965
+msgctxt "ensemble of piano, violin, viola and cello"
 msgid "piano quartet"
-msgstr ""
+msgstr "ピアノ四重奏"
 
 #: DB:instrument/name:798
 msgctxt "small drop action piano"
 msgid "piano spinet"
-msgstr ""
+msgstr "スピネット・ピアノ"
 
 #: DB:instrument/name:911
 msgctxt "ensemble of violin, cello and piano"
 msgid "piano trio"
-msgstr ""
+msgstr "ピアノ三重奏"
 
 #: DB:instrument/name:17
 msgid "piccolo"
@@ -2645,6 +2935,11 @@ msgstr ""
 msgid "plucked string instruments"
 msgstr "撥弦楽器"
 
+#: DB:instrument/name:1026
+msgctxt "bow lute from West Africa"
+msgid "pluriarc"
+msgstr ""
+
 #: DB:instrument/name:690
 msgid "pocket trumpet"
 msgstr "ポケット・トランペット"
@@ -2664,6 +2959,11 @@ msgctxt "Māori taonga pūoro humming discs"
 msgid "porotiti"
 msgstr ""
 
+#: DB:instrument/name:1021
+msgctxt "Very small bellows operated pipe organ"
+msgid "portative"
+msgstr ""
+
 #: DB:instrument/name:626
 msgid "post horn"
 msgstr "ポストホルン"
@@ -2677,6 +2977,7 @@ msgid "prepared piano"
 msgstr "プリペアド・ピアノ"
 
 #: DB:instrument/name:758
+msgctxt "Tenor garifuna drum"
 msgid "primero"
 msgstr "プリメーロ"
 
@@ -2745,6 +3046,7 @@ msgid "quena"
 msgstr "ケーナ"
 
 #: DB:instrument/name:755
+msgctxt "Jawbone rattle"
 msgid "quijada"
 msgstr "キハーダ"
 
@@ -2785,15 +3087,17 @@ msgid "ravanahatha"
 msgstr ""
 
 #: DB:instrument/name:239
+msgctxt "Generic rebab catch-all"
 msgid "rebab"
 msgstr "ラバーブ"
 
 #: DB:instrument/name:206
-msgctxt "Medieval bowed lyre"
+msgctxt "Medieval bowed lute"
 msgid "rebec"
-msgstr ""
+msgstr "レベック"
 
 #: DB:instrument/name:721
+msgctxt "Brazilian metal scraper"
 msgid "reco-reco"
 msgstr "ヘコヘコ"
 
@@ -2802,6 +3106,7 @@ msgid "recorder"
 msgstr "リコーダー"
 
 #: DB:instrument/name:204
+msgctxt "Organ with free reeds"
 msgid "reed organ"
 msgstr "リード・オルガン"
 
@@ -2837,6 +3142,11 @@ msgstr "ヘピニキ"
 msgid "resonator guitar"
 msgstr "リゾネーター・ギター"
 
+#: DB:instrument/name:973
+msgctxt "Gong-chime used in Balinese gamelan"
+msgid "reyong"
+msgstr ""
+
 #: DB:instrument/name:369
 msgid "rhythm sticks"
 msgstr ""
@@ -2858,7 +3168,7 @@ msgid "ruan"
 msgstr "阮（ルアン）"
 
 #: DB:instrument/name:883
-msgctxt "Plucked lute member of the bowed rebab family"
+msgctxt "Ancient Afghan plucked lute member of the bowed rebab family"
 msgid "rubab"
 msgstr ""
 
@@ -2872,7 +3182,7 @@ msgid "ryuteki"
 msgstr "龍笛"
 
 #: DB:instrument/name:859
-msgctxt "Māori taonga pūoro jew's harp"
+msgctxt "Māori taonga pūoro mouth harp"
 msgid "rōria"
 msgstr ""
 
@@ -2918,7 +3228,7 @@ msgstr "サントゥール"
 #: DB:instrument/name:255
 msgctxt "Persian/Iran hammered dulcimer"
 msgid "santur"
-msgstr ""
+msgstr "サントゥール"
 
 #: DB:instrument/name:244
 msgid "sanxian"
@@ -2932,9 +3242,34 @@ msgstr "サーランギー"
 msgid "sarod"
 msgstr "サロード"
 
+#: DB:instrument/name:1007
+msgctxt "Middle pitch saron-family member used in Sundanese gamelan."
+msgid "saron barung"
+msgstr ""
+
+#: DB:instrument/name:1006
+msgctxt "Penultimate pitch saron-family member used in Sundanese gamelan."
+msgid "saron demung"
+msgstr ""
+
 #: DB:instrument/name:597
-msgctxt "Javanese wooden trough metallophone family"
-msgid "saron"
+msgctxt "Family of Sundanese metallophones"
+msgid "saron family"
+msgstr "サロン・ファミリー"
+
+#: DB:instrument/name:1008
+msgctxt "Highest pitch saron-family member used in Sundanese gamelan."
+msgid "saron panerus"
+msgstr ""
+
+#: DB:instrument/name:1009
+msgctxt "Highest pitch saron-family member."
+msgid "saron peking"
+msgstr ""
+
+#: DB:instrument/name:1010
+msgctxt "Special saron used for Wayang puppetry"
+msgid "saron wayang"
 msgstr ""
 
 #: DB:instrument/name:749
@@ -2944,7 +3279,7 @@ msgstr "サリュソフォン"
 #: DB:instrument/name:928
 msgctxt "Indonesian tube zither"
 msgid "sasando"
-msgstr ""
+msgstr "ササンドゥ"
 
 #: DB:instrument/name:580
 msgid "satsuma biwa"
@@ -2979,8 +3314,14 @@ msgid "scraped idiophone"
 msgstr ""
 
 #: DB:instrument/name:757
+msgctxt "Bass garifuna drum"
 msgid "segunda"
 msgstr "セグンダ"
+
+#: DB:instrument/name:1014
+msgctxt "Medieval Indian evolution of the Afghan (kabuli) rabab"
+msgid "seni rebab"
+msgstr ""
 
 #: DB:instrument/name:148
 msgid "serpent"
@@ -3017,6 +3358,7 @@ msgid "shehnai"
 msgstr "シャハナーイー"
 
 #: DB:instrument/name:381
+msgctxt "Large West African gourd-shaker"
 msgid "shekere"
 msgstr "シェケレ"
 
@@ -3066,21 +3408,22 @@ msgid "single reed"
 msgstr "シングルリード"
 
 #: DB:instrument/name:370
+msgctxt "Ancient Egyptian rattle"
 msgid "sistrum"
 msgstr "シストルム"
 
 #: DB:instrument/name:88
-msgctxt "Indian long-necked lute"
+msgctxt "Indian long-necked fretted gourdlute"
 msgid "sitar"
-msgstr ""
+msgstr "シタール"
 
 #: DB:instrument/name:962
-msgctxt "Central Javanese single octave metallophone"
+msgctxt "Deepest pitch single octave metallophone used in Javanese gamelan"
 msgid "slenthem"
 msgstr ""
 
 #: DB:instrument/name:964
-msgctxt "Largely obsolete Central Javan metallophone."
+msgctxt "Obsolete deepest saron-family member used in Sundanese gamelan."
 msgid "slentho"
 msgstr ""
 
@@ -3097,6 +3440,7 @@ msgid "slide whistle"
 msgstr "スライドホイッスル"
 
 #: DB:instrument/name:366
+msgctxt "Hollow wooden idiophone"
 msgid "slit drum"
 msgstr "スリット・ドラム"
 
@@ -3140,6 +3484,10 @@ msgstr "ソプラノ・ヴァイオリン"
 msgid "sousaphone"
 msgstr "スーザフォン"
 
+#: DB:instrument/name:1019
+msgid "spike-fiddle"
+msgstr ""
+
 #: DB:instrument/name:513
 msgid "spilåpipa"
 msgstr "スピロピーパ"
@@ -3163,6 +3511,7 @@ msgid "steel guitar"
 msgstr "スティール・ギター"
 
 #: DB:instrument/name:653
+msgctxt "Modern acoustic steel string guitar"
 msgid "steel-string guitar"
 msgstr "スティール弦ギター"
 
@@ -3170,10 +3519,14 @@ msgstr "スティール弦ギター"
 msgid "steelpan"
 msgstr "スティールパン"
 
+#: DB:instrument/name:1031
+msgid "stick zither"
+msgstr ""
+
 #: DB:instrument/name:908
 msgctxt "ensemble of 1st violin, 2nd violin, viola and cello"
 msgid "string quartet"
-msgstr ""
+msgstr "弦楽四重奏"
 
 #: DB:instrument/name:915
 msgctxt "ensemble of violin, viola and cello"
@@ -3210,6 +3563,7 @@ msgid "suling"
 msgstr "スリン"
 
 #: DB:instrument/name:548
+msgctxt "Chinese double reed"
 msgid "suona"
 msgstr "嗩吶（スオナー）"
 
@@ -3228,6 +3582,7 @@ msgid "sursingar"
 msgstr ""
 
 #: DB:instrument/name:716
+msgctxt "North Indian trapezoid board zither"
 msgid "swarmandal"
 msgstr "スワルマンダル"
 
@@ -3285,6 +3640,7 @@ msgid "taiko"
 msgstr "太鼓"
 
 #: DB:instrument/name:555
+msgctxt "Japanese keyed box zither"
 msgid "taishogoto"
 msgstr "大正琴"
 
@@ -3327,7 +3683,7 @@ msgid "tangent piano"
 msgstr "タンジェント・ピアノ"
 
 #: DB:instrument/name:829
-msgctxt "Indian drone long-necked lute"
+msgctxt "Indian drone long-necked frettless gourdlute"
 msgid "tanpura"
 msgstr ""
 
@@ -3337,8 +3693,8 @@ msgid "taonga pūoro"
 msgstr ""
 
 #: DB:instrument/name:559
-msgid "tap dancing"
-msgstr ""
+msgid "tap dance"
+msgstr "タップダンス"
 
 #: DB:instrument/name:520
 msgid "tape"
@@ -3545,7 +3901,7 @@ msgstr "トレス"
 #: DB:instrument/name:106
 msgctxt "Tuned metal bar, bent into triangle shape"
 msgid "triangle"
-msgstr ""
+msgstr "トライアングル"
 
 #: DB:instrument/name:847
 msgctxt "Basque button accordion"
@@ -3553,7 +3909,7 @@ msgid "trikiti"
 msgstr ""
 
 #: DB:instrument/name:945
-msgctxt "Indian three-stringed long-necked lute"
+msgctxt "Indian medieval three-stringed stick zither"
 msgid "tritantri veena"
 msgstr ""
 
@@ -3565,10 +3921,6 @@ msgstr "トロンバ・マリーナ"
 msgid "trombone"
 msgstr "トロンボーン"
 
-#: DB:instrument/name:663
-msgid "tromboon"
-msgstr "トロンブーン"
-
 #: DB:instrument/name:33
 msgid "trumpet"
 msgstr "トランペット"
@@ -3576,7 +3928,7 @@ msgstr "トランペット"
 #: DB:instrument/name:914
 msgctxt "Family of the brass instrument trumpet"
 msgid "trumpet family"
-msgstr ""
+msgstr "トランペット・ファミリー"
 
 #: DB:instrument/name:308
 msgid "tràm plè"
@@ -3612,6 +3964,7 @@ msgid "tubon"
 msgstr ""
 
 #: DB:instrument/name:168
+msgctxt "Orchestral chimes"
 msgid "tubular bells"
 msgstr "チューブラーベル"
 
@@ -3663,10 +4016,10 @@ msgstr ""
 
 #: DB:instrument/name:330
 msgid "udu"
-msgstr ""
+msgstr "ウドゥ"
 
 #: DB:instrument/name:967
-msgctxt "Indonesian bronze 10 key metallophone"
+msgctxt "Deep pitch gangsa used in Balinese gamelan"
 msgid "ugal"
 msgstr ""
 
@@ -3676,7 +4029,7 @@ msgstr "イリアン・パイプス"
 
 #: DB:instrument/name:631
 msgid "ukeke"
-msgstr ""
+msgstr "ウケケ"
 
 #: DB:instrument/name:89
 msgid "ukulele"
@@ -3711,7 +4064,7 @@ msgid "valved brass instruments"
 msgstr "バルブ式金管楽器"
 
 #: DB:instrument/name:943
-msgctxt "Family of ancient Indian chordophones"
+msgctxt "Family of ancient Indian lute-like chordophones"
 msgid "veena"
 msgstr ""
 
@@ -3737,21 +4090,23 @@ msgid "vibraslap"
 msgstr "ヴィブラスラップ"
 
 #: DB:instrument/name:612
+msgctxt "Large North Indian fretless sliding tube zither"
 msgid "vichitra veena"
 msgstr ""
 
-#: DB:instrument/name:853
-msgctxt "sound chip from gaming consoles"
-msgid "video game console"
-msgstr ""
-
 #: DB:instrument/name:91
+msgctxt "Medieval violin"
 msgid "vielle"
 msgstr "ヴィエール"
 
 #: DB:instrument/name:262
 msgctxt "Spanish string instrument."
 msgid "vihuela"
+msgstr ""
+
+#: DB:instrument/name:1027
+msgctxt "ensemble of multiple viols"
+msgid "viol consort"
 msgstr ""
 
 #: DB:instrument/name:899
@@ -3842,11 +4197,11 @@ msgstr "ウォッシュボード"
 
 #: DB:instrument/name:96
 msgid "washtub bass"
-msgstr ""
+msgstr "ウォッシュタブ・ベース"
 
 #: DB:instrument/name:280
 msgid "waterphone"
-msgstr ""
+msgstr "ウォーターフォン"
 
 #: DB:instrument/name:374
 msgid "wavedrum"
@@ -3867,6 +4222,7 @@ msgid "willow flute"
 msgstr "ウィロウ・フルート"
 
 #: DB:instrument/name:497
+msgctxt "Wind played chimes"
 msgid "wind chime"
 msgstr "ウィンドチャイム"
 
@@ -3888,6 +4244,7 @@ msgid "wood block"
 msgstr "ウッドブロック"
 
 #: DB:instrument/name:267
+msgctxt "wooden bell used in temples"
 msgid "wooden fish"
 msgstr "木魚"
 
@@ -3922,6 +4279,7 @@ msgid "xylophone"
 msgstr "木琴/シロフォン"
 
 #: DB:instrument/name:703
+msgctxt "Extended range xylophone"
 msgid "xylorimba"
 msgstr "シロリンバ"
 
@@ -3945,6 +4303,7 @@ msgid "yehu"
 msgstr "椰胡（イエフー）"
 
 #: DB:instrument/name:685
+msgctxt "Korean traditional dragon-painted barrel drum"
 msgid "yonggo"
 msgstr "龍鼓（ヨンゴ）"
 
@@ -3990,6 +4349,7 @@ msgid "zhuihu"
 msgstr ""
 
 #: DB:instrument/name:455
+msgctxt "Eastern Mediterranean finger cymbals"
 msgid "zill"
 msgstr "ジル"
 
@@ -4002,6 +4362,7 @@ msgid "zurna"
 msgstr "ズルナ"
 
 #: DB:instrument/name:740
+msgctxt "Ceremonial Ottoman jangle-staff"
 msgid "çevgen"
 msgstr "チェヴギャーン"
 
@@ -4023,6 +4384,7 @@ msgid "đing năm"
 msgstr "ディン・ナム"
 
 #: DB:instrument/name:251
+msgctxt "One-string Vietnamese tube zither"
 msgid "đàn bầu"
 msgstr "ダン・バウ"
 
@@ -4080,5 +4442,6 @@ msgid "żaqq"
 msgstr ""
 
 #: DB:instrument/name:592
+msgctxt "Maltese mirliton"
 msgid "żummara"
 msgstr ""

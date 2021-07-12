@@ -1,5 +1,5 @@
 /*
- * @flow
+ * @flow strict-local
  * Copyright (C) 2018 MetaBrainz Foundation
  *
  * This file is part of MusicBrainz, the open internet music database,
@@ -9,46 +9,41 @@
 
 import * as React from 'react';
 
-import {withCatalystContext} from '../context';
-import Layout from '../layout';
-import formatUserDate from '../utility/formatUserDate';
-
 import {ANNOTATION_REPORT_TEXT} from './constants';
-import ReleaseGroupAnnotationList from './components/ReleaseGroupAnnotationList';
-import FilterLink from './FilterLink';
+import ReleaseGroupList from './components/ReleaseGroupList';
+import ReportLayout from './components/ReportLayout';
+import useAnnotationColumns from './hooks/useAnnotationColumns';
 import type {ReportDataT, ReportReleaseGroupAnnotationT} from './types';
 
 const AnnotationsReleaseGroups = ({
-  $c,
   canBeFiltered,
   filtered,
   generated,
   items,
   pager,
-}: ReportDataT<ReportReleaseGroupAnnotationT>) => (
-  <Layout fullWidth title={l('Release group annotations')}>
-    <h1>{l('Release group annotations')}</h1>
+}: ReportDataT<ReportReleaseGroupAnnotationT>):
+React.Element<typeof ReportLayout> => {
+  const annotationColumns =
+    useAnnotationColumns<ReportReleaseGroupAnnotationT>();
 
-    <ul>
-      <li>
-        {l('This report lists release groups with annotations.')}
-      </li>
-      <li>{ANNOTATION_REPORT_TEXT()}</li>
-      <li>
-        {texp.l('Total release groups found: {count}',
-                {count: pager.total_entries})}
-      </li>
-      <li>
-        {texp.l('Generated on {date}',
-                {date: formatUserDate($c.user, generated)})}
-      </li>
+  return (
+    <ReportLayout
+      canBeFiltered={canBeFiltered}
+      description={l('This report lists release groups with annotations.')}
+      entityType="release_group"
+      extraInfo={ANNOTATION_REPORT_TEXT()}
+      filtered={filtered}
+      generated={generated}
+      title={l('Release group annotations')}
+      totalEntries={pager.total_entries}
+    >
+      <ReleaseGroupList
+        columnsAfter={annotationColumns}
+        items={items}
+        pager={pager}
+      />
+    </ReportLayout>
+  );
+};
 
-      {canBeFiltered ? <FilterLink filtered={filtered} /> : null}
-    </ul>
-
-    <ReleaseGroupAnnotationList items={items} pager={pager} />
-
-  </Layout>
-);
-
-export default withCatalystContext(AnnotationsReleaseGroups);
+export default AnnotationsReleaseGroups;

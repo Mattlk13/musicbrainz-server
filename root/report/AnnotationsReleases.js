@@ -1,5 +1,5 @@
 /*
- * @flow
+ * @flow strict-local
  * Copyright (C) 2018 MetaBrainz Foundation
  *
  * This file is part of MusicBrainz, the open internet music database,
@@ -9,46 +9,40 @@
 
 import * as React from 'react';
 
-import {withCatalystContext} from '../context';
-import Layout from '../layout';
-import formatUserDate from '../utility/formatUserDate';
-
 import {ANNOTATION_REPORT_TEXT} from './constants';
-import ReleaseAnnotationList from './components/ReleaseAnnotationList';
-import FilterLink from './FilterLink';
+import ReleaseList from './components/ReleaseList';
+import ReportLayout from './components/ReportLayout';
+import useAnnotationColumns from './hooks/useAnnotationColumns';
 import type {ReportDataT, ReportReleaseAnnotationT} from './types';
 
 const AnnotationsReleases = ({
-  $c,
   canBeFiltered,
   filtered,
   generated,
   items,
   pager,
-}: ReportDataT<ReportReleaseAnnotationT>) => (
-  <Layout fullWidth title={l('Release annotations')}>
-    <h1>{l('Release annotations')}</h1>
+}: ReportDataT<ReportReleaseAnnotationT>):
+React.Element<typeof ReportLayout> => {
+  const annotationColumns = useAnnotationColumns<ReportReleaseAnnotationT>();
 
-    <ul>
-      <li>
-        {l('This report lists releases with annotations.')}
-      </li>
-      <li>{ANNOTATION_REPORT_TEXT()}</li>
-      <li>
-        {texp.l('Total releases found: {count}',
-                {count: pager.total_entries})}
-      </li>
-      <li>
-        {texp.l('Generated on {date}',
-                {date: formatUserDate($c.user, generated)})}
-      </li>
+  return (
+    <ReportLayout
+      canBeFiltered={canBeFiltered}
+      description={l('This report lists releases with annotations.')}
+      entityType="release"
+      extraInfo={ANNOTATION_REPORT_TEXT()}
+      filtered={filtered}
+      generated={generated}
+      title={l('Release annotations')}
+      totalEntries={pager.total_entries}
+    >
+      <ReleaseList
+        columnsAfter={annotationColumns}
+        items={items}
+        pager={pager}
+      />
+    </ReportLayout>
+  );
+};
 
-      {canBeFiltered ? <FilterLink filtered={filtered} /> : null}
-    </ul>
-
-    <ReleaseAnnotationList items={items} pager={pager} />
-
-  </Layout>
-);
-
-export default withCatalystContext(AnnotationsReleases);
+export default AnnotationsReleases;

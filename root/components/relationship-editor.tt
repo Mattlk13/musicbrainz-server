@@ -125,6 +125,9 @@
       <input type="text" data-bind="value: date.year, valueUpdate: 'afterkeydown'" maxlength="4" placeholder="[% l('YYYY') %]" size="4" />-<!--
       --><input type="text" data-bind="value: date.month, valueUpdate: 'afterkeydown'" maxlength="2" placeholder="[% l('MM') %]" size="2" />-<!--
       --><input type="text" data-bind="value: date.day, valueUpdate: 'afterkeydown'" maxlength="2" placeholder="[% l('DD') %]" size="2" />
+      <!-- ko if: isBeginDate -->
+        <button class="icon copy-date" type="button" title="[% l('Copy to end date') | html %]" data-bind="click: $parent.copyDate"></button>
+      <!-- /ko -->
       <div class="error" data-bind="text: $parent.dateError(date)"></div>
       <div class="error" data-bind="text: isBeginDate ? $parent.tooShortBeginYearError() : $parent.tooShortEndYearError()"></div>
     </td>
@@ -132,7 +135,7 @@
 </script>
 
 <script type="text/html" id="template.dialog-attributes">
-  <!-- ko ifnot: _.isEmpty(relationship().linkTypeAttributes()) -->
+  <!-- ko if: relationship().linkTypeAttributes().length -->
   <tr>
     <td class="section">
       [% l('Attributes:') %]<br />
@@ -209,7 +212,7 @@
               <input type="text" class="attribute-credit" placeholder="[% l('credited as') %]" data-bind="value: creditedAs" />
             <!-- /ko -->
             <!-- ko if: $parent.instruments().length > 1 -->
-              <button type="button" class="icon remove-item" data-bind="click: _.partial($parent.removeItem, $rawData)"></button>
+              <button type="button" class="icon remove-item" data-bind="click: $parent.removeItem.bind($parent, $rawData)"></button>
             <!-- /ko -->
           </div>
         <!-- /ko -->
@@ -249,7 +252,7 @@
 <script type="text/html" id="template.multiselect">
   <div class="items" data-bind="foreach: selectedAttributes">
     <div>
-      <a href="#" data-bind="html: '&#215; ' + _.escape($root.localizeLinkAttributeTypeName(type))"></a>
+      <a href="#" data-bind="text: '× ' + $root.localizeLinkAttributeTypeName(type)"></a>
       <!-- ko if: type.creditable -->
         <input type="text" class="attribute-credit" placeholder="[% l('credited as') %]" data-bind="value: creditedAs" />
       <!-- /ko -->

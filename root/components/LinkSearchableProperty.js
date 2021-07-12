@@ -1,5 +1,5 @@
 /*
- * @flow
+ * @flow strict
  * Copyright (C) 2018 MetaBrainz Foundation
  *
  * This file is part of MusicBrainz, the open internet music database,
@@ -9,39 +9,40 @@
 
 import {URL} from 'url';
 
-import React from 'react';
+import * as React from 'react';
 
-import {withCatalystContext} from '../context';
+import {CatalystContext} from '../context';
 import escapeLuceneValue
   from '../static/scripts/common/utility/escapeLuceneValue';
 
-type Props = {|
-  +$c: CatalystContextT,
+type Props = {
   +entityType: string,
   +searchField: string,
   +searchValue: string,
   +text?: string,
-|};
+};
 
 const LinkSearchableProperty = ({
-  $c,
   entityType,
   searchField,
   searchValue,
   text = searchValue,
-}: Props) => {
-  searchField = searchValue === '*' ? '-' + searchField : searchField;
-  const url = new URL($c.req.uri);
-  url.pathname = '/search';
-  url.search =
-    'query=' +
-    encodeURIComponent(
-      searchField + ':"' +
-      escapeLuceneValue(searchValue) + '"',
-    ) +
-    '&type=' + encodeURIComponent(entityType) +
-    '&limit=25&method=advanced';
-  return <a href={url.toString()}>{text}</a>;
-};
+}: Props): React.MixedElement => (
+  <CatalystContext.Consumer>
+    {$c => {
+      const url = new URL($c.req.uri);
+      url.pathname = '/search';
+      url.search =
+        'query=' +
+        encodeURIComponent(
+          (searchValue === '*' ? '-' + searchField : searchField) + ':"' +
+          escapeLuceneValue(searchValue) + '"',
+        ) +
+        '&type=' + encodeURIComponent(entityType) +
+        '&limit=25&method=advanced';
+      return <a href={url.toString()}>{text}</a>;
+    }}
+  </CatalystContext.Consumer>
+);
 
-export default withCatalystContext(LinkSearchableProperty);
+export default LinkSearchableProperty;

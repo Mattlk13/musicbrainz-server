@@ -1,5 +1,5 @@
 /*
- * @flow
+ * @flow strict
  * Copyright (C) 2018 MetaBrainz Foundation
  *
  * This file is part of MusicBrainz, the open internet music database,
@@ -7,16 +7,22 @@
  * later version: http://www.gnu.org/licenses/gpl-2.0.txt
  */
 
-import React from 'react';
-import type {Node as ReactNode} from 'react';
+import * as React from 'react';
 
+type Props = {
+  +children?: React.Node,
+  +disabled?: boolean,
+  +form: ReadOnlyFormT<{
+    +make_votable: ReadOnlyFieldT<boolean>,
+    ...
+  }>,
+};
 
-type Props<F> = {|
-  +children: ReactNode,
-  +form: FormT<F & {+make_votable: ReadOnlyFieldT<boolean>}>,
-|};
-
-const EnterEdit = <F>({children, form}: Props<F>) => (
+const EnterEdit = ({
+  children,
+  disabled = false,
+  form,
+}: Props): React.MixedElement => (
   <>
     <div className="row no-label">
       <div className="auto-editor">
@@ -24,6 +30,7 @@ const EnterEdit = <F>({children, form}: Props<F>) => (
           <input
             className="make-votable"
             defaultChecked={form.field.make_votable.value}
+            disabled={disabled}
             name={form.field.make_votable.html_name}
             type="checkbox"
             value="1"
@@ -33,7 +40,11 @@ const EnterEdit = <F>({children, form}: Props<F>) => (
       </div>
     </div>
     <div className="row no-label buttons">
-      <button className="submit positive" type="submit">
+      <button
+        className="submit positive"
+        disabled={disabled}
+        type="submit"
+      >
         {l('Enter edit')}
       </button>
       {children}

@@ -1,5 +1,5 @@
 /*
- * @flow
+ * @flow strict
  * Copyright (C) 2015 MetaBrainz Foundation
  *
  * This file is part of MusicBrainz, the open internet music database,
@@ -7,10 +7,38 @@
  * later version: http://www.gnu.org/licenses/gpl-2.0.txt
  */
 
-import React from 'react';
+import * as React from 'react';
 
-const TagLink = ({tag}: {tag: string}) => (
-  <a href={`/tag/${encodeURIComponent(tag)}`}>{tag}</a>
-);
+type UserTagLinkProps = {
+  +content?: string,
+  +showDownvoted?: boolean,
+  +subPath?: string,
+  +tag: string,
+  +username: string,
+};
+
+type TagLinkProps = {
+  +content?: string,
+  +subPath?: string,
+  +tag: string,
+};
+
+export const UserTagLink = (
+  {content, showDownvoted = false, subPath, tag, username}: UserTagLinkProps,
+): React.Element<'a'> => {
+  const url = '/user/' + encodeURIComponent(username) +
+              '/tag/' + encodeURIComponent(tag) +
+              (subPath == null ? '' : '/' + subPath) +
+              (showDownvoted ? '?show_downvoted=1' : '');
+  return <a href={url}>{content == null ? tag : content}</a>;
+};
+
+const TagLink = (
+  {content, subPath, tag}: TagLinkProps,
+): React.Element<'a'> => {
+  const url = '/tag/' + encodeURIComponent(tag) +
+              (subPath == null ? '' : '/' + subPath);
+  return <a href={url}>{content == null ? tag : content}</a>;
+};
 
 export default TagLink;

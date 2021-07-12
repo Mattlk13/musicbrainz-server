@@ -48,7 +48,6 @@ sub _column_mapping {
         id => 'id',
         gid => 'gid',
         name => 'name',
-        unaccented_name => 'unaccented_name',
         comment => 'comment',
         type_id => 'type',
         ordering_type_id => 'ordering_type',
@@ -78,10 +77,10 @@ sub _order_by {
     my ($self, $order) = @_;
     my $order_by = order_by($order, "name", {
         "name" => sub {
-            return "musicbrainz_collate(name)"
+            return "name COLLATE musicbrainz"
         },
         "type" => sub {
-            return "type, musicbrainz_collate(name)"
+            return "type, name COLLATE musicbrainz"
         }
     });
 
@@ -93,7 +92,6 @@ sub _merge_impl {
 
     $self->alias->merge($new_id, @old_ids);
     $self->tags->merge($new_id, @old_ids);
-    $self->subscription->merge_entities($new_id, @old_ids);
     $self->annotation->merge($new_id, @old_ids);
     $self->c->model('Collection')->merge_entities('series', $new_id, @old_ids);
     $self->c->model('Edit')->merge_entities('series', $new_id, @old_ids);
@@ -155,10 +153,16 @@ sub update {
     my $series = $self->c->model('Series')->get_by_id($series_id);
     $self->c->model('SeriesType')->load($series);
 
-    if (defined($row->{type}) && $series->type_id != $row->{type}) {
-        my ($items, $hits) = $self->c->model('Series')->get_entities($series, 1, 0);
+    if (defined($row->{type})) {
+        my $existing_entity_type = $series->type->item_entity_type;
+        my $new_series_type = $self->c->model('SeriesType')->get_by_id($row->{type});
+        my $new_entity_type = $new_series_type->item_entity_type;
 
-        die "Cannot change the type of a non-empty series" if scalar(@$items);
+        if ($existing_entity_type ne $new_entity_type) {
+            my ($items, $hits) = $self->c->model('Series')->get_entities($series, 1, 0);
+
+            die "Cannot change the entity type of a non-empty series" if scalar(@$items);
+        }
     }
 
     $self->sql->update_row('series', $row, { id => $series_id }) if %$row;
@@ -207,7 +211,7 @@ sub get_entities {
       FROM (SELECT " . $model->_columns . " FROM " . $model->_table . ") e
       JOIN (SELECT * FROM ${entity_type}_series) es ON e.id = es.$entity_type
       WHERE es.series = ?
-      ORDER BY es.link_order, musicbrainz_collate(e.name) ASC";
+      ORDER BY es.link_order, e.name COLLATE musicbrainz ASC";
 
     $model->query_to_list_limited($query, [$series->id], $limit, $offset, sub {
         my ($model, $row) = @_;
@@ -227,7 +231,7 @@ sub find_by_subscribed_editor
                  FROM " . $self->_table . "
                     JOIN editor_subscribe_series s ON series.id = s.series
                  WHERE s.editor = ?
-                 ORDER BY musicbrainz_collate(series.name), series.id";
+                 ORDER BY series.name COLLATE musicbrainz, series.id";
     $self->query_to_list_limited($query, [$editor_id], $limit, $offset);
 }
 
@@ -235,7 +239,7 @@ sub automatically_reorder {
     my ($self, $series_id) = @_;
 
     return unless $self->c->sql->select_single_value(
-        'SELECT true FROM series WHERE id = ? AND ordering_type = ?',
+        'SELECT TRUE FROM series WHERE id = ? AND ordering_type = ?',
         $series_id, $SERIES_ORDERING_TYPE_AUTOMATIC
     );
 
@@ -371,22 +375,12 @@ __PACKAGE__->meta->make_immutable;
 no Moose;
 1;
 
-=head1 COPYRIGHT
+=head1 COPYRIGHT AND LICENSE
 
 Copyright (C) 2014 MetaBrainz Foundation
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program; if not, write to the Free Software
-Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+This file is part of MusicBrainz, the open internet music database,
+and is licensed under the GPL version 2, or (at your option) any
+later version: http://www.gnu.org/licenses/gpl-2.0.txt
 
 =cut

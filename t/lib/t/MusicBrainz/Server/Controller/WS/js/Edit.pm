@@ -11,6 +11,7 @@ use MusicBrainz::Server::Constants qw(
     $EDIT_RECORDING_EDIT
     $EDIT_RELEASE_CREATE
     $EDIT_RELEASE_EDIT
+    $EDIT_RELEASE_ADD_ANNOTATION
     $EDIT_RELEASE_ADDRELEASELABEL
     $EDIT_RELEASEGROUP_CREATE
     $EDIT_RELEASEGROUP_EDIT
@@ -20,6 +21,7 @@ use MusicBrainz::Server::Constants qw(
     $EDIT_RELATIONSHIP_CREATE
     $EDIT_RELATIONSHIP_EDIT
     $EDIT_RELATIONSHIP_DELETE
+    $STATUS_APPLIED
     $WS_EDIT_RESPONSE_OK
     $WS_EDIT_RESPONSE_NO_CHANGES
 );
@@ -170,7 +172,6 @@ test 'previewing/creating/editing a release group and release' => sub {
             script => undef,
             scriptID => 112,
             name => 'Vision Creation Newsun',
-            unaccented_name => undef,
             status => undef,
             statusID => 1,
             barcode => '4943674011582',
@@ -208,12 +209,8 @@ test 'previewing/creating/editing a release group and release' => sub {
                             isni_codes => [],
                             last_updated => ignore,
                             name => 'Boredoms',
-                            rating => undef,
-                            rating_count => 0,
                             sort_name => 'Boredoms',
                             typeID => undef,
-                            unaccented_name => undef,
-                            user_rating => undef,
                         },
                         name => 'Boredoms',
                     },
@@ -236,12 +233,8 @@ test 'previewing/creating/editing a release group and release' => sub {
                             isni_codes => [],
                             last_updated => ignore,
                             name => 'a fake artist',
-                            rating => undef,
-                            rating_count => 0,
                             sort_name => 'a fake artist',
                             typeID => undef,
-                            unaccented_name => undef,
-                            user_rating => undef,
                         },
                         name => 'a fake artist',
                     },
@@ -260,7 +253,6 @@ test 'previewing/creating/editing a release group and release' => sub {
                         id => 107,
                         last_updated => ignore,
                         name => 'Japan',
-                        unaccented_name => undef,
                         typeID => 1,
                         iso_3166_1_codes => ['JP'],
                         iso_3166_2_codes => [],
@@ -278,7 +270,12 @@ test 'previewing/creating/editing a release group and release' => sub {
             editsPending => JSON::false,
             cover_art_presence => undef,
             cover_art_url => undef,
+            may_have_cover_art => JSON::true,
+            may_have_discids => JSON::false,
             quality => 1,
+            combined_format_name => '',
+            combined_track_count => '',
+            mediums => [],
         },
         response => $WS_EDIT_RESPONSE_OK,
     }, 'ws response contains serialized release data');
@@ -649,8 +646,30 @@ test 'previewing/creating/editing a release group and release' => sub {
         label           => { name => 'Warp Records', id => 2, gid => '46f0f4cd-8aab-4b33-b698-f459faf64190' },
         catalog_number  => undef,
     });
-};
 
+
+    # Add release annotation.
+
+    my $annotation_edits = [ {
+        edit_type       => $EDIT_RELEASE_ADD_ANNOTATION,
+        entity          => $release_id,
+        text            => "    * Test annotation\x{0007} in release editor  \r\n\r\n\t\x{00A0}\r\n    * This anno\x{200B}tation has\ttwo bul\x{00AD}lets  \t\t",
+    } ];
+
+    @edits = capture_edits {
+        post_json($mech, '/ws/js/edit/create', encode_json({ edits => $annotation_edits }));
+    } $c;
+
+    is(scalar(@edits), 1);
+
+    isa_ok($edits[0], 'MusicBrainz::Server::Edit::Release::AddAnnotation');
+
+    cmp_deeply($edits[0]->data, {
+        editor_id       => 1,
+        entity          => { id => $release_id, name => 'Vision Creation Newsun' },
+        text            => "    * Test annotation in release editor\n\n    * This anno\x{200B}tation has\ttwo bul\x{00AD}lets",
+    });
+};
 
 test 'adding a relationship' => sub {
     my $test = shift;
@@ -811,6 +830,8 @@ test 'editing a relationship' => sub {
             ended       => 0,
             attributes  => [$guitar_attribute]
         },
+        entity0_credit => '',
+        entity1_credit => '',
         edit_version => 2,
     });
 };
@@ -874,6 +895,8 @@ test 'editing a relationship with an unchanged attribute' => sub {
             end_date    => { month => undef, day => undef, year => undef },
             ended       => 0,
         },
+        entity0_credit => '',
+        entity1_credit => '',
         edit_version => 2,
     });
 };
@@ -934,6 +957,8 @@ test 'removing an attribute from a relationship' => sub {
         old => {
             attributes  => [$guitar_attribute],
         },
+        entity0_credit => '',
+        entity1_credit => '',
         edit_version => 2,
     });
 };
@@ -1054,7 +1079,7 @@ test 'Edits are rejected without a confirmed email address' => sub {
     post_json($mech, '/ws/js/edit/create', encode_json({ edits => [] }));
 
     my $response = from_json($mech->content);
-    is($response->{error}, 'a confirmed email address is required', 'error is returned for unconfirmed email');
+    is($response->{error}, 'a verified email address is required', 'error is returned for unconfirmed email');
 };
 
 
@@ -1319,6 +1344,46 @@ test 'Releases can be added without any mediums' => sub {
     } $c;
 
     isa_ok($edits[0], 'MusicBrainz::Server::Edit::Release::Create', 'release added without any mediums');
+};
+
+
+test 'Empty artist credit name defaults to the artist name' => sub {
+    my $test = shift;
+    my $mech = $test->mech;
+    my $c = $test->c;
+
+    prepare_test_database($c);
+
+    $mech->get_ok('/login');
+    $mech->submit_form( with_fields => { username => 'new_editor', password => 'password' } );
+
+    my $artist_credit = {
+        names => [
+            {
+                artist => { id => 5, name => 'David Bowie' },
+                # An empty AC name is disallowed at the DB level;
+                # this should default to the artist name.
+                name => '',
+                join_phrase => '',
+            }
+        ]
+    };
+
+    my $release_group_edits = [{
+        edit_type     => $EDIT_RELEASEGROUP_CREATE,
+        name          => 'empty AC name test',
+        artist_credit => $artist_credit,
+    }];
+
+    my ($edit) = capture_edits {
+        post_json($mech, '/ws/js/edit/create', encode_json({ edits => $release_group_edits }));
+    } $c;
+
+    isa_ok($edit, 'MusicBrainz::Server::Edit::ReleaseGroup::Create', 'release group edit was created');
+    is($edit->status, $STATUS_APPLIED, 'release group edit was applied');
+
+    my $response = from_json($mech->content);
+    is($response->{edits}->[0]->{response}, $WS_EDIT_RESPONSE_OK, 'ws response says OK');
 };
 
 1;

@@ -10,7 +10,10 @@ use MusicBrainz::Server::Constants qw(
     $EDIT_INSTRUMENT_DELETE
 );
 use MusicBrainz::Server::Translation qw( l );
+use List::MoreUtils qw( uniq );
 use List::UtilsBy qw( sort_by );
+use MusicBrainz::Server::ControllerUtils::JSON qw( serialize_pager );
+use MusicBrainz::Server::Entity::Util::JSON qw( to_json_array to_json_object );
 
 with 'MusicBrainz::Server::Controller::Role::Load' => {
     model           => 'Instrument',
@@ -36,13 +39,13 @@ sub show : PathPart('') Chained('load') {
     my ($self, $c) = @_;
 
     my %props = (
-        instrument        => $c->stash->{instrument},
+        instrument        => $c->stash->{instrument}->TO_JSON,
         numberOfRevisions => $c->stash->{number_of_revisions},
-        wikipediaExtract  => $c->stash->{wikipedia_extract},
+        wikipediaExtract  => to_json_object($c->stash->{wikipedia_extract}),
     );
 
     $c->stash(
-        component_path => 'instrument/InstrumentIndex.js',
+        component_path => 'instrument/InstrumentIndex',
         component_props => \%props,
         current_view => 'Node',
     );
@@ -54,11 +57,50 @@ after 'load' => sub {
     $c->model('InstrumentType')->load($instrument);
 };
 
+sub artists : Chained('load') {
+    my ($self, $c) = @_;
+
+    my $instrument = $c->stash->{instrument};
+    my ($results, @artists, %instrument_credits_and_rel_types);
+
+    $results = $self->_load_paged($c, sub {
+        $c->model('Artist')->find_by_instrument($instrument->id, shift, shift);
+    });
+
+    for my $item (@$results) {
+        push @artists, $item->{artist};
+        my @credits_and_rel_types = uniq grep { $_ } @{ $item->{instrument_credits_and_rel_types} // [] };
+        $instrument_credits_and_rel_types{$item->{artist}->gid} = \@credits_and_rel_types if @credits_and_rel_types;
+    }
+
+    $c->model('Artist')->load_meta(@artists);
+    $c->model('ArtistType')->load(@artists);
+    $c->model('Gender')->load(@artists);
+    $c->model('Area')->load(@artists);
+
+    if ($c->user_exists) {
+        $c->model('Artist')->rating->load_user_ratings($c->user->id, @artists);
+    }
+
+    my %props = (
+        artists => to_json_array(\@artists),
+        instrument => $c->stash->{instrument}->TO_JSON,
+        instrumentCreditsAndRelTypes => \%instrument_credits_and_rel_types,
+        pager => serialize_pager($c->stash->{pager}),
+    );
+
+    $c->stash(
+        component_path => 'instrument/InstrumentArtists',
+        component_props => \%props,
+        current_view => 'Node',
+    );
+}
+
 sub recordings : Chained('load') {
     my ($self, $c) = @_;
 
     my $instrument = $c->stash->{instrument};
-    my ($results, @recordings, %instrument_credits);
+    my ($results, @recordings, %instrument_credits_and_rel_types);
 
     $results = $self->_load_paged($c, sub {
         $c->model('Recording')->find_by_instrument($instrument->id, shift, shift);
@@ -66,8 +108,8 @@ sub recordings : Chained('load') {
 
     for my $item (@$results) {
         push @recordings, $item->{recording};
-        my @credits = grep { $_ } @{ $item->{instrument_credits} // [] };
-        $instrument_credits{$item->{recording}->gid} = \@credits if @credits;
+        my @credits_and_rel_types = uniq grep { $_ } @{ $item->{instrument_credits_and_rel_types} // [] };
+        $instrument_credits_and_rel_types{$item->{recording}->gid} = \@credits_and_rel_types if @credits_and_rel_types;
     }
 
     $c->model('Recording')->load_meta(@recordings);
@@ -76,14 +118,20 @@ sub recordings : Chained('load') {
         $c->model('Recording')->rating->load_user_ratings($c->user->id, @recordings);
     }
 
-    $c->stash( template => 'instrument/recordings.tt' );
-
     $c->model('ISRC')->load_for_recordings(@recordings);
     $c->model('ArtistCredit')->load(@recordings);
 
+    my %props = (
+        instrument => $c->stash->{instrument}->TO_JSON,
+        instrumentCreditsAndRelTypes => \%instrument_credits_and_rel_types,
+        pager => serialize_pager($c->stash->{pager}),
+        recordings => to_json_array(\@recordings),
+    );
+
     $c->stash(
-        recordings => \@recordings,
-        instrument_credits => \%instrument_credits,
+        component_path => 'instrument/InstrumentRecordings',
+        component_props => \%props,
+        current_view => 'Node',
     );
 }
 
@@ -91,7 +139,7 @@ sub releases : Chained('load') {
     my ($self, $c) = @_;
 
     my $instrument = $c->stash->{instrument};
-    my ($results, @releases, %instrument_credits);
+    my ($results, @releases, %instrument_credits_and_rel_types);
 
     $results = $self->_load_paged($c, sub {
         $c->model('Release')->find_by_instrument($instrument->id, shift, shift);
@@ -99,21 +147,28 @@ sub releases : Chained('load') {
 
     for my $item (@$results) {
         push @releases, $item->{release};
-        my @credits = grep { $_ } @{ $item->{instrument_credits} // [] };
-        $instrument_credits{$item->{release}->gid} = \@credits if @credits;
+        my @credits_and_rel_types = uniq grep { $_ } @{ $item->{instrument_credits_and_rel_types} // [] };
+        $instrument_credits_and_rel_types{$item->{release}->gid} = \@credits_and_rel_types if @credits_and_rel_types;
     }
-
-    $c->stash( template => 'instrument/releases.tt' );
 
     $c->model('ArtistCredit')->load(@releases);
     $c->model('Release')->load_related_info(@releases);
+
+    my %props = (
+        instrument => $c->stash->{instrument}->TO_JSON,
+        instrumentCreditsAndRelTypes => \%instrument_credits_and_rel_types,
+        pager => serialize_pager($c->stash->{pager}),
+        releases => to_json_array(\@releases),
+    );
+
     $c->stash(
-        releases => \@releases,
-        instrument_credits => \%instrument_credits,
+        component_path => 'instrument/InstrumentReleases',
+        component_props => \%props,
+        current_view => 'Node',
     );
 }
 
-after [qw( show collections details tags aliases recordings releases )] => sub {
+after [qw( show collections details tags aliases artists releases recordings )] => sub {
     my ($self, $c) = @_;
     $self->_stash_collections($c);
 };
@@ -162,8 +217,8 @@ sub list : Path('/instruments') Args(0) {
 
     my $entities = {};
     for my $i (@sorted) {
-        my $type = $i->{type_id} || "unknown";
-        push @{ $entities->{$type} }, $i;
+        my $type = $i->type_id || "unknown";
+        push @{ $entities->{$type} }, $i->TO_JSON;
     }
 
     $c->stash(
@@ -172,29 +227,19 @@ sub list : Path('/instruments') Args(0) {
         component_props => {
             %{$c->stash->{component_props}},
             instruments_by_type => $entities,
-            instrument_types => \@types
+            instrument_types => to_json_array(\@types),
         }
     );
 }
 
 1;
 
-=head1 COPYRIGHT
+=head1 COPYRIGHT AND LICENSE
 
 Copyright (C) 2014 MetaBrainz Foundation
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program; if not, write to the Free Software
-Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+This file is part of MusicBrainz, the open internet music database,
+and is licensed under the GPL version 2, or (at your option) any
+later version: http://www.gnu.org/licenses/gpl-2.0.txt
 
 =cut

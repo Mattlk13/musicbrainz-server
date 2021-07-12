@@ -1,5 +1,5 @@
 /*
- * @flow
+ * @flow strict-local
  * Copyright (C) 2018 MetaBrainz Foundation
  *
  * This file is part of MusicBrainz, the open internet music database,
@@ -7,44 +7,44 @@
  * later version: http://www.gnu.org/licenses/gpl-2.0.txt
  */
 
-import React from 'react';
-import {range} from 'lodash';
+import * as React from 'react';
 
-import {l_statistics as l, ln_statistics as ln} from '../static/scripts/common/i18n/statistics';
-import {withCatalystContext} from '../context';
+import {l_statistics as l}
+  from '../static/scripts/common/i18n/statistics';
+import mapRange from '../static/scripts/common/utility/mapRange';
 
-import {formatCount, formatPercentage} from './utilities';
+import {formatCount, formatPercentage, TimelineLink} from './utilities';
 import StatisticsLayout from './StatisticsLayout';
 
-type CoverArtStatsT = {|
+type CoverArtStatsT = {
   +$c: CatalystContextT,
   +dateCollected: string,
   +releaseFormatStats: $ReadOnlyArray<CoverArtReleaseFormatStatT>,
   +releaseStatusStats: $ReadOnlyArray<CoverArtReleaseStatusStatT>,
   +releaseTypeStats: $ReadOnlyArray<CoverArtReleaseTypeStatT>,
-  +stats: {[string]: number},
+  +stats: {[statName: string]: number},
   +typeStats: $ReadOnlyArray<CoverArtTypeStatT>,
-|};
+};
 
-type CoverArtReleaseFormatStatT = {|
+type CoverArtReleaseFormatStatT = {
   +format: string,
   +stat_name: string,
-|};
+};
 
-type CoverArtReleaseStatusStatT = {|
+type CoverArtReleaseStatusStatT = {
   +stat_name: string,
   +status: string,
-|};
+};
 
-type CoverArtReleaseTypeStatT = {|
+type CoverArtReleaseTypeStatT = {
   +stat_name: string,
   +type: string,
-|};
+};
 
-type CoverArtTypeStatT = {|
+type CoverArtTypeStatT = {
   +stat_name: string,
   +type: string,
-|};
+};
 
 const nameOrNull = (name: string, defaultName: string) => {
   if (name === 'null') {
@@ -54,8 +54,6 @@ const nameOrNull = (name: string, defaultName: string) => {
   return name;
 };
 
-const oneToTwentyNine = range(1, 30);
-
 const CoverArt = ({
   $c,
   dateCollected,
@@ -64,7 +62,7 @@ const CoverArt = ({
   releaseFormatStats,
   stats,
   typeStats,
-}: CoverArtStatsT) => (
+}: CoverArtStatsT): React.Element<typeof StatisticsLayout> => (
   <StatisticsLayout fullWidth page="coverart" title={l('Cover Art')}>
     <p>
       {texp.l('Last updated: {date}', {date: dateCollected})}
@@ -79,7 +77,11 @@ const CoverArt = ({
         <tbody>
           <tr>
             <th>{l('Releases with cover art:')}</th>
-            <td>{formatCount($c, stats['count.release.has_caa'])}</td>
+            <td>
+              {formatCount($c, stats['count.release.has_caa'])}
+              {' '}
+              <TimelineLink statName="count.release.has_caa" />
+            </td>
             <td>
               {formatPercentage(
                 $c,
@@ -90,7 +92,11 @@ const CoverArt = ({
           </tr>
           <tr>
             <th>{l('Pieces of cover art:')}</th>
-            <td>{formatCount($c, stats['count.coverart'])}</td>
+            <td>
+              {formatCount($c, stats['count.coverart'])}
+              {' '}
+              <TimelineLink statName="count.coverart" />
+            </td>
             <td />
           </tr>
         </tbody>
@@ -111,7 +117,11 @@ const CoverArt = ({
             </tr>
             <tr>
               <th colSpan="2">{l('Releases with cover art:')}</th>
-              <td>{formatCount($c, stats['count.release.has_caa'])}</td>
+              <td>
+                {formatCount($c, stats['count.release.has_caa'])}
+                {' '}
+                <TimelineLink statName="count.release.has_caa" />
+              </td>
               <td />
             </tr>
             {releaseTypeStats.map((type, index) => (
@@ -123,7 +133,11 @@ const CoverArt = ({
                     l('No type'),
                   )}
                 </th>
-                <td>{formatCount($c, stats[type.stat_name])}</td>
+                <td>
+                  {formatCount($c, stats[type.stat_name])}
+                  {' '}
+                  <TimelineLink statName={type.stat_name} />
+                </td>
                 <td>
                   {formatPercentage(
                     $c,
@@ -138,7 +152,11 @@ const CoverArt = ({
             </tr>
             <tr>
               <th colSpan="2">{l('Releases with cover art:')}</th>
-              <td>{formatCount($c, stats['count.release.has_caa'])}</td>
+              <td>
+                {formatCount($c, stats['count.release.has_caa'])}
+                {' '}
+                <TimelineLink statName="count.release.has_caa" />
+              </td>
               <td />
             </tr>
             {releaseStatusStats.map((status, index) => (
@@ -150,7 +168,11 @@ const CoverArt = ({
                     l('No status'),
                   )}
                 </th>
-                <td>{formatCount($c, stats[status.stat_name])}</td>
+                <td>
+                  {formatCount($c, stats[status.stat_name])}
+                  {' '}
+                  <TimelineLink statName={status.stat_name} />
+                </td>
                 <td>
                   {formatPercentage(
                     $c,
@@ -165,7 +187,11 @@ const CoverArt = ({
             </tr>
             <tr>
               <th colSpan="2">{l('Releases with cover art:')}</th>
-              <td>{formatCount($c, stats['count.release.has_caa'])}</td>
+              <td>
+                {formatCount($c, stats['count.release.has_caa'])}
+                {' '}
+                <TimelineLink statName="count.release.has_caa" />
+              </td>
               <td />
             </tr>
             {releaseFormatStats.map((format, index) => (
@@ -177,7 +203,11 @@ const CoverArt = ({
                     l('No format'),
                   )}
                 </th>
-                <td>{formatCount($c, stats[format.stat_name])}</td>
+                <td>
+                  {formatCount($c, stats[format.stat_name])}
+                  {' '}
+                  <TimelineLink statName={format.stat_name} />
+                </td>
                 <td>
                   {formatPercentage(
                     $c,
@@ -195,17 +225,31 @@ const CoverArt = ({
       <tbody>
         <tr>
           <th colSpan="2">{l('Release groups with cover art:')}</th>
-          <td>{formatCount($c, stats['count.releasegroup.caa'])}</td>
+          <td>
+            {formatCount($c, stats['count.releasegroup.caa'])}
+            {' '}
+            <TimelineLink statName="count.releasegroup.caa" />
+          </td>
           <td />
         </tr>
         <tr>
           <th />
           <th>{l('manually selected:')}</th>
-          <td>{formatCount($c, stats['count.releasegroup.caa.manually_selected'])}</td>
+          <td>
+            {formatCount(
+              $c,
+              stats['count.releasegroup.caa.manually_selected'],
+            )}
+            {' '}
+            <TimelineLink
+              statName="count.releasegroup.caa.manually_selected"
+            />
+          </td>
           <td>
             {formatPercentage(
               $c,
-              stats['count.releasegroup.caa.manually_selected'] / stats['count.releasegroup.caa'],
+              stats['count.releasegroup.caa.manually_selected'] /
+                stats['count.releasegroup.caa'],
               1,
             )}
           </td>
@@ -213,11 +257,16 @@ const CoverArt = ({
         <tr>
           <th />
           <th>{l('automatically inferred:')}</th>
-          <td>{formatCount($c, stats['count.releasegroup.caa.inferred'])}</td>
+          <td>
+            {formatCount($c, stats['count.releasegroup.caa.inferred'])}
+            {' '}
+            <TimelineLink statName="count.releasegroup.caa.inferred" />
+          </td>
           <td>
             {formatPercentage(
               $c,
-              stats['count.releasegroup.caa.inferred'] / stats['count.releasegroup.caa'],
+              stats['count.releasegroup.caa.inferred'] /
+                stats['count.releasegroup.caa'],
               1,
             )}
           </td>
@@ -238,7 +287,11 @@ const CoverArt = ({
           </tr>
           <tr>
             <th colSpan="2">{l('Pieces of cover art:')}</th>
-            <td>{formatCount($c, stats['count.coverart'])}</td>
+            <td>
+              {formatCount($c, stats['count.coverart'])}
+              {' '}
+              <TimelineLink statName="count.coverart" />
+            </td>
             <td />
           </tr>
           {typeStats.map((type, index) => (
@@ -250,7 +303,11 @@ const CoverArt = ({
                   l('No type'),
                 )}
               </th>
-              <td>{formatCount($c, stats[type.stat_name])}</td>
+              <td>
+                {formatCount($c, stats[type.stat_name])}
+                {' '}
+                <TimelineLink statName={type.stat_name} />
+              </td>
               <td>
                 {formatPercentage(
                   $c,
@@ -265,10 +322,14 @@ const CoverArt = ({
           </tr>
           <tr>
             <th colSpan="2">{l('Releases with cover art:')}</th>
-            <td>{formatCount($c, stats['count.release.has_caa'])}</td>
+            <td>
+              {formatCount($c, stats['count.release.has_caa'])}
+              {' '}
+              <TimelineLink statName="count.release.has_caa" />
+            </td>
             <td />
           </tr>
-          {oneToTwentyNine.map((number) => (
+          {mapRange(1, 29, (number) => (
             <tr key={number}>
               <th />
               <th>
@@ -284,11 +345,16 @@ const CoverArt = ({
                   $c,
                   stats['count.coverart.per_release.' + number + 'images'],
                 )}
+                {' '}
+                <TimelineLink
+                  statName={'count.coverart.per_release.' + number + 'images'}
+                />
               </td>
               <td>
                 {formatPercentage(
                   $c,
-                  stats['count.coverart.per_release.' + number + 'images'] / stats['count.release.has_caa'],
+                  stats['count.coverart.per_release.' + number + 'images'] /
+                    stats['count.release.has_caa'],
                   1,
                 )}
               </td>
@@ -302,11 +368,14 @@ const CoverArt = ({
                 $c,
                 stats['count.coverart.per_release.30images'],
               )}
+              {' '}
+              <TimelineLink statName="count.coverart.per_release.30images" />
             </td>
             <td>
               {formatPercentage(
                 $c,
-                stats['count.coverart.per_release.30images'] / stats['count.release.has_caa'],
+                stats['count.coverart.per_release.30images'] /
+                  stats['count.release.has_caa'],
                 1,
               )}
             </td>
@@ -317,5 +386,4 @@ const CoverArt = ({
   </StatisticsLayout>
 );
 
-
-export default withCatalystContext(CoverArt);
+export default CoverArt;

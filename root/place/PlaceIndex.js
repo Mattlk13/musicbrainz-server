@@ -7,38 +7,33 @@
  * later version: http://www.gnu.org/licenses/gpl-2.0.txt
  */
 
-import React from 'react';
+import * as React from 'react';
 
 import Annotation from '../static/scripts/common/components/Annotation';
 import WikipediaExtract
   from '../static/scripts/common/components/WikipediaExtract';
+import CleanupBanner from '../components/CleanupBanner';
 import Relationships from '../components/Relationships';
 import * as manifest from '../static/manifest';
 
 import PlaceLayout from './PlaceLayout';
 
-type Props = {|
+type Props = {
   +eligibleForCleanup: boolean,
   +numberOfRevisions: number,
   +place: PlaceT,
   +wikipediaExtract: WikipediaExtractT | null,
-|};
+};
 
 const PlaceIndex = ({
   eligibleForCleanup,
   numberOfRevisions,
   place,
   wikipediaExtract,
-}: Props) => (
+}: Props): React.Element<typeof PlaceLayout> => (
   <PlaceLayout entity={place} page="index">
     {eligibleForCleanup ? (
-      <p className="cleanup">
-        {l(
-          `This place has no relationships and will be removed automatically
-           in the next few days. If this is not intended,
-           please add more data to this place.`,
-        )}
-      </p>
+      <CleanupBanner entityType="place" />
     ) : null}
     <Annotation
       annotation={place.latest_annotation}

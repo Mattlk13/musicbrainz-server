@@ -1,5 +1,5 @@
 /*
- * @flow
+ * @flow strict
  * Copyright (C) 2018 MetaBrainz Foundation
  *
  * This file is part of MusicBrainz, the open internet music database,
@@ -9,14 +9,14 @@
 
 import url from 'url';
 
-export default function uriWith(
+export default function uriWith<T: {...}>(
   uriString: string,
-  params: {[string]: mixed},
-) {
+  params: T,
+): string {
   const u = url.parse(uriString, true);
 
   u.query = Object.assign(u.query, params);
-  u.search = undefined;
+  u.search = null;
 
   return url.format(u);
 }

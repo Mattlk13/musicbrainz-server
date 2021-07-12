@@ -15,8 +15,9 @@ with 'MusicBrainz::Server::Edit::Role::AlwaysAutoEdit';
 use MooseX::Types::Moose qw( ArrayRef Bool Int Str );
 use MooseX::Types::Structured qw( Dict Optional );
 use MusicBrainz::Server::Constants qw( $EDIT_RELATIONSHIP_CREATE );
-use MusicBrainz::Server::Data::Utils qw( type_to_model non_empty );
+use MusicBrainz::Server::Data::Utils qw( boolean_to_json type_to_model non_empty );
 use MusicBrainz::Server::Edit::Utils qw( gid_or_id );
+use MusicBrainz::Server::Entity::Util::JSON qw( to_json_object );
 use MusicBrainz::Server::Validation qw( is_positive_integer );
 
 use aliased 'MusicBrainz::Server::Entity::Link';
@@ -27,6 +28,7 @@ use aliased 'MusicBrainz::Server::Entity::PartialDate';
 sub edit_type { $EDIT_RELATIONSHIP_CREATE }
 sub edit_name { N_l('Add relationship') }
 sub _create_model { 'Relationship' }
+sub edit_template_react { 'AddRelationship' }
 
 has '+data' => (
     isa => Dict[
@@ -59,6 +61,8 @@ has '+data' => (
         edit_version => Optional[Int],
     ]
 );
+
+sub link_type { shift->data->{link_type} }
 
 sub initialize
 {
@@ -166,12 +170,31 @@ sub foreign_keys
 sub build_display_data
 {
     my ($self, $loaded) = @_;
-    my $model0 = type_to_model($self->data->{type0});
-    my $model1 = type_to_model($self->data->{type1});
+    my $type0 = $self->data->{type0};
+    my $type1 = $self->data->{type1};
+    my $model0 = type_to_model($type0);
+    my $model1 = type_to_model($type1);
+    my $entity0_gid_or_id = gid_or_id($self->data->{entity0});
+    my $loaded_entity_0 = $loaded->{$model0}{$entity0_gid_or_id} if $entity0_gid_or_id;
+    my $entity0 = $loaded_entity_0 ||
+        $self->c->model($model0)->_entity_class->new(
+            id => 0,
+            name => $self->data->{entity0}{name}
+        );
+    my $entity1_gid_or_id = gid_or_id($self->data->{entity1});
+    my $loaded_entity_1 = $loaded->{$model1}{$entity1_gid_or_id} if $entity1_gid_or_id;
+    my $entity1 = $loaded_entity_1 ||
+        $self->c->model($model1)->_entity_class->new(
+            id => 0,
+            name => $self->data->{entity1}{name}
+        );
+    my $entity0_credit = $self->data->{entity0_credit} // '';
+    my $entity1_credit = $self->data->{entity1_credit} // '';
 
     return {
-        relationship => Relationship->new(
+        relationship => to_json_object(Relationship->new(
             link => Link->new(
+                type_id => $self->data->{link_type}{id},
                 type       => $loaded->{LinkType}{ $self->data->{link_type}{id} }
                     || LinkType->new($self->data->{link_type}),
                 begin_date => PartialDate->new_from_row( $self->data->{begin_date} ),
@@ -182,6 +205,7 @@ sub build_display_data
                         my $attr = $loaded->{LinkAttributeType}{ $_->{type}{id} };
                         if ($attr) {
                             MusicBrainz::Server::Entity::LinkAttribute->new(
+                                type_id => $attr->id,
                                 type => $attr,
                                 credited_as => $_->{credited_as},
                                 text_value => $_->{text_value},
@@ -193,22 +217,28 @@ sub build_display_data
                     } @{ $self->data->{attributes} }
                 ],
             ),
-            entity0 => $loaded->{$model0}{gid_or_id($self->data->{entity0})} ||
-                $self->c->model($model0)->_entity_class->new(
-                    name => $self->data->{entity0}{name}
-                ),
-            entity1 => $loaded->{$model1}{gid_or_id($self->data->{entity1})} ||
-                $self->c->model($model1)->_entity_class->new(
-                    name => $self->data->{entity1}{name}
-                ),
-            entity0_credit => $self->data->{entity0_credit} // '',
-            entity1_credit => $self->data->{entity1_credit} // '',
+            entity0 => $entity0,
+            entity1 => $entity1,
+            entity0_id => $entity0->id,
+            entity1_id => $entity1->id,
+            entity0_credit => $entity0_credit,
+            entity1_credit => $entity1_credit,
+            source => $entity0,
+            target => $entity1,
+            source_type => $type0,
+            target_type => $type1,
+            source_credit => $entity0_credit,
+            target_credit => $entity1_credit,
             link_order => $self->data->{link_order} // 0,
-        ),
-        unknown_attributes => scalar(
+        )),
+        unknown_attributes => boolean_to_json(scalar(
             grep { !exists $loaded->{LinkAttributeType}{$_->{type}{id}} }
                 @{ $self->data->{attributes} // [] }
-        )
+        )),
+        source_type => $type0,
+        target_type => $type1,
+        entity0 => defined $entity0->id ? undef : to_json_object($entity0),
+        entity1 => defined $entity1->id ? undef : to_json_object($entity1),
     }
 }
 

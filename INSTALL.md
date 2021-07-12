@@ -1,10 +1,11 @@
 Installing MusicBrainz Server
 =============================
 
-The easiest method of installing a local MusicBrainz Server may be to download the
-[pre-configured virtual machine](https://musicbrainz.org/doc/MusicBrainz_Server/Setup),
-if there is a current image available. In case you only need a replicated
-database, you should consider using [mbslave](https://bitbucket.org/lalinsky/mbslave).
+The easiest method of installing a local MusicBrainz Server may be to use the
+[MusicBrainz Docker](https://github.com/metabrainz/musicbrainz-docker) Compose
+project, which can be used for a website/web service mirror, testing, or
+development. In case you only need a replicated database, you should consider
+using [mbdata](https://github.com/lalinsky/mbdata).
 
 If you want to manually set up MusicBrainz Server from source, read on!
 
@@ -21,25 +22,27 @@ Prerequisites
     **This document will assume you are using Ubuntu (at least 14.04) for its
     instructions.**
 
-2.  Perl (at least version 5.18.2)
+2.  Perl (at least version 5.30)
 
     Perl comes bundled with most Linux operating systems, you can check your
     installed version of Perl with:
 
         perl -v
 
-3.  PostgreSQL (at least version 9.5)
+3.  PostgreSQL (at least version 12)
 
-    PostgreSQL is required, along with its development libraries. To install
-    using packages run the following, replacing 9.x with the latest version.
-    If needed, packages of all supported PostgreSQL versions for various Ubuntu
-    releases are available from the [PostgreSQL apt repository](http://www.postgresql.org/download/linux/ubuntu/).
+    PostgreSQL version 12 or higher is required, along with its development
+    libraries. To install using packages, run the following:
 
-        POSTGRES_VERSION=9.5
+        POSTGRES_VERSION=12 \
         sudo apt-get install \
             postgresql-${POSTGRES_VERSION} \
             postgresql-contrib-${POSTGRES_VERSION} \
             postgresql-server-dev-${POSTGRES_VERSION}
+
+    If needed, packages of all supported PostgreSQL versions for various Ubuntu
+    releases are available from the
+    [PostgreSQL apt repository](http://www.postgresql.org/download/linux/ubuntu/).
 
     Alternatively, you may compile PostgreSQL from source, but then make sure to
     also compile the cube and earthdistance extensions found in the contrib
@@ -51,7 +54,7 @@ Prerequisites
     The MusicBrainz development team uses Git for their DVCS. To install Git,
     run the following:
 
-        sudo apt-get install git-core
+        sudo apt-get install git
 
 5.  Redis
 
@@ -65,7 +68,7 @@ Prerequisites
     in lib/DBDefs.pm.  The defaults should be fine if you don't use
     your redis install for anything else.
 
-6.  Node.js and Yarn
+6.  Node.js (at least version 16) and Yarn
 
     Node.js is required to build (and optionally minify) our JavaScript and CSS.
     If you plan on accessing musicbrainz-server inside a web browser, you should
@@ -170,8 +173,10 @@ Below outlines how to setup MusicBrainz server with local::lib.
             libicu-dev \
             liblocal-lib-perl \
             libpq-dev \
+            libxml2 \
             libxml2-dev \
-            cpanminus
+            cpanminus \
+            pkg-config
 
 2.  Enable local::lib
 
@@ -213,45 +218,15 @@ devDependencies (listed in package.json):
 Creating the database
 ---------------------
 
-1.  Install PostgreSQL Extensions
-
-    Before you start, you need to install the PostgreSQL Extensions on your
-    database server. To build the musicbrainz_unaccent extension run these
-    commands:
-
-        cd postgresql-musicbrainz-unaccent
-        make
-        sudo make install
-        cd ..
-
-    To build our collate extension you will need libicu and its development
-    headers, to install these run:
-
-        sudo apt-get install libicu-dev
-
-    With libicu installed, you can build and install the collate extension by
-    running:
-
-        cd postgresql-musicbrainz-collate
-        make
-        sudo make install
-        cd ..
-
-    Note: if you have forgotten to clone the repository with the `--recursive` 
-    option, this won't work. In that case, you should run the following and 
-    then try again:
-
-        git submodule init
-        git submodule update
-        
-2.  Setup PostgreSQL authentication
+1.  Setup PostgreSQL authentication
 
     For normal operation, the server only needs to connect from one or two OS
     users (whoever your web server/crontabs run as), to one database (the
     MusicBrainz Database), as one PostgreSQL user. The PostgreSQL database name
     and user name are given in DBDefs.pm (look for the `READWRITE` key).  For
-    example, if you run your web server and crontabs as "www-user", the
-    following configuration recipe may prove useful:
+    example, if you run your web server and crontabs as "www-user", and you have
+    kept the default PostgreSQL user name ("musicbrainz"), the following
+    configuration recipe may prove useful:
 
         # in pg_hba.conf (Note: The order of lines is important!):
         local    musicbrainz_db    musicbrainz    ident    map=mb_map
@@ -266,15 +241,15 @@ Creating the database
 
         local   all    all    trust
 
-    By default, the password for the user musicbrainz should be "musicbrainz",
-    as stated in lib/DBDefs.pm. You can change it with `psql`:
-
-        postgres=# ALTER USER musicbrainz UNENCRYPTED PASSWORD 'musicbrainz'
-
     Note that a running PostgreSQL will pick up changes to configuration files
-    only when being told so via a `HUP` signal.
+    only when being told so via a `HUP` signal (or by using pg_ctlcluster,
+    specifying `reload` as action).
 
-3.  Create the database
+    You do not need to create the PostgreSQL user ("musicbrainz", or whatever
+    name you configured in DBDefs.pm) yourself; the next step will do so
+    (using the password from DBDefs.pm) if it does not exist yet.
+
+2.  Create the database
 
     You have three options when it comes to the database. You can opt for a
     clean database with just the schema, a sample of database content (useful 
@@ -289,12 +264,12 @@ Creating the database
     2.  Import a database dump
 
         Our database dumps are provided twice a week and can be downloaded from
-        ftp://ftp.musicbrainz.org/pub/musicbrainz/data/fullexport/
+        [from a variety of locations](https://musicbrainz.org/doc/MusicBrainz_Database/Download#Download).
+        That page also describes the contents of the various dump files.
 
         To get going, you need at least the mbdump.tar.bz2,
         mbdump-editor.tar.bz2 and mbdump-derived.tar.bz2 archives, but you can
-        grab whichever dumps suit your needs. The online documentation has a
-        [description of the various data dump files](https://musicbrainz.org/doc/MusicBrainz_Database/Download#File_Descriptions).
+        grab whichever dumps suit your needs.
 
         Assuming the dumps have been downloaded to /tmp/dumps/ you can verify
         that the data is correct by running:
@@ -324,14 +299,36 @@ Creating the database
         `--tmp-dir` option.
 
     3.  Import a database sample
-        
+
         If a full dump is too large for your purposes, but you would like to have some
         real data to test with for development, you can download our database sample,
-        published once a month at 
-        ftp://ftp.musicbrainz.org/pub/musicbrainz/data/sample/
-    
+        published once a month. This can be found at the same places the full dump is
+        found (see above), but using `sample` instead of `fullexport` in the URL.
+        For example: http://ftp.musicbrainz.org/pub/musicbrainz/data/sample/.
+
         You can import this sample dump in the same way as the full dump above.
-        
+
+    4.  Build materialized tables (optional but recommended)
+
+        MusicBrainz Server makes use of materialized (or denormalized) tables in
+        production to improve the performance of certain pages and features. These
+        tables duplicate primary table data and can take up several additional
+        gigabytes of space, so they're optional but recommended. If you don't populate
+        these tables, we'll generally fall back to slower queries in their place.
+
+        In order to build them initially, run the following script:
+
+            ./admin/BuildMaterializedTables --database=MAINTENANCE all
+
+        Once this is done, the tables will be kept up-to-date automatically via
+        triggers. (This is true even on replicated slaves. Generally, triggers
+        are not created on slaves, but since these materialized tables aren't
+        replicated, we install a set of slave-only triggers to manage them.)
+
+    If this process gets interrupted or fails, you will need to manually drop the
+    musicbrainz_db database in order to be able to run `./admin/InitDb.pl --createdb`
+    again.
+
     MusicBrainz Server doesn't enforce any statement timeouts on any SQL it runs.
     If this is an issue in your setup, you may want to set a timeout at the
     database level:
@@ -365,7 +362,8 @@ The server by itself doesn't rate limit any request it handles. If you're
 receiving 503s, then you're likely performing
 [search queries](https://musicbrainz.org/doc/Search_Server) without having set
 up a local instance of the
-[search server](https://github.com/metabrainz/search-server). By default,
+[search server](https://github.com/metabrainz/mb-solr) along with the
+[search index rebuilder](https://github.com/metabrainz/sir). By default,
 search queries are sent to search.musicbrainz.org and are rate limited.
 
 Once you set up your own instance, change `SEARCH_SERVER` in lib/DBDefs.pm to
@@ -379,14 +377,34 @@ If you intend to run a server with translations, there are a few steps to follow
 
 1.  Prerequisites
 
-    Make sure gettext is installed (you need msgmerge and msgfmt, at least),
-    and the transifex client 'tx'
-    (http://help.transifex.com/features/client/index.html):
+    Make sure gettext is installed (you need msgmerge and msgfmt, at least):
 
-        sudo apt-get install gettext transifex-client
+        sudo apt-get install gettext
 
-    Configure a username and password in ~/.transifexrc using the format listed
-    on the above page.
+    This will enable you to compile and install the translations that are in
+    the source repository.
+    
+    If you want to get the latest translation files or partial work-in-progress
+    translations, or wish to work on translations yourself, you will need to
+    create a [Transifex](https://www.transifex.com/) account and install its
+    client software (`tx`):
+
+        sudo apt-get install transifex-client
+
+    More information (and alternative ways to install the client) can be found
+    [here](https://docs.transifex.com/client/introduction/).
+
+    Next, [create an API token](https://www.transifex.com/user/settings/api/)
+    and use it to configure your credentials in
+    [`~/.transifexrc`](https://docs.transifex.com/client/client-configuration#-transifexrc).
+    
+    Finally, you will need to join the
+    [MetaBrainz Foundation organization](https://www.transifex.com/musicbrainz/public/)
+    on Transifex to get access to the translations. If you wish to work on
+    translations, you will also need to
+    [join a language team](https://www.transifex.com/musicbrainz/musicbrainz/dashboard/).
+    More information on how to get started can be found on
+    [the MusicBrainz site](https://musicbrainz.org/doc/Server_Internationalisation).
 
 2.  Change to the po directory
 
@@ -397,38 +415,37 @@ If you intend to run a server with translations, there are a few steps to follow
         tx pull -l {a list of languages you want to pull}
 
     This will download the .po files for your language(s) of choice to the po/
-    folder with the correct filenames.
+    folder with the correct filenames. Languages are written as an ISO language
+    code, optionally followed by an underscore and an ISO country code (e.g. `fr`
+    for French, `fr_CA` for Canadian French).
+
+    Or, if you want to get _all_ translations instead:
+
+        tx pull -a
+
+    If you get `Forbidden` errors from `tx pull`, you will need to make sure
+    you have joined the MusicBrainz organization and/or project (see point 1).
 
 4.  Install translations
 
         make install
 
     This will compile and install the files to
-    lib/LocaleData/{language}/LC\_MESSAGES/{domain}.mo
+    `lib/LocaleData/{language}/LC_MESSAGES/{domain}.mo`.
 
-5.  Add the languages to MB\_LANGUAGES in DBDefs.pm. These should be formatted
+5.  Add the languages to `MB_LANGUAGES` in DBDefs.pm. These should be formatted
     {lang}-{country}, e.g. 'es', or 'fr-ca', in a space-separated list.
 
-6.  Ensure you have a system locale for any languages you want to use, and for
-    some languages, be wary of https://rt.cpan.org/Public/Bug/Display.html?id=78341
-
-    For many languages, this will suffice:
+6.  Ensure you have a system locale for any languages you want to use. For many
+    languages, this will suffice:
 
         sudo apt-get install language-pack-{language code}
-
-    To work around the linked CPAN bug, you may need to edit the file for Locale::Util
-    to add entries to LANG2COUNTRY. Suggested ones include:
-
-    * es => 'ES'
-    * et => 'EE'
-    * el => 'GR'
-    * sl => 'SI' (this one is there in 1.20, but needs amendment)
 
 
 Troubleshooting
 ---------------
 
-If you have any difficulties, feel free to ask in #metabrainz on irc.freenode.net,
+If you have any difficulties, feel free to ask in #metabrainz on irc.libera.chat,
 or ask on [our forums](https://community.metabrainz.org/c/musicbrainz).
 
 Please report any issues on our [bug tracker](http://tickets.metabrainz.org/).

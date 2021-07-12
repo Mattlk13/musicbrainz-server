@@ -23,12 +23,12 @@ around serialize => sub {
     my $entity_url = $ENTITIES{$entity_type}{url} // $entity_type;
 
     if ($entity->can('all_gid_redirects') && $entity->all_gid_redirects) {
-        push(@urls, map { DBDefs->CANONICAL_SERVER . '/' . $entity_url . '/' . $_ } $entity->all_gid_redirects);
+        push(@urls, map { DBDefs->JSON_LD_ID_BASE_URI . '/' . $entity_url . '/' . $_ } $entity->all_gid_redirects);
     }
 
     if ($stash->store($entity)->{identities}) {
         my @identities = @{ $stash->store($entity)->{identities} };
-        push(@urls, map { DBDefs->CANONICAL_SERVER . '/' . $entity_url . '/' . $_->gid } @identities);
+        push(@urls, map { DBDefs->JSON_LD_ID_BASE_URI . '/' . $entity_url . '/' . $_->gid } @identities);
     }
 
     if (@urls) {
@@ -87,30 +87,26 @@ sub sameas_url {
     if ($acceptable{$rel->link->type->gid // ''} ||
         $acceptable_parents{$rel->link->type->parent_id // ''} ||
         $acceptable_parents{$rel->link->type->id // ''}) {
-        return $rel->target->url->as_string;
+
+        my $url = $rel->target->url->as_string;
+
+        # Use the Wikidata RDF concept URIs rather than the default site URL (MBS-9987)
+        $url =~ s/^https?:\/\/(?:www\.)?wikidata\.org\/wiki\//http:\/\/www\.wikidata\.org\/entity\//;
+
+        return $url;
     }
 }
 
 no Moose::Role;
 1;
 
-=head1 COPYRIGHT
+=head1 COPYRIGHT AND LICENSE
 
 Copyright (C) 2014 MetaBrainz Foundation
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program; if not, write to the Free Software
-Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+This file is part of MusicBrainz, the open internet music database,
+and is licensed under the GPL version 2, or (at your option) any
+later version: http://www.gnu.org/licenses/gpl-2.0.txt
 
 =cut
 

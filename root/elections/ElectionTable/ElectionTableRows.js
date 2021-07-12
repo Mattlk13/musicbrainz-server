@@ -1,5 +1,5 @@
 /*
- * @flow
+ * @flow strict-local
  * Copyright (C) 2018 MetaBrainz Foundation
  *
  * This file is part of MusicBrainz, the open internet music database,
@@ -7,30 +7,34 @@
  * later version: http://www.gnu.org/licenses/gpl-2.0.txt
  */
 
-import React from 'react';
-import type {Node as ReactNode} from 'react';
+import * as React from 'react';
 
-import {withCatalystContext} from '../../context';
 import EditorLink from '../../static/scripts/common/components/EditorLink';
 import formatUserDate from '../../utility/formatUserDate';
 import {votesVisible} from '../../utility/voting';
 
-type RowProps = {|
+type RowProps = {
   +$c: CatalystContextT,
   +election: AutoEditorElectionT,
   +index: number,
-|};
+};
 
-const ElectionTableRow = withCatalystContext(({
+const ElectionTableRow = ({
   $c,
   election,
   index,
-}: RowProps) => (
+}: RowProps): React.Element<'tr'> => (
   <tr className={index % 2 ? 'even' : 'odd'}>
     <td><EditorLink editor={election.candidate} /></td>
-    <td>{lp(election.status_name_short, 'autoeditor election status (short)')}</td>
-    <td>{formatUserDate($c.user, election.propose_time)}</td>
-    <td>{election.close_time ? formatUserDate($c.user, election.close_time) : '-'}</td>
+    <td>
+      {lp(election.status_name_short, 'autoeditor election status (short)')}
+    </td>
+    <td>{formatUserDate($c, election.propose_time)}</td>
+    <td>
+      {nonEmpty(election.close_time)
+        ? formatUserDate($c, election.close_time)
+        : '-'}
+    </td>
     <td><EditorLink editor={election.proposer} /></td>
     <td>
       {election.seconder_1
@@ -54,16 +58,25 @@ const ElectionTableRow = withCatalystContext(({
     </td>
     <td><a href={`/election/${election.id}`}>{l('View details')}</a></td>
   </tr>
-));
+);
 
-const ElectionTableRows = (
-  {elections}: {|+elections: $ReadOnlyArray<AutoEditorElectionT>|},
-): ReactNode => elections.map((election, index) => (
-  <ElectionTableRow
-    election={election}
-    index={index}
-    key={election.id}
-  />
-));
+type Props = {
+  +$c: CatalystContextT,
+  +elections: $ReadOnlyArray<AutoEditorElectionT>,
+};
+
+const ElectionTableRows = ({
+  $c,
+  elections,
+}: Props): $ReadOnlyArray<React.Element<typeof ElectionTableRow>> => (
+  elections.map((election, index) => (
+    <ElectionTableRow
+      $c={$c}
+      election={election}
+      index={index}
+      key={election.id}
+    />
+  ))
+);
 
 export default ElectionTableRows;

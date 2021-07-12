@@ -1,5 +1,5 @@
 /*
- * @flow
+ * @flow strict-local
  * Copyright (C) 2018 MetaBrainz Foundation
  *
  * This file is part of MusicBrainz, the open internet music database,
@@ -7,21 +7,25 @@
  * later version: http://www.gnu.org/licenses/gpl-2.0.txt
  */
 
-import React from 'react';
+import * as React from 'react';
 
-import {withCatalystContext} from '../../context';
 import EntityLink from '../../static/scripts/common/components/EntityLink';
 import entityHref from '../../static/scripts/common/utility/entityHref';
+import {
+  isEditingEnabled,
+  isLocationEditor,
+  isRelationshipEditor,
+} from '../../static/scripts/common/utility/privileges';
 
 import AliasTable from './AliasTable';
 
 function canEdit($c: CatalystContextT, entityType: string) {
-  if ($c.user && !$c.user.is_editing_disabled) {
+  if (isEditingEnabled($c.user)) {
     switch (entityType) {
       case 'area':
-        return $c.user.is_location_editor;
+        return isLocationEditor($c.user);
       case 'instrument':
-        return $c.user.is_relationship_editor;
+        return isRelationshipEditor($c.user);
       default:
         return true;
     }
@@ -31,11 +35,11 @@ function canEdit($c: CatalystContextT, entityType: string) {
 
 type Props = {
   +$c: CatalystContextT,
-  +aliases: $ReadOnlyArray<AliasT>,
+  +aliases: ?$ReadOnlyArray<AliasT>,
   +entity: CoreEntityT,
 };
 
-const Aliases = ({$c, aliases, entity}: Props) => {
+const Aliases = ({$c, aliases, entity}: Props): React.MixedElement => {
   const entityType = entity.entityType;
   const allowEditing = canEdit($c, entityType);
   return (
@@ -44,13 +48,13 @@ const Aliases = ({$c, aliases, entity}: Props) => {
       <p>
         {exp.l(
           `An alias is an alternate name for an entity. They typically
-           contain common mispellings or variations of the name and are also 
+           contain common misspellings or variations of the name and are also
            used to improve search results. View the {doc|alias documentation}
            for more details.`,
           {doc: '/doc/Aliases'},
         )}
       </p>
-      {aliases && aliases.length ? (
+      {aliases?.length ? (
         <AliasTable
           aliases={aliases}
           allowEditing={allowEditing}
@@ -75,4 +79,4 @@ const Aliases = ({$c, aliases, entity}: Props) => {
   );
 };
 
-export default withCatalystContext(Aliases);
+export default Aliases;

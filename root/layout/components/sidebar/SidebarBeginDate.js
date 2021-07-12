@@ -1,5 +1,5 @@
 /*
- * @flow
+ * @flow strict-local
  * Copyright (C) 2018 MetaBrainz Foundation
  *
  * This file is part of MusicBrainz, the open internet music database,
@@ -9,20 +9,25 @@
 
 import * as React from 'react';
 
-import {bracketedText} from '../../../static/scripts/common/utility/bracketed';
+import {bracketedText}
+  from '../../../static/scripts/common/utility/bracketed';
 import formatDate from '../../../static/scripts/common/utility/formatDate';
 import isDateEmpty from '../../../static/scripts/common/utility/isDateEmpty';
 import {displayAgeAgo} from '../../../utility/age';
 
 import {SidebarProperty} from './SidebarProperties';
 
-type Props = {|
+type Props = {
   +age?: [number, number, number] | null,
-  +entity: {...DatePeriodRoleT},
+  +entity: $ReadOnly<{...DatePeriodRoleT, ...}>,
   +label: string,
-|};
+};
 
-const SidebarBeginDate = ({age, entity, label}: Props) => (
+const SidebarBeginDate = ({
+  age,
+  entity,
+  label,
+}: Props): React.MixedElement | null => (
   isDateEmpty(entity.begin_date) ? (
     null
   ) : (

@@ -1,5 +1,5 @@
 /*
- * @flow
+ * @flow strict-local
  * Copyright (C) 2018 MetaBrainz Foundation
  *
  * This file is part of MusicBrainz, the open internet music database,
@@ -15,7 +15,9 @@ import TagLookupForm from './Form';
 import TagLookupNagSection from './Nag';
 import type {TagLookupResultsPropsT} from './types';
 
-const TagLookupResults = <T>(props: TagLookupResultsPropsT<T>) => (
+const TagLookupResults = <T>(
+  props: TagLookupResultsPropsT<T>,
+): React.Element<typeof Layout> => (
   <Layout fullWidth title={l('Tag Lookup Results')}>
     <div className="content">
       <h1>{l('Tag Lookup Results')}</h1>

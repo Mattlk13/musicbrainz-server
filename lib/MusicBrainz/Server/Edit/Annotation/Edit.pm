@@ -4,9 +4,12 @@ use Carp;
 use MooseX::Role::Parameterized;
 use MooseX::Types::Moose qw( Int Str );
 use MooseX::Types::Structured qw( Dict );
+use MusicBrainz::Server::Constants qw( %ENTITIES );
 use MusicBrainz::Server::Data::Utils qw( model_to_type );
 use MusicBrainz::Server::Edit::Types qw( Nullable NullableOnPreview );
+use MusicBrainz::Server::Entity::Util::JSON qw( to_json_object );
 use MusicBrainz::Server::Filters qw( format_wikitext );
+use JSON::XS;
 
 parameter model => ( isa => 'Str', required => 1 );
 parameter edit_type => ( isa => 'Int', required => 1 );
@@ -39,7 +42,7 @@ role {
     );
 
     has annotation_id => (
-        isa => 'Int',
+        isa => 'Maybe[Int]',
         is => 'rw',
     );
 
@@ -64,30 +67,52 @@ role {
 
         my $data = {
             changelog     => $self->data->{changelog},
-            annotation_id => $self->annotation_id,
             text          => $self->data->{text},
             html          => format_wikitext($self->data->{text}),
             entity_type   => $entity_type,
         };
 
         unless ($self->preview) {
-            $data->{$entity_type} = $loaded->{$model}->{$self->$entity_id} //
-                $self->c->model($model)->_entity_class->new(name => $self->data->{entity}{name}),
+            my $entity_properties = $ENTITIES{$entity_type};
+            my $entity = $loaded->{$model}{ $self->$entity_id };
+            $self->c->model('ArtistCredit')->load($entity) if $entity_properties->{artist_credits};
+            $data->{$entity_type} = to_json_object(
+                $entity //
+                $self->c->model($model)->_entity_class->new(name => $self->data->{entity}{name})
+            );
         }
 
         return $data;
     };
 
-    method insert => sub {
+    method accept => sub {
         my $self = shift;
-        my $model = $self->_annotation_model;
-        my $id = $model->edit({
+        my $annotation_model = $self->_annotation_model;
+        my $latest_annotation = $annotation_model->get_latest($self->data->{entity}{id});
+
+        if ($latest_annotation && $latest_annotation->creation_date > $self->created_time) {
+            MusicBrainz::Server::Edit::Exceptions::FailedDependency->throw(
+                'The annotation has changed since this edit was entered.'
+            );
+        }
+
+        if (!$self->c->model($model)->get_by_id($self->data->{entity}{id})) {
+            MusicBrainz::Server::Edit::Exceptions::FailedDependency->throw(
+                'The relevant entity has been removed since this edit was created.'
+            );
+        }
+
+        my $id = $annotation_model->edit({
             entity_id => $self->data->{entity}{id},
             text      => $self->data->{text},
             changelog => $self->data->{changelog},
             editor_id => $self->data->{editor_id}
         });
+
+        # We add the annotation id to the raw edit data for reference
         $self->annotation_id($id);
+        my $json = JSON::XS->new;
+        $self->c->sql->update_row('edit_data', { data => $json->encode($self->to_hash) }, { edit => $self->id });
     };
 
     method initialize => sub {

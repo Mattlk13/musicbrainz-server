@@ -28,10 +28,12 @@ use MusicBrainz::Server::Edit::Types qw(
 );
 use MusicBrainz::Server::Edit::Medium::Util qw( check_track_hash );
 use MusicBrainz::Server::Edit::Utils qw( verify_artist_credits hash_artist_credit hash_artist_credit_without_join_phrases );
+use MusicBrainz::Server::Entity::Util::JSON qw( to_json_array to_json_object );
 use MusicBrainz::Server::Log qw( log_assertion log_debug );
 use MusicBrainz::Server::Validation 'normalise_strings';
 use MusicBrainz::Server::Translation qw( N_l );
 use MusicBrainz::Server::Track qw( format_track_length );
+use JSON::XS;
 use Try::Tiny;
 
 extends 'MusicBrainz::Server::Edit::WithDifferences';
@@ -50,6 +52,8 @@ sub edit_type { $EDIT_MEDIUM_EDIT }
 sub edit_name { N_l('Edit medium') }
 sub edit_kind { 'edit' }
 sub _edit_model { 'Medium' }
+sub edit_template_react { 'EditMedium' }
+
 sub entity_id { shift->data->{entity_id} }
 sub medium_id { shift->entity_id }
 sub release_id { shift->data->{release}{id} }
@@ -142,6 +146,7 @@ sub initialize
     my $entity = delete $opts{to_edit};
 
     my $tracklist = delete $opts{tracklist};
+    my $delete_tracklist = delete $opts{delete_tracklist};    
     my $data;
 
     $self->check_tracks_against_format($tracklist, $opts{format_id});
@@ -172,7 +177,7 @@ sub initialize
             $self->_changes($entity, %opts)
         };
 
-        if ($tracklist) {
+        if ($tracklist && @$tracklist) {
             $self->c->model('Track')->load_for_mediums($entity);
             $self->c->model('ArtistCredit')->load($entity->all_tracks);
 
@@ -192,6 +197,12 @@ sub initialize
                 $data->{old}{tracklist} = $old;
                 $data->{new}{tracklist} = $new;
             }
+        } elsif ($tracklist && $delete_tracklist) {
+            $self->c->model('Track')->load_for_mediums($entity);
+            $self->c->model('ArtistCredit')->load($entity->all_tracks);
+
+            $data->{old}{tracklist} = tracks_to_hash($entity->tracks);
+            $data->{new}{tracklist} = [];
         }
 
         MusicBrainz::Server::Edit::Exceptions::NoChanges->throw
@@ -234,17 +245,25 @@ sub build_display_data
     my $data = { };
 
     my $release = $loaded->{Release}{ $self->data->{release}{id} } //
-                  Release->new( name => $self->data->{release}{name} );
+                  Release->new(
+                      id => $self->data->{release}{id},
+                      name => $self->data->{release}{name},
+                  );
 
-    $data->{medium} = $loaded->{Medium}{ $self->data->{entity_id} } //
-                      Medium->new( release => $release );
+    $data->{medium} = to_json_object(
+        $loaded->{Medium}{ $self->data->{entity_id} } //
+        Medium->new(
+            release_id => $self->data->{release}{id},
+            release => $release,
+        )
+    );
 
     if (exists $self->data->{new}{format_id}) {
         $data->{format} = {
             new => defined($self->data->{new}{format_id}) &&
-                     $loaded->{MediumFormat}->{ $self->data->{new}{format_id} },
+                     to_json_object($loaded->{MediumFormat}{ $self->data->{new}{format_id} }),
             old => defined($self->data->{old}{format_id}) &&
-                     $loaded->{MediumFormat}->{ $self->data->{old}{format_id} }
+                     to_json_object($loaded->{MediumFormat}{ $self->data->{old}{format_id} }),
         };
     }
 
@@ -258,13 +277,16 @@ sub build_display_data
     }
 
     if ($self->data->{new}{tracklist}) {
-        $data->{new}{tracklist} = display_tracklist($loaded, $self->data->{new}{tracklist});
-        $data->{old}{tracklist} = display_tracklist($loaded, $self->data->{old}{tracklist});
+        my $new_tracklist = display_tracklist($loaded, $self->data->{new}{tracklist});
+        my $old_tracklist = display_tracklist($loaded, $self->data->{old}{tracklist});
+
+        $data->{new}{tracklist} = to_json_array($new_tracklist);
+        $data->{old}{tracklist} = to_json_array($old_tracklist);
 
         my $tracklist_changes = [
             @{ sdiff(
-                $data->{old}{tracklist},
-                $data->{new}{tracklist},
+                $old_tracklist,
+                $new_tracklist,
                 sub {
                     my $track = shift;
                     return join(
@@ -278,7 +300,8 @@ sub build_display_data
                                 join('', $_->name, $_->join_phrase // '')
                             } $track->artist_credit->all_names
                         ),
-                        $track->is_data_track ? 1 : 0
+                        $track->is_data_track ? 1 : 0,
+                        $track->position ? 1 : 0,
                     );
                 }
             ) }
@@ -297,7 +320,12 @@ sub build_display_data
         }
 
         if (any {$_->[0] ne 'u' || $_->[1]->number ne $_->[2]->number } @$tracklist_changes) {
-            $data->{tracklist_changes} = $tracklist_changes;
+            my @mapped_tracklist_changes = map +{
+                change_type => $_->[0],
+                old_track => $_->[1] eq '' ? undef : to_json_object($_->[1]),
+                new_track => $_->[2] eq '' ? undef : to_json_object($_->[2]),
+            }, @$tracklist_changes;
+            $data->{tracklist_changes} = \@mapped_tracklist_changes;
         }
 
         # Edits that predate track mbids do not store track ids at all.
@@ -308,6 +336,11 @@ sub build_display_data
         }
 
         $data->{artist_credit_changes} = [
+            map +{
+                change_type => $_->[0],
+                old_track => $_->[1] eq '' ? undef : to_json_object($_->[1]),
+                new_track => to_json_object($_->[2]),
+            },
             grep {
                 ($_->[1] && hash_artist_credit_without_join_phrases($_->[1]->artist_credit))
                     ne
@@ -315,6 +348,7 @@ sub build_display_data
             }
             grep { $_->[0] ne '-' }
             @$tracklist_changes ];
+
 
         # Generate a map of track id => old recording id, for edits that store
         # track ids, to detect if recordings have changed.
@@ -325,6 +359,11 @@ sub build_display_data
             @changes_with_track_ids;
 
         $data->{recording_changes} = [
+            map +{
+                change_type => $_->[0],
+                old_track => $_->[1] eq '' ? undef : to_json_object($_->[1]),
+                new_track => to_json_object($_->[2]),
+            },
             grep {
                 my $old = $_->[1];
                 my $new = $_->[2];
@@ -494,7 +533,7 @@ sub accept {
         my %tracks_reused;
         for my $track (@final_tracklist) {
             $track->{artist_credit_id} = $self->c->model('ArtistCredit')->find_or_insert(
-                delete $track->{artist_credit});
+                $track->{artist_credit});
 
             if (!$track->{recording_id}) {
                 $track->{recording_id} = $self->c->model('Recording')->insert({
@@ -513,6 +552,10 @@ sub accept {
             {
                 $self->c->model('Track')->insert($track);
             }
+
+            # Remove stuff not expected on the edit data
+            delete $track->{artist_credit_id};
+            delete $track->{medium_id};
         }
 
         for my $old_track ($medium->all_tracks)
@@ -520,6 +563,11 @@ sub accept {
             $self->c->model('Track')->delete($old_track->id)
                 unless $tracks_reused{$old_track->id}
         }
+
+        # We add the final tracklist, with created recordings, to the edit data
+        $self->data->{new}{tracklist} = \@final_tracklist;
+        my $json = JSON::XS->new;
+        $self->c->sql->update_row('edit_data', { data => $json->encode($self->to_hash) }, { edit => $self->id });
     }
 }
 
@@ -537,6 +585,9 @@ sub allow_auto_edit
     return 0 if exists $self->data->{old}{position};
 
     if ($self->data->{old}{tracklist}) {
+        # If there's no old tracklist, allow adding one as an autoedit 
+        return 1 if scalar @{ $self->data->{old}{tracklist} } == 0;
+
         my @changes =
             grep { $_->[0] ne 'u' }
             @{ sdiff(
@@ -566,7 +617,7 @@ sub allow_auto_edit
             return 0 if $old_name ne $new_name;
             return 0 if $old->{length} && $old->{length} != $new->{length};
             return 0 if hash_artist_credit($old->{artist_credit}) ne hash_artist_credit($new->{artist_credit});
-            return 0 if $old->{recording_id} != $new->{recording_id};
+            return 0 if ($old->{recording_id} // 0) != ($new->{recording_id} // 0);
         }
     }
 
@@ -597,6 +648,24 @@ before restore => sub {
     if (exists $data->{new}{name}) {
         $data->{new}{name} //= '';
         $data->{old}{name} //= '';
+    }
+
+    # Some old edits have undef join phrases. Two loops and checks to avoid
+    # autovivification causing weird issues.
+    if (exists $data->{new}{tracklist}) {
+        for my $new_track (@{ $data->{new}{tracklist} }) {
+            for my $artist_credit_name (@{ $new_track->{artist_credit}{names} }) {
+                $artist_credit_name->{join_phrase} //= '';
+            }
+        }
+    }
+
+    if (exists $data->{old}{tracklist}) {
+        for my $old_track (@{ $data->{old}{tracklist} }) {
+            for my $artist_credit_name (@{ $old_track->{artist_credit}{names} }) {
+                $artist_credit_name->{join_phrase} //= '';
+            }
+        }
     }
 };
 

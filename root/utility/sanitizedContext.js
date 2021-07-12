@@ -1,5 +1,5 @@
 /*
- * @flow
+ * @flow strict
  * Copyright (C) 2018 MetaBrainz Foundation
  *
  * This file is part of MusicBrainz, the open internet music database,
@@ -10,7 +10,7 @@
 // NOTE: Don't convert to an ES module; this is used by root/server.js.
 /* eslint-disable import/no-commonjs */
 
-const sanitizedEditor = require('./sanitizedEditor');
+const activeSanitizedEditor = require('./activeSanitizedEditor');
 
 /*
  * Returns a sanitized $c, with private or sensitive data removed, suitable
@@ -19,16 +19,20 @@ const sanitizedEditor = require('./sanitizedEditor');
 function sanitizedContext(
   $c /*: CatalystContextT */,
 ) /*: SanitizedCatalystContextT */ {
+  const stash = $c.stash;
   const user = $c.user;
   return {
     action: {
       name: $c.action.name,
     },
+    relative_uri: $c.relative_uri,
     req: {
       uri: $c.req.uri,
     },
-    user: user ? sanitizedEditor(user) : null,
-    user_exists: $c.user_exists,
+    stash: {
+      current_language: stash.current_language,
+    },
+    user: user ? activeSanitizedEditor(user) : null,
   };
 }
 

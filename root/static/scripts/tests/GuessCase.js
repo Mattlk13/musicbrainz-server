@@ -1,11 +1,11 @@
 /*
- * This file is part of MusicBrainz, the open internet music database.
  * Copyright (C) 2013 MetaBrainz Foundation
- * Licensed under the GPL version 2, or (at your option) any later version:
- * http://www.gnu.org/licenses/gpl-2.0.txt
+ *
+ * This file is part of MusicBrainz, the open internet music database,
+ * and is licensed under the GPL version 2, or (at your option) any
+ * later version: http://www.gnu.org/licenses/gpl-2.0.txt
  */
 
-import _ from 'lodash';
 import test from 'tape';
 
 import MB from '../common/MB';
@@ -39,10 +39,10 @@ test('Sortname', function (t) {
     },
   ];
 
-  _.each(tests, function (test) {
+  for (const test of tests) {
     const result = MB.GuessCase.artist.sortname(test.input, test.person);
     t.equal(result, test.expected, test.input);
-  });
+  }
 
   tests = [
     {
@@ -74,10 +74,10 @@ test('Sortname', function (t) {
      */
   ];
 
-  _.each(tests, function (test) {
+  for (const test of tests) {
     const result = MB.GuessCase.label.sortname(test.input);
     t.equal(result, test.expected, test.input);
-  });
+  }
 });
 
 test('Artist', function (t) {
@@ -114,19 +114,19 @@ test('Artist', function (t) {
     },
     {
       input: 'Peggy Sue And The Pirates',
-      expected: 'Peggy Sue and The Pirates',
-      bug: 'MBS-1370',
+      expected: 'Peggy Sue and the Pirates',
+      bug: 'MBS-1370 / MBS-9836',
       mode: 'Artist',
     },
   ];
 
-  _.each(tests, function (test) {
+  for (const test of tests) {
     const result = MB.GuessCase.artist.guess(test.input);
 
     const prefix = test.bug ? test.bug + ', ' : '';
 
     t.equal(result, test.expected, prefix + test.input);
-  });
+  }
 });
 
 test('Label', function (t) {
@@ -144,10 +144,10 @@ test('Label', function (t) {
     {input: 'No Label', expected: '[unknown]'},
   ];
 
-  _.each(tests, function (test) {
+  for (const test of tests) {
     const result = MB.GuessCase.label.guess(test.input);
     t.equal(result, test.expected, test.input);
-  });
+  }
 });
 
 test('Recording', function (t) {
@@ -166,17 +166,17 @@ test('Recording', function (t) {
     },
   ];
 
-  _.each(tests, function (test) {
+  for (const test of tests) {
     t.equal(
       MB.GuessCase.recording.guess(test.input),
       test.expected,
       test.message,
     );
-  });
+  }
 });
 
 test('Work', function (t) {
-  t.plan(19);
+  t.plan(23);
 
   const tests = [
     {
@@ -209,7 +209,7 @@ test('Work', function (t) {
     },
     {
       input: 'acte 1, no. 7: chœur: «voyons brigadier»',
-      expected: 'Acte 1, no. 7 : Chœur : « voyons brigadier »',
+      expected: 'Acte 1, no. 7 : Chœur : « Voyons brigadier »',
       mode: 'French',
       roman: false,
       keepuppercase: false,
@@ -313,20 +313,52 @@ test('Work', function (t) {
       roman: true,
       keepuppercase: false,
     },
+    {
+      input: "C'est le hautbois d'amour no. cvi",
+      expected: "C'est le hautbois d'amour no. CVI",
+      bug: 'MBS-11264',
+      mode: 'French',
+      roman: true,
+      keepuppercase: false,
+    },
+    {
+      input: 'My brother is a minor',
+      expected: 'My Brother Is a Minor',
+      bug: 'MBS-10840',
+      mode: 'English',
+      roman: false,
+      keepuppercase: false,
+    },
+    {
+      input: 'Sonata in a minor',
+      expected: 'Sonata in A minor',
+      bug: 'MBS-10840',
+      mode: 'English',
+      roman: false,
+      keepuppercase: false,
+    },
+    {
+      input: 'Sonata in g flat major',
+      expected: 'Sonata in G-flat major',
+      bug: 'MBS-10840',
+      mode: 'English',
+      roman: false,
+      keepuppercase: false,
+    },
   ];
 
-  _.each(tests, function (test) {
+  for (const test of tests) {
     setCookie('guesscase_roman', String(test.roman));
     gc.CFG_UC_UPPERCASED = test.keepuppercase;
     gc.mode = modes[test.mode];
 
     const result = MB.GuessCase.work.guess(test.input);
     t.equal(result, test.expected, test.input);
-  });
+  }
 });
 
 test('BugFixes', function (t) {
-  t.plan(22);
+  t.plan(27);
 
   const tests = [
     {
@@ -420,6 +452,12 @@ test('BugFixes', function (t) {
       mode: 'English',
     },
     {
+      input: "Hey c'Mon Everybody",
+      expected: "Hey c'mon everybody",
+      bug: 'MBS-11264',
+      mode: 'French',
+    },
+    {
       input: 'We Love Techno (Re‐Mode)',
       expected: 'We Love Techno (re‐mode)',
       bug: 'MBS-10156',
@@ -461,7 +499,30 @@ test('BugFixes', function (t) {
       bug: 'MBS-7421',
       mode: 'English',
     },
-
+    {
+      input: 'Stuff with f',
+      expected: 'Stuff With F',
+      bug: 'MBS-10138',
+      mode: 'English',
+    },
+    {
+      input: '«quoted stuff»',
+      expected: '« Quoted stuff »',
+      bug: 'MBS-8232',
+      mode: 'French',
+    },
+    {
+      input: '“quoted stuff”',
+      expected: '“Quoted Stuff”',
+      bug: 'MBS-8232',
+      mode: 'English',
+    },
+    {
+      input: '[Unknown] / This track is / [Untitled]',
+      expected: '[unknown] / This Track Is / [untitled]',
+      bug: 'MBS-11662',
+      mode: 'English',
+    },
     /*
      * There is no fix for these yet.
      * {
@@ -487,13 +548,13 @@ test('BugFixes', function (t) {
      */
   ];
 
-  _.each(tests, function (test) {
+  for (const test of tests) {
     gc.CFG_UC_UPPERCASED = false;
     gc.mode = modes[test.mode];
 
     const result = MB.GuessCase.work.guess(test.input);
     t.equal(result, test.expected, test.bug + ', ' + test.input);
-  });
+  }
 });
 
 test('vinyl numbers are fixed', function (t) {
@@ -526,7 +587,33 @@ test('vinyl numbers are fixed', function (t) {
     },
   ];
 
-  _.each(tests, function (test) {
+  for (const test of tests) {
     t.equal(MB.GuessCase.track.guess(test.input), test.expected);
-  });
+  }
+});
+
+test('no "quote blocks" over multiple track titles (MBS-8621)', function (t) {
+  t.plan(3);
+
+  setCookie('guesscase_roman', 'false');
+  gc.mode = modes.English;
+
+  const tests = [
+    {
+      input: 'Boot ’Em Up',
+      expected: 'Boot ’em Up',
+    },
+    {
+      input: 'Look, no apostrophes!',
+      expected: 'Look, No Apostrophes!',
+    },
+    {
+      input: 'Tryin’ To Get To You',
+      expected: 'Tryin’ to Get to You',
+    },
+  ];
+
+  for (const test of tests) {
+    t.equal(MB.GuessCase.track.guess(test.input), test.expected);
+  }
 });

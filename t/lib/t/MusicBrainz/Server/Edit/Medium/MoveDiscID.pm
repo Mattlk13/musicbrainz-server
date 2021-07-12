@@ -17,7 +17,6 @@ test all => sub {
     MusicBrainz::Server::Test->prepare_test_database($c, '+cdtoc');
     MusicBrainz::Server::Test->prepare_test_database($c, <<'SQL');
         SET client_min_messages TO warning;
-        TRUNCATE artist CASCADE;
         DELETE FROM medium_cdtoc WHERE id = 2;
 SQL
 
@@ -35,7 +34,7 @@ SQL
     is($medium_cdtoc->medium->release->edits_pending, 0);
 };
 
-test 'Cannot move to non-existant medium' => sub {
+test 'Cannot move to non-existent medium' => sub {
     my $test = shift;
     my $c = $test->c;
 
@@ -52,9 +51,9 @@ test 'Moving a DiscID to the medium it already is attached to does not change an
     my $c = $test->c;
 
     MusicBrainz::Server::Test->prepare_test_database($c, '+cdtoc');
-    MusicBrainz::Server::Test->prepare_test_database($c, <<'EOSQL');
+    MusicBrainz::Server::Test->prepare_test_database($c, <<~'EOSQL');
         DELETE FROM medium_cdtoc WHERE id = 2;
-EOSQL
+        EOSQL
 
     my $medium = $c->model('Medium')->get_by_id(1);
     my $medium_cdtoc = $c->model('MediumCDTOC')->get_by_id(1);

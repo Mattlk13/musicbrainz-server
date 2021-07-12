@@ -4,6 +4,7 @@ use warnings;
 
 use MusicBrainz::Server::Constants qw( $EDIT_HISTORIC_ADD_TRACK_KV );
 use MusicBrainz::Server::Edit::Types qw( Nullable );
+use MusicBrainz::Server::Entity::Util::JSON qw( to_json_object );
 use MusicBrainz::Server::Translation qw( N_l );
 
 use MusicBrainz::Server::Edit::Historic::Base;
@@ -12,7 +13,10 @@ sub edit_name     { N_l('Add track (historic)') }
 sub edit_kind     { 'add' }
 sub historic_type { 18 }
 sub edit_type     { $EDIT_HISTORIC_ADD_TRACK_KV }
-sub edit_template { 'historic/add_track_kv' }
+sub edit_template_react { 'historic/AddTrackKV' }
+
+use aliased 'MusicBrainz::Server::Entity::Recording';
+use aliased 'MusicBrainz::Server::Entity::Release';
 
 sub _build_related_entities
 {
@@ -42,17 +46,28 @@ sub build_display_data
 {
     my ($self, $loaded) = @_;
     my @release_ids = @{ $self->data->{release_ids} };
+
+    # Some lengths of -1 or 0 ms are stored, which is nonsensical
+    # and probably meant as a placeholder for unknown duration
+    my $length = $self->data->{length};
+    my $display_length = $length <= 0 ? undef : $length;
+
     return {
         releases => [
             map {
-                $loaded->{Release}->{ $_ }
+                to_json_object($_ == -42
+                    ? Release->new( name => '[non-album tracks]' )
+                    : $loaded->{Release}{$_})
             } $self->release_ids
         ],
         position  => $self->data->{position},
         name      => $self->data->{name},
-        length    => $self->data->{length},
-        artist    => $loaded->{Artist}->{ $self->data->{artist_id} },
-        recording => $loaded->{Recording}->{ $self->data->{recording_id} },
+        length    => $display_length,
+        artist    => to_json_object($loaded->{Artist}{ $self->data->{artist_id} }),
+        recording => to_json_object(
+            $loaded->{Recording}{ $self->data->{recording_id} } ||
+            Recording->new( name => $self->data->{name} )
+        ),
     }
 }
 

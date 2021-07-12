@@ -11,6 +11,7 @@ use MusicBrainz::Server::Constants qw(
     %ENTITIES
 );
 use MusicBrainz::Server::ControllerUtils::JSON qw( serialize_pager );
+use MusicBrainz::Server::Entity::Util::JSON qw( to_json_array to_json_object );
 use MusicBrainz::Server::Entity::Util::Release qw( group_by_release_status );
 
 with 'MusicBrainz::Server::Controller::Role::Load' => {
@@ -29,7 +30,8 @@ with 'MusicBrainz::Server::Controller::Role::WikipediaExtract';
 with 'MusicBrainz::Server::Controller::Role::Cleanup';
 with 'MusicBrainz::Server::Controller::Role::EditRelationships';
 with 'MusicBrainz::Server::Controller::Role::JSONLD' => {
-    endpoints => {show => {copy_stash => [{from => 'releases_jsonld', to => 'releases'}]}, aliases => {copy_stash => ['aliases']}}
+    endpoints => {show => {copy_stash => [{from => 'releases_jsonld', to => 'releases'}, 'top_tags']},
+                  aliases => {copy_stash => ['aliases']}}
 };
 with 'MusicBrainz::Server::Controller::Role::Collection' => {
     entity_name => 'rg',
@@ -75,18 +77,19 @@ sub show : Chained('load') PathPart('') {
     });
 
     $c->model('Release')->load_related_info(@$releases);
+    $c->model('Release')->load_meta(@$releases);
     $c->model('ReleaseStatus')->load(@$releases);
     $c->model('CritiqueBrainz')->load_display_reviews($rg)
         unless $self->should_return_jsonld($c);
 
     my %props = (
         numberOfRevisions => $c->stash->{number_of_revisions},
-        mostPopularReview => $rg->most_popular_review,
-        mostRecentReview  => $rg->most_recent_review,
+        mostPopularReview => to_json_object($rg->most_popular_review),
+        mostRecentReview  => to_json_object($rg->most_recent_review),
         pager             => serialize_pager($c->stash->{pager}),
-        releases          => group_by_release_status(@$releases),
-        releaseGroup      => $c->stash->{rg},
-        wikipediaExtract  => $c->stash->{wikipedia_extract},
+        releases          => [map { to_json_array($_) } @{group_by_release_status(@$releases)}],
+        releaseGroup      => $c->stash->{rg}->TO_JSON,
+        wikipediaExtract  => to_json_object($c->stash->{wikipedia_extract}),
     );
 
     $c->stash(
@@ -97,7 +100,7 @@ sub show : Chained('load') PathPart('') {
     );
 }
 
-after [qw( show collections details tags aliases )] => sub {
+after [qw( show collections details tags ratings aliases )] => sub {
     my ($self, $c) = @_;
     $self->_stash_collections($c);
 };
@@ -141,6 +144,13 @@ with 'MusicBrainz::Server::Controller::Role::Merge' => {
     edit_type => $EDIT_RELEASEGROUP_MERGE,
 };
 
+sub forward_merge : Chained('/') PathPart('release-group/merge') {
+    # Since Role::Merge is generic it uses release_group rather than release-group
+    # like elsewhere. We should make sure nothing breaks if we expect release-group somewhere
+    my ($self, $c) = @_;    
+    $c->forward('/release_group/merge');
+}
+
 sub _merge_load_entities
 {
     my ($self, $c, @rgs) = @_;
@@ -160,21 +170,30 @@ sub set_cover_art : Chained('load') PathPart('set-cover-art') Args(0) Edit
     my ($releases, $hits) = $c->model('Release')->find_by_release_group(
         $entity->id);
     $c->model('Release')->load_related_info(@$releases);
+    $c->model('Release')->load_meta(@$releases);
+    $c->model('ArtistCredit')->load(@$releases);
 
-    my $artwork = $c->model('Artwork')->find_front_cover_by_release(@$releases);
+    my @non_darkened_releases = grep { $_->may_have_cover_art } @$releases;
+    my $artwork = $c->model('Artwork')->find_front_cover_by_release(@non_darkened_releases);
     $c->model('CoverArtType')->load_for(@$artwork);
+    my %artwork_map = map { $_->release->id => $_ } @$artwork;
 
     my $cover_art_release = $entity->cover_art ? $entity->cover_art->release : undef;
     my $form = $c->form(form => 'ReleaseGroup::SetCoverArt', init_object => {
         release => $cover_art_release ? $cover_art_release->gid : undef });
 
-    my $form_valid = $c->form_posted && $form->submitted_and_valid($c->req->params);
+    my $form_valid = $c->form_posted_and_valid($form);
 
-    my $release = $form_valid
+    my $selected_release = $form_valid
         ? $c->model('Release')->get_by_gid($form->field('release')->value)
         : $cover_art_release;
 
-    $c->stash({ form => $form, artwork => $artwork, release => $release });
+    $c->stash({
+        form => $form,
+        artwork => \%artwork_map,
+        all_releases => $releases,
+        selected_release => $selected_release,
+        });
 
     if ($form_valid)
     {
@@ -183,7 +202,7 @@ sub set_cover_art : Chained('load') PathPart('set-cover-art') Args(0) Edit
             $edit = $self->_insert_edit(
                 $c, $form,
                 edit_type => $EDIT_RELEASEGROUP_SET_COVER_ART,
-                release => $release,
+                release => $selected_release,
                 entity => $entity,
             );
         });

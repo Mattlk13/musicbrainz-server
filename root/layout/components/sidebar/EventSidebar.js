@@ -1,5 +1,5 @@
 /*
- * @flow
+ * @flow strict-local
  * Copyright (C) 2018 MetaBrainz Foundation
  *
  * This file is part of MusicBrainz, the open internet music database,
@@ -9,8 +9,9 @@
 
 import * as React from 'react';
 
-import {withCatalystContext} from '../../../context';
-import CommonsImage from '../../../static/scripts/common/components/CommonsImage';
+import {CatalystContext} from '../../../context';
+import CommonsImage
+  from '../../../static/scripts/common/components/CommonsImage';
 import isDateEmpty from '../../../static/scripts/common/utility/isDateEmpty';
 import areDatesEqual from '../../../utility/areDatesEqual';
 import ExternalLinks from '../ExternalLinks';
@@ -28,12 +29,12 @@ import SidebarRating from './SidebarRating';
 import SidebarTags from './SidebarTags';
 import SidebarType from './SidebarType';
 
-type Props = {|
-  +$c: CatalystContextT,
+type Props = {
   +event: EventT,
-|};
+};
 
-const EventSidebar = ({$c, event}: Props) => {
+const EventSidebar = ({event}: Props): React.Element<'div'> => {
+  const $c = React.useContext(CatalystContext);
   const hasBegin = !isDateEmpty(event.begin_date);
   const hasEnd = !isDateEmpty(event.end_date);
 
@@ -71,12 +72,7 @@ const EventSidebar = ({$c, event}: Props) => {
 
       <SidebarRating entity={event} />
 
-      <SidebarTags
-        aggregatedTags={$c.stash.top_tags}
-        entity={event}
-        more={!!$c.stash.more_tags}
-        userTags={$c.stash.user_tags}
-      />
+      <SidebarTags entity={event} />
 
       <ExternalLinks empty entity={event} />
 
@@ -101,4 +97,4 @@ const EventSidebar = ({$c, event}: Props) => {
   );
 };
 
-export default withCatalystContext(EventSidebar);
+export default EventSidebar;

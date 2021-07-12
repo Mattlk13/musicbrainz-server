@@ -103,7 +103,7 @@ sub WEB_SERVER                { "localhost:5000" }
 # Relevant only if SSL redirects are enabled
 sub WEB_SERVER_SSL            { "localhost" }
 sub SEARCH_SERVER             { "search.musicbrainz.org" }
-sub SEARCH_ENGINE             { "LUCENE" }
+sub SEARCH_ENGINE             { "SOLR" }
 # Whether to use x-accel-redirect for webservice searches,
 # using /internal/search as the internal redirect
 sub SEARCH_X_ACCEL_REDIRECT   { 0 }
@@ -115,6 +115,9 @@ sub WEB_SERVER_USED_IN_EMAIL  { my $self = shift; $self->WEB_SERVER }
 # is truthy.
 sub IS_BETA                   { 0 }
 sub BETA_REDIRECT_HOSTNAME    { '' }
+
+# The base URI to use for JSON-LD (RDF) identifiers. Includes scheme.
+sub JSON_LD_ID_BASE_URI       { "http://musicbrainz.org" }
 
 # The server to use for rel="canonical" links. Includes scheme.
 sub CANONICAL_SERVER          { "https://musicbrainz.org" }
@@ -154,8 +157,10 @@ sub DB_STAGING_SERVER { 1 }
 # If left empty the default value will be shown.
 sub DB_STAGING_SERVER_DESCRIPTION { '' }
 
-# Only change this if running a non-sanitized database on a dev server,
-# e.g. http://test.musicbrainz.org.
+# Only change this if running a non-sanitized database on a staging server,
+# e.g. http://beta.musicbrainz.org.
+# * It shows a banner informing that 'all passwords have been reset to "mb"'.
+# * It disables the IP lookup admin tool.
 sub DB_STAGING_SERVER_SANITIZED { 1 }
 
 # Testing features enable "Accept edit" and "Reject edit" links on edits,
@@ -220,8 +225,7 @@ sub PLUGIN_CACHE_OPTIONS {
 }
 
 # The caching options here relate to object caching in Redis - such as for
-# artists, releases, etc. in order to speed up queries. See below if you want
-# to disable caching.
+# artists, releases, etc. in order to speed up queries.
 sub CACHE_MANAGER_OPTIONS {
     my $self = shift;
     my %CACHE_MANAGER_OPTIONS = (
@@ -319,9 +323,6 @@ sub GIT_BRANCH { qx( $git_info branch ) }
 sub GIT_MSG { qx( $git_info msg ) }
 sub GIT_SHA { qx( $git_info sha ) }
 
-# How long an annotation is considered as being locked.
-sub ANNOTATION_LOCK_TIME { 60*15 }
-
 # Amazon associate and developer ids
 my %amazon_store_associate_ids = (
     'amazon.ca'         => 'music0b72-20',
@@ -357,9 +358,15 @@ sub COVER_ART_ARCHIVE_ACCESS_KEY { };
 sub COVER_ART_ARCHIVE_SECRET_KEY { };
 sub COVER_ART_ARCHIVE_UPLOAD_PREFIXER { shift; sprintf("//%s.s3.us.archive.org/", shift) };
 sub COVER_ART_ARCHIVE_DOWNLOAD_PREFIX { "//coverartarchive.org" };
+sub COVER_ART_ARCHIVE_IA_DOWNLOAD_PREFIX { '//archive.org/download' };
+sub COVER_ART_ARCHIVE_IA_METADATA_PREFIX { 'https://archive.org/metadata' };
 
-sub MAPBOX_MAP_ID { 'mapbox.streets' }
+# Mapbox access token must be set to display area/place maps.
+sub MAPBOX_MAP_ID { 'mapbox/streets-v11' }
 sub MAPBOX_ACCESS_TOKEN { '' }
+
+# Feature toggle used for pre-schema change release of safe schema change code
+sub ACTIVE_SCHEMA_SEQUENCE { 26 }
 
 # Disallow OAuth2 requests over plain HTTP
 sub OAUTH2_ENFORCE_TLS { my $self = shift; !$self->DB_STAGING_SERVER }
@@ -427,6 +434,12 @@ sub DISCOURSE_API_USERNAME { '' }
 # See https://meta.discourse.org/t/official-single-sign-on-for-discourse/13045
 sub DISCOURSE_SSO_SECRET { '' }
 
+# Secret key used to generate nonce values in some contexts, e.g. CSRF tokens
+# and CSP headers. Even without a secret set, the generated nonces are very
+# unlikely to be guessed; this is mainly only useful for an additional layer
+# of security on the MusicBrainz production site.
+sub NONCE_SECRET { '' }
+
 # When enabled, if Catalyst receives a request with an `mb-set-database`
 # header, all database queries will go to the specified database instead of
 # READWRITE, as defined in the DatabaseConnectionFactory->register_databases
@@ -438,7 +451,19 @@ sub DISCOURSE_SSO_SECRET { '' }
 sub USE_SET_DATABASE_HEADER { shift->USE_SELENIUM_HEADER }
 sub USE_SELENIUM_HEADER { 0 }
 
+# Used to create search indexes dump from SolrCloud.
+sub SOLRCLOUD_COLLECTIONS_API { undef }
+sub SOLRCLOUD_BACKUP_LOCATION { undef }
+sub SOLRCLOUD_RSYNC_BANDWIDTH { undef }
+sub SOLRCLOUD_SSH_CIPHER_SPEC { undef }
+sub SEARCH_INDEXES_DUMP_COMPRESSION_LEVEL { undef }
+
 sub WIKIMEDIA_COMMONS_IMAGES_ENABLED { 1 }
+
+# On release browse endpoints in the webservice, we limit the number of
+# releases returned such that the total number of tracks doesn't exceed this
+# number.
+sub WS_TRACK_LIMIT { 500 }
 
 ################################################################################
 # Profiling

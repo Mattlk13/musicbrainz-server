@@ -1,5 +1,5 @@
 /*
- * @flow
+ * @flow strict
  * Copyright (C) 2018 MetaBrainz Foundation
  *
  * This file is part of MusicBrainz, the open internet music database,
@@ -9,17 +9,17 @@
 
 import * as React from 'react';
 
-type SidebarPropertyProps = {|
+type SidebarPropertyProps = {
   +children: React.Node,
   +className: string,
   +label: string,
-|};
+};
 
 export const SidebarProperty = ({
   children,
   className,
   label,
-}: SidebarPropertyProps) => (
+}: SidebarPropertyProps): React.Element<typeof React.Fragment> => (
   <>
     <dt>{label}</dt>
     <dd className={className}>
@@ -28,17 +28,17 @@ export const SidebarProperty = ({
   </>
 );
 
-type SidebarPropertiesProps = {|
+type SidebarPropertiesProps = {
   +children: React.Node,
   +className?: string,
-|};
+};
 
 export const SidebarProperties = ({
   className,
   children,
-}: SidebarPropertiesProps) => {
+}: SidebarPropertiesProps): React.Element<'dl'> => {
   let _className = 'properties';
-  if (className) {
+  if (nonEmpty(className)) {
     _className += ' ' + className;
   }
   return (

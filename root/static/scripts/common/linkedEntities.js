@@ -1,5 +1,5 @@
 /*
- * @flow
+ * @flow strict
  * Copyright (C) 2018 MetaBrainz Foundation
  *
  * This file is part of MusicBrainz, the open internet music database,
@@ -13,66 +13,106 @@
 /* eslint-disable spaced-comment */
 
 /*::
-type LinkedEntities = {
-  artist_type: {|
-    +[number]: ArtistTypeT,
-  |},
-  language: {|
-    +[number]: LanguageT,
-  |},
-  link_attribute_type: {|
-    +[number]: LinkAttrTypeT,
-  |},
-  link_type: {|
-    +[number]: LinkTypeT,
-  |},
-  link_type_tree: {|
-    +[string]: $ReadOnlyArray<LinkTypeT>,
-  |},
-  release: {|
-    +[number]: ReleaseT,
-  |},
-  release_group_primary_type: {|
-    [number]: ReleaseGroupTypeT,
-  |},
-  release_group_secondary_type: {|
-    [number]: ReleaseGroupSecondaryTypeT,
-  |},
-  release_packaging: {|
-    +[number]: ReleasePackagingT,
-  |},
-  release_status: {|
-    +[number]: ReleaseStatusT,
-  |},
-  script: {|
-    +[number]: ScriptT,
-  |},
-  series: {|
-    +[number]: SeriesT,
-  |},
-  series_ordering_type: {|
-    +[number]: SeriesOrderingTypeT,
-  |},
-  series_type: {|
-    +[number]: SeriesTypeT,
-  |},
-  work: {|
-    +[number]: WorkT,
-  |},
-  work_attribute_type: {|
-    +[number]: WorkAttributeTypeT,
-  |},
+export type LinkedEntitiesT = {
+  area: {
+    [areaId: number]: AreaT,
+  },
+  artist: {
+    [artistId: number]: ArtistT,
+  },
+  artist_type: {
+    [artistId: number]: ArtistTypeT,
+  },
+  editor: {
+    [editorId: number]: EditorT,
+  },
+  event: {
+    [eventId: number]: EventT,
+  },
+  genre: {
+    [genreId: number]: GenreT,
+  },
+  instrument: {
+    [instrumentId: number]: InstrumentT,
+  },
+  label: {
+    [labelId: number]: LabelT,
+  },
+  language: {
+    [languageId: number]: LanguageT,
+  },
+  link_attribute_type: {
+    [linkAttributeTypeIdOrGid: StrOrNum]: LinkAttrTypeT,
+  },
+  link_type: {
+    [linkTypeIdOrGid: StrOrNum]: LinkTypeT,
+  },
+  link_type_tree: {
+    [entityTypes: string]: $ReadOnlyArray<LinkTypeT>,
+  },
+  mergeLinkedEntities: (update: ?$Shape<LinkedEntitiesT>) => void,
+  place: {
+    [placeId: number]: PlaceT,
+  },
+  recording: {
+    [recordingId: number]: RecordingT,
+  },
+  release: {
+    [releaseId: number]: ReleaseT,
+  },
+  release_group: {
+    [releaseGroupId: number]: ReleaseGroupT,
+  },
+  release_group_primary_type: {
+    [releaseGroupPrimaryTypeId: number]: ReleaseGroupTypeT,
+  },
+  release_group_secondary_type: {
+    [releaseGroupSecondaryTypeId: number]: ReleaseGroupSecondaryTypeT,
+  },
+  release_packaging: {
+    [releasePackagingId: number]: ReleasePackagingT,
+  },
+  release_status: {
+    [releaseStatusId: number]: ReleaseStatusT,
+  },
+  script: {
+    [scriptId: number]: ScriptT,
+  },
+  series: {
+    [seriesId: number]: SeriesT,
+  },
+  series_ordering_type: {
+    [seriesOrderingTypeId: number]: SeriesOrderingTypeT,
+  },
+  series_type: {
+    [seriesTypeId: number]: SeriesTypeT,
+  },
+  url: {
+    [urlId: number]: UrlT,
+  },
+  work: {
+    [workId: number]: WorkT,
+  },
+  work_attribute_type: {
+    [workAttributeTypeId: number]: WorkAttributeTypeT,
+  },
+  ...
 };
 */
 
+// $FlowIgnore[method-unbinding]
+const hasOwnProperty = Object.prototype.hasOwnProperty;
+
 const EMPTY_OBJECT = Object.freeze({});
 
-const linkedEntities/*: LinkedEntities */ = Object.create(Object.seal({
+const linkedEntities/*: LinkedEntitiesT */ = Object.create(Object.seal({
   artist_type:                    EMPTY_OBJECT,
+  editor:                         EMPTY_OBJECT,
   language:                       EMPTY_OBJECT,
   link_attribute_type:            EMPTY_OBJECT,
   link_type:                      EMPTY_OBJECT,
   link_type_tree:                 EMPTY_OBJECT,
+  recording:                      EMPTY_OBJECT,
   release:                        EMPTY_OBJECT,
   release_group_primary_type:     EMPTY_OBJECT,
   release_group_secondary_type:   EMPTY_OBJECT,
@@ -85,10 +125,10 @@ const linkedEntities/*: LinkedEntities */ = Object.create(Object.seal({
   work:                           EMPTY_OBJECT,
   work_attribute_type:            EMPTY_OBJECT,
 
-  mergeLinkedEntities(update/*: ?LinkedEntities */) {
+  mergeLinkedEntities(update/*: ?$Shape<LinkedEntitiesT> */) {
     if (update) {
       for (const [type, entities] of Object.entries(update)) {
-        if (Object.prototype.hasOwnProperty.call(linkedEntities, type)) {
+        if (hasOwnProperty.call(linkedEntities, type)) {
           Object.assign(linkedEntities[type], entities);
         } else {
           linkedEntities[type] = entities;
@@ -97,9 +137,14 @@ const linkedEntities/*: LinkedEntities */ = Object.create(Object.seal({
     }
   },
 
-  setLinkedEntities(update/*: ?LinkedEntities */) {
+  setLinkedEntities(update/*: ?LinkedEntitiesT */) {
     for (const key of Object.keys(linkedEntities)) {
+      // $FlowIgnore[incompatible-type]
       delete linkedEntities[key];
+      /*
+       * The above line is deleting the own property only, not the one on the
+       * prototype. However, Flow thinks it'll make the object key undefined.
+       */
     }
     if (update) {
       Object.assign(linkedEntities, update);

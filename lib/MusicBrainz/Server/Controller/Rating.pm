@@ -21,6 +21,14 @@ sub rate : Local RequireAuth DenyWhenReadonly
 {
     my ($self, $c, $type) = @_;
 
+    if (!$c->user->has_confirmed_email_address) {
+        $c->detach('/error_401');
+    }
+
+    if ($c->is_cross_origin) {
+        $c->response->redirect($c->uri_for('/'));
+    }
+
     my $entity_type = $c->request->params->{entity_type};
     my $entity_id = $c->request->params->{entity_id};
     my $rating = $c->request->params->{rating};
@@ -43,9 +51,7 @@ sub rate : Local RequireAuth DenyWhenReadonly
         $c->detach;
     }
 
-    my $redirect = $c->request->referer || $c->uri_for("/");
-    $c->response->redirect($redirect);
-    $c->detach;
+    $c->redirect_back;
 }
 
 1;

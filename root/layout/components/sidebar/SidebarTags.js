@@ -1,5 +1,5 @@
 /*
- * @flow
+ * @flow strict-local
  * Copyright (C) 2018 MetaBrainz Foundation
  *
  * This file is part of MusicBrainz, the open internet music database,
@@ -9,35 +9,30 @@
 
 import * as React from 'react';
 
-import {withCatalystContext} from '../../../context';
-import {GENRE_TAGS} from '../../../static/scripts/common/constants';
+import {CatalystContext} from '../../../context';
 import EntityLink from '../../../static/scripts/common/components/EntityLink';
-import {SidebarTagEditor} from '../../../static/scripts/common/components/TagEditor';
+import {SidebarTagEditor}
+  from '../../../static/scripts/common/components/TagEditor';
 import TagLink from '../../../static/scripts/common/components/TagLink';
 import commaOnlyList from '../../../static/scripts/common/i18n/commaOnlyList';
 
-type TagListProps = {|
+type TagListProps = {
   +entity: CoreEntityT,
   +isGenreList?: boolean,
   +tags: ?$ReadOnlyArray<AggregatedTagT>,
-|};
+};
 
-type SidebarTagsProps = {|
-  +$c: CatalystContextT,
-  +aggregatedTags?: $ReadOnlyArray<AggregatedTagT> | void,
+type SidebarTagsProps = {
   +entity: CoreEntityT,
-  +more: boolean,
-  +userTags?: $ReadOnlyArray<UserTagT> | void,
-|};
+};
 
 const TagList = ({
-  entity,
   isGenreList = false,
   tags,
 }: TagListProps) => {
   const links = tags ? tags.reduce((accum, t) => {
-    if (GENRE_TAGS.has(t.tag) === isGenreList) {
-      accum.push(<TagLink key={'tag-' + t.tag} tag={t.tag} />);
+    if (Boolean(t.tag.genre) === isGenreList) {
+      accum.push(<TagLink key={'tag-' + t.tag.name} tag={t.tag.name} />);
     }
     return accum;
   }, []) : null;
@@ -48,56 +43,61 @@ const TagList = ({
 };
 
 const SidebarTags = ({
-  $c,
-  aggregatedTags,
   entity,
-  more,
-  userTags,
-}: SidebarTagsProps) => (
-  $c.action.name === 'tags' ? null : (
-    <>
-      {($c.user_exists && aggregatedTags && userTags) ? (
-        <SidebarTagEditor
-          $c={$c}
-          aggregatedTags={aggregatedTags}
-          entity={entity}
-          more={more}
-          userTags={userTags}
-        />
-      ) : (
-        <div id="sidebar-tags">
-          <h2>{l('Genres')}</h2>
-          <div className="genre-list">
-            <p>
-              <TagList
-                entity={entity}
-                isGenreList
-                tags={aggregatedTags}
-              />
-            </p>
-          </div>
+}: SidebarTagsProps): React.Element<typeof React.Fragment> | null => {
+  const $c = React.useContext(CatalystContext);
+  const aggregatedTags = $c.stash.top_tags;
+  const more = Boolean($c.stash.more_tags);
+  const userTags = $c.stash.user_tags;
 
-          <h2>{l('Other tags')}</h2>
-          <div id="sidebar-tag-list">
-            <p>
-              <TagList
-                entity={entity}
-                tags={aggregatedTags}
-              />
-            </p>
-          </div>
-
-          <p>
-            <EntityLink
-              content={l('See all tags')}
+  return (
+    $c.action.name === 'tags' ? null : (
+      <>
+        {($c.user?.has_confirmed_email_address &&
+          aggregatedTags && userTags) ? (
+            <SidebarTagEditor
+              $c={$c}
+              aggregatedTags={aggregatedTags}
               entity={entity}
-              subPath="tags"
+              genreMap={$c.stash.genre_map}
+              more={more}
+              userTags={userTags}
             />
-          </p>
-        </div>
-      )}
-    </>
-  )
-);
+          ) : (
+            <div id="sidebar-tags">
+              <h2>{l('Genres')}</h2>
+              <div className="genre-list">
+                <p>
+                  <TagList
+                    entity={entity}
+                    isGenreList
+                    tags={aggregatedTags}
+                  />
+                </p>
+              </div>
 
-export default withCatalystContext(SidebarTags);
+              <h2>{l('Other tags')}</h2>
+              <div id="sidebar-tag-list">
+                <p>
+                  <TagList
+                    entity={entity}
+                    tags={aggregatedTags}
+                  />
+                </p>
+              </div>
+
+              <p>
+                <EntityLink
+                  content={l('See all tags')}
+                  entity={entity}
+                  subPath="tags"
+                />
+              </p>
+            </div>
+          )}
+      </>
+    )
+  );
+};
+
+export default SidebarTags;

@@ -48,7 +48,7 @@ sub load
                  FROM " . $self->_table . "
                  LEFT JOIN label ON rl.label = label.id
                  WHERE release IN (" . placeholders(@ids) . ")
-                 ORDER BY release, rl_catalog_number, musicbrainz_collate(label.name)";
+                 ORDER BY release, rl_catalog_number, label.name COLLATE musicbrainz";
     my @labels = $self->query_to_list($query, \@ids);
     foreach my $label (@labels) {
         foreach (@{ $id_to_release{$label->release_id} })
@@ -188,22 +188,12 @@ a reference to the array of ReleaseLabel instances and the total number
 of found releases. The returned ReleaseLabel objects will also have releases
 loaded. The $limit parameter is used to limit the number of returned releass.
 
-=head1 COPYRIGHT
+=head1 COPYRIGHT AND LICENSE
 
 Copyright (C) 2009 Lukas Lalinsky
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program; if not, write to the Free Software
-Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+This file is part of MusicBrainz, the open internet music database,
+and is licensed under the GPL version 2, or (at your option) any
+later version: http://www.gnu.org/licenses/gpl-2.0.txt
 
 =cut

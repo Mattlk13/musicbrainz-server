@@ -7,7 +7,7 @@
  * later version: http://www.gnu.org/licenses/gpl-2.0.txt
  */
 
-import React from 'react';
+import * as React from 'react';
 
 import * as manifest from '../static/manifest';
 import CollectionEditForm
@@ -16,13 +16,17 @@ import CollectionEditForm
 import CollectionLayout from './CollectionLayout';
 import type {CollectionEditFormT} from './types';
 
-type Props = {|
+type Props = {
   +collection: CollectionT,
   +collectionTypes: SelectOptionsT,
   +form: CollectionEditFormT,
-|};
+};
 
-const EditCollection = ({collection, collectionTypes, form}: Props) => (
+const EditCollection = ({
+  collection,
+  collectionTypes,
+  form,
+}: Props): React.Element<typeof CollectionLayout> => (
   <CollectionLayout
     entity={collection}
     fullWidth

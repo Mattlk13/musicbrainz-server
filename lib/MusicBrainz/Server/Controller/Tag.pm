@@ -7,6 +7,7 @@ BEGIN { extends 'MusicBrainz::Server::Controller' }
 use MusicBrainz::Server::Data::Utils qw( type_to_model );
 use MusicBrainz::Server::Constants qw( %ENTITIES entities_with );
 use MusicBrainz::Server::ControllerUtils::JSON qw( serialize_pager );
+use MusicBrainz::Server::Entity::Util::JSON qw( to_json_object );
 
 with 'MusicBrainz::Server::Controller::Role::Load' => {
     model       => 'Tag',
@@ -18,7 +19,11 @@ sub base : Chained('/') PathPart('tag') CaptureArgs(0) { }
 sub _load
 {
     my ($self, $c, $name) = @_;
-    return $c->model('Tag')->get_by_name($name);
+    my $tag = $c->model('Tag')->get_by_name($name);
+    if ($tag && $tag->genre_id) {
+        $c->model('Genre')->load($tag);
+    }
+    return $tag;
 }
 
 sub no_tag_provided : Path('/tag') Args(0)
@@ -35,7 +40,8 @@ sub cloud : Path('/tags')
 {
     my ($self, $c, $name) = @_;
 
-    my ($cloud, $hits) = $c->model('Tag')->get_cloud(200);
+    my $cloud = $c->model('Tag')->get_cloud(200);
+    my $hits = scalar @$cloud;
 
     $c->stash(
         current_view => 'Node',
@@ -43,7 +49,14 @@ sub cloud : Path('/tags')
         component_props => {
             %{$c->stash->{component_props}},
             tagMaxCount => $hits ? $cloud->[0]->{count} : 0,
-            tags => $hits ? [sort { $a->{tag}->name cmp $b->{tag}->name } @$cloud] : [],
+            tags => $hits ? [
+                map +{
+                    count => $_->{count},
+                    tag => to_json_object($_->{tag}),
+                },
+                sort { $a->{tag}->name cmp $b->{tag}->name }
+                @$cloud
+            ] : [],
         },
     );
 }
@@ -57,7 +70,7 @@ sub show : Chained('load') PathPart('')
         component_path => 'tag/TagIndex',
         component_props => {
             %{$c->stash->{component_props}},
-            tag => $tag,
+            tag => $tag->TO_JSON,
             taggedEntities => {
                 map {
                     my ($entities, $total) = $c->model(type_to_model($_))->tags->find_entities(
@@ -68,7 +81,7 @@ sub show : Chained('load') PathPart('')
                         count => $total,
                         tags => [map +{
                             count => $_->{count},
-                            entity => $_->{entity},
+                            entity => $_->{entity}->TO_JSON,
                             entity_id => $_->{entity_id},
                         }, @$entities],
                     })
@@ -99,13 +112,13 @@ map {
                 %{$c->stash->{component_props}},
                 entityTags => [map +{
                     count => $_->{count},
-                    entity => $_->{entity},
+                    entity => $_->{entity}->TO_JSON,
                     entity_id => $_->{entity_id},
                 }, @$entity_tags],
                 entityType => $entity_type,
                 page => "/$url",
                 pager => serialize_pager($c->stash->{pager}),
-                tag => $c->stash->{tag}->name,
+                tag => $c->stash->{tag}->TO_JSON,
             },
         );
     };
@@ -132,22 +145,12 @@ sub not_found : Private
 no Moose;
 1;
 
-=head1 COPYRIGHT
+=head1 COPYRIGHT AND LICENSE
 
 Copyright (C) 2009 Lukas Lalinsky
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program; if not, write to the Free Software
-Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+This file is part of MusicBrainz, the open internet music database,
+and is licensed under the GPL version 2, or (at your option) any
+later version: http://www.gnu.org/licenses/gpl-2.0.txt
 
 =cut

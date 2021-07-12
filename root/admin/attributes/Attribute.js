@@ -1,5 +1,5 @@
 /*
- * @flow
+ * @flow strict-local
  * Copyright (C) 2019 Anirudh Jain
  * Copyright (C) 2014 MetaBrainz Foundation
  *
@@ -8,10 +8,11 @@
  * later version: http://www.gnu.org/licenses/gpl-2.0.txt
  */
 
-import React from 'react';
+import * as React from 'react';
 
 import Layout from '../../layout';
 import {compare} from '../../static/scripts/common/i18n';
+import expand2react from '../../static/scripts/common/i18n/expand2react';
 import yesNo from '../../static/scripts/common/utility/yesNo';
 import loopParity from '../../utility/loopParity';
 
@@ -32,12 +33,11 @@ type AttributeT =
   | ReleaseStatusT
   | SeriesTypeT
   | WorkAttributeTypeT
-  | WorkTypeT
-  ;
+  | WorkTypeT;
 
 type Props = {
-  attributes: Array<AttributeT>,
-  model: string,
+  +attributes: Array<AttributeT>,
+  +model: string,
 };
 
 const renderAttributesHeaderAccordingToModel = (model) => {
@@ -73,7 +73,7 @@ const renderAttributes = (attribute) => {
     }
     case 'series_type':
     case 'collection_type': {
-      return <td>{attribute.entityType}</td>;
+      return <td>{attribute.item_entity_type}</td>;
     }
     case 'work_attribute_type': {
       return <td>{yesNo(attribute.free_text)}</td>;
@@ -82,7 +82,10 @@ const renderAttributes = (attribute) => {
   }
 };
 
-const Attribute = ({attributes, model}: Props) => (
+const Attribute = ({
+  attributes,
+  model,
+}: Props): React.Element<typeof Layout> => (
   <Layout fullWidth title={model}>
     <h1>
       <a href="/admin/attributes">{l('Attributes')}</a>
@@ -107,7 +110,7 @@ const Attribute = ({attributes, model}: Props) => (
             <tr className={loopParity(index)} key={attribute.id}>
               <td>{attribute.id}</td>
               <td>{attribute.name}</td>
-              <td>{attribute.description}</td>
+              <td>{expand2react(attribute.description)}</td>
               <td>{attribute.child_order}</td>
               <td>{attribute.parent_id}</td>
               {renderAttributes(attribute)}

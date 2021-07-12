@@ -1,5 +1,5 @@
 /*
- * @flow
+ * @flow strict-local
  * Copyright (C) 2018 MetaBrainz Foundation
  *
  * This file is part of MusicBrainz, the open internet music database,
@@ -11,14 +11,20 @@ import * as React from 'react';
 
 import PaginatedResults from '../../components/PaginatedResults';
 import EntityLink from '../../static/scripts/common/components/EntityLink';
+import bracketed from '../../static/scripts/common/utility/bracketed';
 import type {ReportReleaseUrlT} from '../types';
 import ArtistCreditLink
   from '../../static/scripts/common/components/ArtistCreditLink';
 
+type Props = {
+  +items: $ReadOnlyArray<ReportReleaseUrlT>,
+  +pager: PagerT,
+};
+
 const ReleaseUrlList = ({
   items,
   pager,
-}: {items: $ReadOnlyArray<ReportReleaseUrlT>, pager: PagerT}) => {
+}: Props): React.Element<typeof PaginatedResults> => {
   let lastGID = 0;
   let currentGID = 0;
 
@@ -42,10 +48,15 @@ const ReleaseUrlList = ({
                 {lastGID === item.url.gid ? null : (
                   <tr className="even" key={item.url.gid}>
                     <td colSpan="3">
-                      <EntityLink
-                        content={item.url.decoded}
-                        entity={item.url}
-                      />
+                      <a href={item.url.name}>
+                        {item.url.name}
+                      </a>
+                      {' '}
+                      {bracketed(
+                        <a href={'/url/' + item.url.gid}>
+                          {item.url.gid}
+                        </a>,
+                      )}
                     </td>
                   </tr>
                 )}

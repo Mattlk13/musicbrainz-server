@@ -1,5 +1,5 @@
 /*
- * @flow
+ * @flow strict-local
  * Copyright (C) 2018 MetaBrainz Foundation
  *
  * This file is part of MusicBrainz, the open internet music database,
@@ -9,22 +9,23 @@
 
 import * as React from 'react';
 
+import FormCsrfToken from '../components/FormCsrfToken';
 import FormRow from '../components/FormRow';
 import FormRowText from '../components/FormRowText';
 import FormRowEmailLong from '../components/FormRowEmailLong';
 import FormSubmit from '../components/FormSubmit';
 import Layout from '../layout';
 
-type LostPasswordFormT = FormT<{|
+type LostPasswordFormT = FormT<{
   +email: ReadOnlyFieldT<string>,
   +username: ReadOnlyFieldT<string>,
-|}>;
+}>;
 
-type Props = {|
+type Props = {
   +form: LostPasswordFormT,
-|};
+};
 
-const LostPassword = (props: Props) => (
+const LostPassword = (props: Props): React.Element<typeof Layout> => (
   <Layout fullWidth title={l('Lost Password')}>
     <h1>{l('Lost Password')}</h1>
     <p>
@@ -33,19 +34,22 @@ const LostPassword = (props: Props) => (
          email with a link to reset your password. If you have
          forgotten your username, {link|retrieve it} first and then
          reset your password.`,
-        {link: '/account/lost-username'},
+        {link: '/lost-username'},
       )}
     </p>
     <form method="post">
+      <FormCsrfToken form={props.form} />
       <FormRowText
         field={props.form.field.username}
         label={l('Username:')}
         required
+        uncontrolled
       />
       <FormRowEmailLong
         field={props.form.field.email}
         label={addColonText(l('Email'))}
         required
+        uncontrolled
       />
       <FormRow hasNoLabel>
         <FormSubmit label={l('Reset Password')} />

@@ -1,5 +1,5 @@
 /*
- * @flow
+ * @flow strict-local
  * Copyright (C) 2018 MetaBrainz Foundation
  *
  * This file is part of MusicBrainz, the open internet music database,
@@ -9,45 +9,53 @@
 
 import * as React from 'react';
 
-import {CatalystContext, withCatalystContext} from '../../context';
+import {CatalystContext} from '../../context';
 import ArtistCreditLink
   from '../../static/scripts/common/components/ArtistCreditLink';
 import EntityLink from '../../static/scripts/common/components/EntityLink';
+import ReleaseEvents
+  from '../../static/scripts/common/components/ReleaseEvents';
 import TaggerIcon from '../../static/scripts/common/components/TaggerIcon';
 import formatBarcode from '../../static/scripts/common/utility/formatBarcode';
+import {isEditingEnabled}
+  from '../../static/scripts/common/utility/privileges';
 import loopParity from '../../utility/loopParity';
 import ReleaseCatnoList from '../../components/ReleaseCatnoList';
-import ReleaseCountries from '../../components/ReleaseCountries';
-import ReleaseDates from '../../components/ReleaseDates';
 import ReleaseLabelList from '../../components/ReleaseLabelList';
-import type {InlineResultsPropsT, ResultsPropsWithContextT} from '../types';
+import ReleaseLanguageScript from '../../components/ReleaseLanguageScript';
+import type {
+  InlineResultsPropsWithContextT,
+  ResultsPropsWithContextT,
+} from '../types';
 
 import PaginatedSearchResults from './PaginatedSearchResults';
 import ResultsLayout from './ResultsLayout';
 
-function buildResult(result, index) {
+function buildResult($c, result, index) {
   const release = result.entity;
   const score = result.score;
+  const typeName = release.releaseGroup?.typeName;
 
   return (
     <tr className={loopParity(index)} data-score={score} key={release.id}>
       <td>
-        <EntityLink entity={release} />
+        <EntityLink entity={release} showCaaPresence />
       </td>
       <td>
         <ArtistCreditLink artistCredit={release.artistCredit} />
       </td>
       <td>
-        {release.combined_format_name || l('[missing media]')}
+        {nonEmpty(release.combined_format_name)
+          ? release.combined_format_name
+          : l('[missing media]')}
       </td>
       <td>
-        {release.combined_track_count || l('-')}
+        {nonEmpty(release.combined_track_count)
+          ? release.combined_track_count
+          : lp('-', 'missing data')}
       </td>
       <td>
-        <ReleaseDates events={release.events} />
-      </td>
-      <td>
-        <ReleaseCountries events={release.events} />
+        <ReleaseEvents events={release.events} />
       </td>
       <td>
         <ReleaseLabelList labels={release.labels} />
@@ -57,71 +65,59 @@ function buildResult(result, index) {
       </td>
       <td className="barcode-cell">{formatBarcode(release.barcode)}</td>
       <td>
-        {release.language ? (
-          <abbr title={l_languages(release.language.name)}>
-            {release.language.iso_code_3}
-          </abbr>
-        ) : null}
-        {release.language && release.script ? ' / ' : null}
-        {release.script ? (
-          <abbr title={l_scripts(release.script.name)}>
-            {release.script.iso_code}
-          </abbr>
-        ) : null}
+        <ReleaseLanguageScript release={release} />
       </td>
       <td>
-        {release.releaseGroup && release.releaseGroup.typeName
-          ? lp_attributes(
-            release.releaseGroup.typeName,
-            'release_group_primary_type',
-          )
+        {nonEmpty(typeName)
+          ? lp_attributes(typeName, 'release_group_primary_type')
           : null}
       </td>
       <td>
         {release.status
           ? lp_attributes(release.status.name, 'release_status') : null}
       </td>
-      <CatalystContext.Consumer>
-        {($c: CatalystContextT) => (
-          $c.session && $c.session.tport
-            ? <td><TaggerIcon entity={release} /></td>
-            : null
-        )}
-      </CatalystContext.Consumer>
+      {$c?.session?.tport == null
+        ? null
+        : <td><TaggerIcon entity={release} /></td>}
     </tr>
   );
 }
 
 export const ReleaseResultsInline = ({
-  $c,
   pager,
   query,
   results,
-}: InlineResultsPropsT<ReleaseT>) => (
-  <PaginatedSearchResults
-    buildResult={buildResult}
-    columns={
-      <>
-        <th>{l('Name')}</th>
-        <th>{l('Artist')}</th>
-        <th>{l('Format')}</th>
-        <th>{l('Tracks')}</th>
-        <th>{l('Date')}</th>
-        <th>{l('Country')}</th>
-        <th>{l('Label')}</th>
-        <th>{l('Catalog#')}</th>
-        <th>{l('Barcode')}</th>
-        <th>{l('Language')}</th>
-        <th>{l('Type')}</th>
-        <th>{l('Status')}</th>
-        {$c && $c.session && $c.session.tport ? <th>{l('Tagger')}</th> : null}
-      </>
-    }
-    pager={pager}
-    query={query}
-    results={results}
-  />
-);
+}: InlineResultsPropsWithContextT<ReleaseT>):
+React.Element<typeof PaginatedSearchResults> => {
+  const $c = React.useContext(CatalystContext);
+
+  return (
+    <PaginatedSearchResults
+      buildResult={(result, index) => buildResult($c, result, index)}
+      columns={
+        <>
+          <th>{l('Name')}</th>
+          <th>{l('Artist')}</th>
+          <th>{l('Format')}</th>
+          <th>{l('Tracks')}</th>
+          <th>{l('Country') + lp('/', 'and') + l('Date')}</th>
+          <th>{l('Label')}</th>
+          <th>{l('Catalog#')}</th>
+          <th>{l('Barcode')}</th>
+          <th>{l('Language')}</th>
+          <th>{l('Type')}</th>
+          <th>{l('Status')}</th>
+          {$c?.session?.tport == null
+            ? null
+            : <th>{l('Tagger')}</th>}
+        </>
+      }
+      pager={pager}
+      query={query}
+      results={results}
+    />
+  );
+};
 
 const ReleaseResults = ({
   $c,
@@ -130,15 +126,15 @@ const ReleaseResults = ({
   pager,
   query,
   results,
-}: ResultsPropsWithContextT<ReleaseT>) => (
+}: ResultsPropsWithContextT<ReleaseT>):
+React.Element<typeof ResultsLayout> => (
   <ResultsLayout form={form} lastUpdated={lastUpdated}>
     <ReleaseResultsInline
-      $c={$c}
       pager={pager}
       query={query}
       results={results}
     />
-    {$c.user && !$c.user.is_editing_disabled ? (
+    {isEditingEnabled($c.user) ? (
       <p>
         {exp.l('Alternatively, you may {uri|add a new release}.', {
           uri: '/release/add',
@@ -148,4 +144,4 @@ const ReleaseResults = ({
   </ResultsLayout>
 );
 
-export default withCatalystContext(ReleaseResults);
+export default ReleaseResults;

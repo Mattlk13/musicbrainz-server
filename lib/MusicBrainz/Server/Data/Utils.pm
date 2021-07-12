@@ -1,5 +1,6 @@
 package MusicBrainz::Server::Data::Utils;
 
+use 5.18.2;
 use strict;
 use warnings;
 
@@ -14,11 +15,13 @@ use Math::Random::Secure qw( irand );
 use MIME::Base64 qw( encode_base64url );
 use Digest::SHA qw( sha1_base64 );
 use Encode qw( decode encode );
+use JSON::XS;
 use List::MoreUtils qw( natatime uniq zip );
 use List::UtilsBy qw( sort_by );
 use MusicBrainz::Server::Constants qw(
     $DARTIST_ID
     $VARTIST_ID
+    $NOLABEL_ID
     $DLABEL_ID
     $INSTRUMENT_ROOT_ID
     $PART_OF_AREA_LINK_TYPE_ID
@@ -39,6 +42,7 @@ our @EXPORT_OK = qw(
     boolean_from_json
     boolean_to_json
     check_data
+    conditional_merge_column_query
     copy_escape
     coordinates_to_hash
     datetime_to_iso8601
@@ -50,6 +54,7 @@ our @EXPORT_OK = qw(
     hash_to_row
     is_special_artist
     is_special_label
+    localized_note
     load_everything_for_edits
     load_meta
     load_subobjects
@@ -70,6 +75,8 @@ our @EXPORT_OK = qw(
     sanitize
     take_while
     trim
+    trim_comment
+    trim_multiline_text
     type_to_model
     split_relationship_by_attributes
 );
@@ -137,7 +144,7 @@ sub load_subobjects
         my $attr_id = $attr_obj . '_id';
         my @objs_with_id;
         for my $obj (@objs) {
-            next unless $obj->meta->find_attribute_by_name($attr_id);
+            next unless $obj->can($attr_id);
             my $id = $obj->$attr_id;
             if (defined $id) {
                 push @ids, $id;
@@ -230,9 +237,13 @@ sub generate_gid
     lc(Data::UUID::MT->new( version => 4 )->create_string());
 }
 
-sub generate_token
-{
-    encode_base64url(pack('LLLL', irand(), irand(), irand(), irand()));
+Readonly my $TOKEN_SIZE => 6; # times 32 bits
+sub generate_token {
+    encode_base64url(
+        pack(
+            'L' x $TOKEN_SIZE,
+            map { irand() } (1 .. $TOKEN_SIZE),
+        ));
 }
 
 sub get_area_containment_query {
@@ -312,9 +323,6 @@ sub collapse_whitespace {
     # Replace all spaces with U+0020
     =~ s/\s/ /gr
 
-    # Remove non-printable characters.
-    =~ s/[^[:print:]]//gr
-
     # Compress whitespace
     =~ s/\s{2,}/ /gr
 }
@@ -322,9 +330,16 @@ sub collapse_whitespace {
 sub sanitize {
     my $t = shift;
 
+    return '' unless non_empty($t);
+
     $t = NFC($t);
+    # Before removing invalid characters, convert space control characters
+    # into U+0020 (or else they'll be removed).
+    $t = collapse_whitespace($t);
     $t = remove_invalid_characters($t);
+    $t = remove_lineformatting_characters($t);
     $t = remove_direction_marks($t);
+    # Collapse spaces again, since characters may have been removed.
     $t = collapse_whitespace($t);
 
     return $t;
@@ -333,10 +348,43 @@ sub sanitize {
 sub trim {
     my $t = shift;
 
+    return '' unless non_empty($t);
+
     $t = sanitize($t);
 
     # Remove leading and trailing space
     $t = Text::Trim::trim($t);
+
+    return $t;
+}
+
+sub trim_comment {
+    my $t = shift;
+
+    return '' unless non_empty($t);
+
+    $t =~ s/^\s*\(([^()]+)\)\s*$/$1/;
+
+    return trim($t);
+}
+
+sub trim_multiline_text {
+    my $t = shift;
+
+    return '' unless non_empty($t);
+
+    $t = NFC($t);
+    $t = remove_invalid_characters($t);
+
+    # Trimming each line to remove trailing spaces (or similar)
+    # - Not trimming starting spaces to avoid breaking
+    #   either list formatting in Wikitext
+    #   or block in Markdown.
+    # - Splitting on \n so that \s doesn’t match any \n
+    $t = join ("\n", map { $_ =~ s/\s+$//r } (split "\n", $t));
+
+    # Merge consecutive blank lines together
+    $t =~ s/\n+(\n\n)/$1/g;
 
     return $t;
 }
@@ -367,13 +415,34 @@ sub remove_direction_marks {
     }
 }
 
+# https://www.unicode.org/faq/private_use.html#nonchar4
+my $noncharacter_pattern = '\x{FDD0}-\x{FDEF}\x{FFFE}\x{FFFF}';
+{
+    for my $i (1 .. 16) {
+        my $hex_i = sprintf('%X', $i);
+        $noncharacter_pattern .= "\\x{${hex_i}FFFE}\\x{${hex_i}FFFF}";
+    }
+}
+
 sub remove_invalid_characters {
     shift
-    # trim XML-invalid characters
+    # trim XML-invalid characters, among them:
+    # - Other, surrogate (which are UTF-16, not valid UTF-8)
     =~ s/[^\x09\x0A\x0D\x20-\x{D7FF}\x{E000}-\x{FFFD}\x{10000}-\x{10FFFF}]//gor
-    # trim other undesirable characters
-    =~ s/[\x{200B}\x{00AD}]//gor
-    #     zwsp    shy
+    # trim other undesirable characters:
+    # - bom
+    # - Supplementary private use areas
+    # - Noncharacters
+    =~ s/[\x{FEFF}\x{F0000}-\x{FFFFF}\x{100000}-\x{10FFFF}${noncharacter_pattern}]//gr
+}
+
+sub remove_lineformatting_characters {
+    shift
+    # trim lasting line-formatting characters:
+    # - zwsp
+    # - shy
+    # - Other, control (including TAB \x09, LF \x0A, and CR \x0D)
+    =~ s/[\x{200B}\x{00AD}\p{Cc}]//gr
 }
 
 sub type_to_model
@@ -477,32 +546,49 @@ sub _merge_attributes {
     $sql->do($query_generator->($table, $new_id, $old_ids, $all_ids, \%named_params));
 }
 
+sub conditional_merge_column_query {
+    my ($table, $column, $new_id, $all_ids, $condition, $default) = @_;
+
+    my @args = ($new_id, $all_ids);
+    my $query =
+        "(SELECT new_val
+            FROM (SELECT (id = ?) AS first, $column AS new_val
+                    FROM $table
+                   WHERE $column $condition
+                     AND id = any(?)
+                   ORDER BY first DESC
+                   LIMIT 1) s)";
+    if (defined $default) {
+        $query = "coalesce($query, ?)";
+        push @args, $default;
+    }
+    return ($query, \@args);
+}
 
 sub _conditional_merge {
     my ($condition, %opts) = @_;
 
-    my $wrap_coalesce = sub {
-        my ($inner, $wrap) = @_;
-        if ($wrap) { return "coalesce(" . $inner . ",?)" }
-        else { return $inner }
-    };
-
     return sub {
-            my ($table, $new_id, $old_ids, $all_ids, $named_params) = @_;
-            my $columns = $named_params->{columns} or confess 'Missing parameter columns';
-            ("UPDATE $table SET " .
-             join(',', map {
-                 "$_ = " . $wrap_coalesce->("(SELECT new_val FROM (
-                      SELECT (id = ?) AS first, $_ AS new_val
-                        FROM $table
-                       WHERE $_ $condition
-                         AND id IN (" . placeholders(@$all_ids) . ")
-                    ORDER BY first DESC
-                       LIMIT 1
-                       ) s)", exists $opts{default});
-             } @$columns) . '
-             WHERE id = ?',
-             (@$all_ids, $new_id) x @$columns, (exists $opts{default} ? $opts{default} : ()), $new_id)}
+        my ($table, $new_id, $old_ids, $all_ids, $named_params) = @_;
+        my $columns = $named_params->{columns} or confess 'Missing parameter columns';
+        my @assignment_args;
+        my $column_assignments = join(', ', map {
+            my $column = $_;
+            my ($column_query, $column_args) =
+                conditional_merge_column_query(
+                    $table,
+                    $column,
+                    $new_id,
+                    $all_ids,
+                    $condition,
+                    $opts{default},
+                );
+            push @assignment_args, @{$column_args};
+            "$column = ($column_query)"
+         } @$columns);
+        ("UPDATE $table SET $column_assignments WHERE id = ?",
+            @assignment_args, $new_id);
+    };
 }
 
 sub merge_table_attributes {
@@ -577,7 +663,7 @@ sub is_special_artist {
 
 sub is_special_label {
     my $label_id = shift;
-    return $label_id == $DLABEL_ID;
+    return $label_id == $NOLABEL_ID || $label_id == $DLABEL_ID;
 }
 
 sub take_while (&@) {
@@ -653,6 +739,17 @@ sub datetime_to_iso8601 {
     $date->set_time_zone('UTC');
     $date = $date->iso8601 . 'Z';
     return $date;
+}
+
+sub localized_note {
+    my ($message, %opts) = @_;
+
+    state $json = JSON::XS->new;
+    'localize:' . $json->encode({
+        message => $message,
+        version => 1,
+        %opts,
+    });
 }
 
 1;

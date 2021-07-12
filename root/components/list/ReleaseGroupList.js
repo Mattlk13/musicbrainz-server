@@ -1,5 +1,5 @@
 /*
- * @flow
+ * @flow strict-local
  * Copyright (C) 2019 MetaBrainz Foundation
  *
  * This file is part of MusicBrainz, the open internet music database,
@@ -7,250 +7,179 @@
  * later version: http://www.gnu.org/licenses/gpl-2.0.txt
  */
 
-import React from 'react';
-import {groupBy} from 'lodash';
+import * as React from 'react';
 
-import {withCatalystContext} from '../../context';
-import loopParity from '../../utility/loopParity';
+import {CatalystContext} from '../../context';
+import Table from '../Table';
 import releaseGroupType from '../../utility/releaseGroupType';
-import ArtistCreditLink
-  from '../../static/scripts/common/components/ArtistCreditLink';
-import EntityLink
-  from '../../static/scripts/common/components/EntityLink';
+import {groupBy} from '../../static/scripts/common/utility/arrays';
 import parseDate from '../../static/scripts/common/utility/parseDate';
-import RatingStars from '../RatingStars';
-import SortableTableHeader from '../SortableTableHeader';
+import {
+  defineArtistCreditColumn,
+  defineCheckboxColumn,
+  defineCountColumn,
+  defineNameColumn,
+  defineRatingsColumn,
+  defineSeriesNumberColumn,
+  defineTextColumn,
+  removeFromMergeColumn,
+} from '../../utility/tableColumns';
 
-type ReleaseGroupListHeaderProps = {|
+type ReleaseGroupListTableProps = {
   ...SeriesItemNumbersRoleT,
-  +$c: CatalystContextT,
   +checkboxes?: string,
-  +groupByType?: boolean,
+  +mergeForm?: MergeFormT,
   +order?: string,
+  +releaseGroups: $ReadOnlyArray<ReleaseGroupT>,
   +showRatings?: boolean,
+  +showType?: boolean,
   +sortable?: boolean,
-|};
+};
 
-type ReleaseGroupListEntryProps = {|
+type ReleaseGroupListProps = {
   ...SeriesItemNumbersRoleT,
-  +$c: CatalystContextT,
   +checkboxes?: string,
-  +groupByType?: boolean,
-  +index: number,
-  +releaseGroup: ReleaseGroupT,
-  +showRatings?: boolean,
-|};
-
-type ReleaseGroupListProps = {|
-  ...SeriesItemNumbersRoleT,
-  +$c: CatalystContextT,
-  +checkboxes?: string,
-  +groupByType?: boolean,
+  +mergeForm?: MergeFormT,
   +order?: string,
   +releaseGroups: $ReadOnlyArray<ReleaseGroupT>,
   +showRatings?: boolean,
   +sortable?: boolean,
-|};
+};
 
-const ReleaseGroupListHeader = ({
-  $c,
+export const ReleaseGroupListTable = ({
   checkboxes,
-  groupByType,
-  order,
-  seriesItemNumbers,
-  showRatings,
-  sortable,
-}: ReleaseGroupListHeaderProps) => (
-  <thead>
-    <tr>
-      {$c.user_exists && checkboxes ? (
-        <th className="checkbox-cell">
-          <input type="checkbox" />
-        </th>
-      ) : null}
-      {seriesItemNumbers ? <th style={{width: '1em'}}>{l('#')}</th> : null}
-      <th className="year c">
-        {sortable
-          ? (
-            <SortableTableHeader
-              label={l('Year')}
-              name="year"
-              order={order}
-            />
-          )
-          : l('Year')}
-      </th>
-      <th>
-        {sortable
-          ? (
-            <SortableTableHeader
-              label={l('Title')}
-              name="name"
-              order={order}
-            />
-          )
-          : l('Title')}
-      </th>
-      <th className="artist">{l('Artist')}</th>
-      {groupByType ? null : (
-        <th>
-          {sortable
-            ? (
-              <SortableTableHeader
-                label={l('Type')}
-                name="primary_type"
-                order={order}
-              />
-            )
-            : l('Type')}
-        </th>
-      )}
-      {showRatings ? <th className="rating c">{l('Rating')}</th> : null}
-      <th className="count c">{l('Releases')}</th>
-    </tr>
-  </thead>
-);
-
-const ReleaseGroupListEntry = ({
-  $c,
-  checkboxes,
-  index,
-  groupByType,
-  releaseGroup,
-  seriesItemNumbers,
-  showRatings,
-}: ReleaseGroupListEntryProps) => (
-  <tr className={loopParity(index)} key={releaseGroup.id}>
-    {$c.user_exists && checkboxes ? (
-      <td>
-        <input
-          name={checkboxes}
-          type="checkbox"
-          value={releaseGroup.id}
-        />
-      </td>
-    ) : null}
-    {seriesItemNumbers ? (
-      <td style={{width: '1em'}}>
-        {seriesItemNumbers[releaseGroup.id]}
-      </td>
-    ) : null}
-    <td className="c">
-      {releaseGroup.firstReleaseDate
-        ? parseDate(releaseGroup.firstReleaseDate).year
-        : '—'}
-    </td>
-    <td>
-      <EntityLink entity={releaseGroup} />
-    </td>
-    <td>
-      {releaseGroup.artistCredit
-        ? <ArtistCreditLink artistCredit={releaseGroup.artistCredit} />
-        : null}
-    </td>
-    {groupByType ? null : (
-      <td>
-        {releaseGroup.typeName
-          ? releaseGroupType(releaseGroup)
-          : null
-        }
-      </td>
-    )}
-    {showRatings ? (
-      <td className="c">
-        <RatingStars entity={releaseGroup} />
-      </td>
-    ) : null}
-    <td className="c">{releaseGroup.release_count}</td>
-  </tr>
-);
-
-const ReleaseGroupListTable = ({
-  $c,
-  checkboxes,
-  groupByType,
+  mergeForm,
   order,
   releaseGroups,
   seriesItemNumbers,
-  showRatings,
+  showRatings = false,
+  showType = true,
   sortable,
-}: ReleaseGroupListProps) => (
-  <table className="tbl release-group-list">
-    <ReleaseGroupListHeader
-      $c={$c}
-      checkboxes={checkboxes}
-      groupByType={groupByType}
-      order={order}
-      seriesItemNumbers={seriesItemNumbers}
-      showRatings={showRatings}
-      sortable={sortable}
-    />
-    <tbody>
-      {releaseGroups.map((releaseGroup, index) => (
-        <ReleaseGroupListEntry
-          $c={$c}
-          checkboxes={checkboxes}
-          groupByType={groupByType}
-          index={index}
-          key={releaseGroup.id}
-          releaseGroup={releaseGroup}
-          seriesItemNumbers={seriesItemNumbers}
-          showRatings={showRatings}
-        />
-      ))}
-    </tbody>
-  </table>
-);
+}: ReleaseGroupListTableProps): React.Element<typeof Table> => {
+  const $c = React.useContext(CatalystContext);
 
-const ReleaseGroupList = ({
-  $c,
-  checkboxes,
-  groupByType,
-  order,
-  releaseGroups,
-  seriesItemNumbers,
-  showRatings,
-  sortable,
-}: ReleaseGroupListProps) => {
-  const groupedReleaseGroups = groupBy(releaseGroups, 'typeName');
+  function getFirstReleaseYear(entity: ReleaseGroupT) {
+    if (!nonEmpty(entity.firstReleaseDate)) {
+      return '—';
+    }
+
+    return parseDate(entity.firstReleaseDate).year?.toString() ?? '—';
+  }
+
+  const columns = React.useMemo(
+    () => {
+      const checkboxColumn = $c.user && (nonEmpty(checkboxes) || mergeForm)
+        ? defineCheckboxColumn({mergeForm: mergeForm, name: checkboxes})
+        : null;
+      const seriesNumberColumn = seriesItemNumbers
+        ? defineSeriesNumberColumn({seriesItemNumbers: seriesItemNumbers})
+        : null;
+      const yearColumn = defineTextColumn<ReleaseGroupT>({
+        cellProps: {className: 'c'},
+        columnName: 'year',
+        getText: entity => getFirstReleaseYear(entity),
+        headerProps: {className: 'year c'},
+        order: order,
+        sortable: sortable,
+        title: l('Year'),
+      });
+      const nameColumn = defineNameColumn<ReleaseGroupT>({
+        descriptive: false, // since ACs are in the next column
+        order: order,
+        sortable: sortable,
+        title: l('Title'),
+      });
+      const artistCreditColumn = defineArtistCreditColumn<ReleaseGroupT>({
+        columnName: 'artist',
+        getArtistCredit: entity => entity.artistCredit,
+        title: l('Artist'),
+      });
+      const typeColumn = defineTextColumn<ReleaseGroupT>({
+        columnName: 'primary-type',
+        getText: entity => entity.l_type_name || '',
+        order: order,
+        sortable: sortable,
+        title: l('Type'),
+      });
+      const releaseNumberColumn = defineCountColumn<ReleaseGroupT>({
+        columnName: 'release_count',
+        getCount: entity => entity.release_count,
+        title: l('Releases'),
+      });
+      const ratingsColumn = defineRatingsColumn<ReleaseGroupT>({
+        getEntity: entity => entity,
+      });
+
+      return [
+        ...(checkboxColumn ? [checkboxColumn] : []),
+        ...(seriesNumberColumn ? [seriesNumberColumn] : []),
+        yearColumn,
+        nameColumn,
+        artistCreditColumn,
+        ...(showType ? [typeColumn] : []),
+        ...(showRatings ? [ratingsColumn] : []),
+        releaseNumberColumn,
+        ...(mergeForm && releaseGroups.length > 2
+          ? [removeFromMergeColumn]
+          : []),
+      ];
+    },
+    [
+      $c.user,
+      checkboxes,
+      mergeForm,
+      order,
+      releaseGroups,
+      seriesItemNumbers,
+      showRatings,
+      showType,
+      sortable,
+    ],
+  );
+
   return (
-    groupByType ? (
-      Object.keys(groupedReleaseGroups).map((type) => {
-        const releaseGroupsOfType = groupedReleaseGroups[type];
-        return (
-          <React.Fragment key={type}>
-            <h3>
-              {type === 'null'
-                ? l('Unspecified type')
-                : releaseGroupType(releaseGroupsOfType[0])
-              }
-            </h3>
-            <ReleaseGroupListTable
-              $c={$c}
-              checkboxes={checkboxes}
-              groupByType
-              order={order}
-              releaseGroups={releaseGroupsOfType}
-              seriesItemNumbers={seriesItemNumbers}
-              showRatings={showRatings}
-              sortable={sortable}
-            />
-          </React.Fragment>
-        );
-      })
-    ) : (
-      // TODO: When converting usages to React, please check MBS-10155.
-      <ReleaseGroupListTable
-        $c={$c}
-        checkboxes={checkboxes}
-        order={order}
-        releaseGroups={releaseGroups}
-        seriesItemNumbers={seriesItemNumbers}
-        showRatings={showRatings}
-        sortable={sortable}
-      />
-    )
+    <Table
+      className="release-group-list"
+      columns={columns}
+      data={releaseGroups}
+    />
   );
 };
 
-export default withCatalystContext(ReleaseGroupList);
+const ReleaseGroupList = ({
+  checkboxes,
+  mergeForm,
+  order,
+  releaseGroups,
+  seriesItemNumbers,
+  showRatings,
+  sortable,
+}: ReleaseGroupListProps): Array<React$Node> => {
+  const groupedReleaseGroups = groupBy(releaseGroups, x => x.typeName ?? '');
+  const tables = [];
+  for (const [type, releaseGroupsOfType] of groupedReleaseGroups) {
+    tables.push(
+      <React.Fragment key={type}>
+        <h3>
+          {type === ''
+            ? l('Unspecified type')
+            : releaseGroupType(releaseGroupsOfType[0])
+          }
+        </h3>
+        <ReleaseGroupListTable
+          checkboxes={checkboxes}
+          mergeForm={mergeForm}
+          order={order}
+          releaseGroups={releaseGroupsOfType}
+          seriesItemNumbers={seriesItemNumbers}
+          showRatings={showRatings}
+          showType={false}
+          sortable={sortable}
+        />
+      </React.Fragment>,
+    );
+  }
+  return tables;
+};
+
+export default ReleaseGroupList;

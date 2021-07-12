@@ -11,13 +11,15 @@ use MusicBrainz::Server::Constants qw( $EDIT_RELATIONSHIP_EDIT );
 use MusicBrainz::Server::Edit::Exceptions;
 use MusicBrainz::Server::Entity::LinkAttribute;
 use MusicBrainz::Server::Entity::Types;
+use MusicBrainz::Server::Entity::Util::JSON qw( to_json_object );
 use MusicBrainz::Server::Edit::Types qw( LinkAttributesArray PartialDateHash Nullable NullableOnPreview );
 use MusicBrainz::Server::Data::Utils qw(
+    boolean_to_json
     partial_date_to_hash
     type_to_model
 );
 use MusicBrainz::Server::Edit::Utils qw( gid_or_id );
-use MusicBrainz::Server::Translation qw( N_l );
+use MusicBrainz::Server::Translation qw( l N_l );
 
 use aliased 'MusicBrainz::Server::Entity::Link';
 use aliased 'MusicBrainz::Server::Entity::LinkType';
@@ -33,6 +35,7 @@ with 'MusicBrainz::Server::Edit::Role::DatePeriod';
 sub edit_type { $EDIT_RELATIONSHIP_EDIT }
 sub edit_name { N_l("Edit relationship") }
 sub edit_kind { 'edit' }
+sub edit_template_react { 'EditRelationship' }
 
 subtype 'LinkHash'
     => as Dict[
@@ -91,6 +94,8 @@ has '+data' => (
         relationship_id => Int,
         type0 => Str,
         type1 => Str,
+        entity0_credit => Optional[Str],
+        entity1_credit => Optional[Str],
         link => find_type_constraint('LinkHash'),
         new => find_type_constraint('RelationshipHash'),
         old => find_type_constraint('RelationshipHash'),
@@ -102,6 +107,8 @@ has 'relationship' => (
     isa => 'Relationship',
     is => 'rw'
 );
+
+sub link_type { shift->data->{link}{link_type} }
 
 sub foreign_keys
 {
@@ -148,8 +155,10 @@ sub _build_relationship {
     my ($self, $loaded, $data, $change) = @_;
 
     my $link = $data->{link};
-    my $model0 = type_to_model($data->{type0});
-    my $model1 = type_to_model($data->{type1});
+    my $type0 = $data->{type0};
+    my $type1 = $data->{type1};
+    my $model0 = type_to_model($type0);
+    my $model1 = type_to_model($type1);
 
     my $begin      = defined $change->{begin_date}   ? $change->{begin_date}   : $link->{begin_date};
     my $end        = defined $change->{end_date}     ? $change->{end_date}     : $link->{end_date};
@@ -164,19 +173,43 @@ sub _build_relationship {
     my $entity0_id = gid_or_id($entity0) // 0;
     my $entity1_id = gid_or_id($entity1) // 0;
 
-    return Relationship->new(
+    $entity0 = $loaded->{$model0}{$entity0_id} ||
+        $self->c->model($model0)->_entity_class->new(
+            defined $entity0->{id} ? (id => $entity0->{id}) : (),
+            name => $entity0->{name},
+        );
+    $entity1 = $loaded->{$model1}{$entity1_id} ||
+        $self->c->model($model1)->_entity_class->new(
+            defined $entity1->{id} ? (id => $entity1->{id}) : (),
+            name => $entity1->{name},
+        );
+    # We want to show the entities as actually credited even if the credit
+    # didn't change with this edit, but old edits won't have that data. 
+    my $entity0_credit = $change->{entity0_credit} // $data->{entity0_credit} // '';
+    my $entity1_credit = $change->{entity1_credit} // $data->{entity1_credit} // '';
+
+    return to_json_object(Relationship->new(
+        id => $data->{relationship_id},
         link => Link->new(
-            type       => $loaded->{LinkType}{ $lt->{id} } || LinkType->new( $lt ),
+            type       => $loaded->{LinkType}{ $lt->{id} } ||
+                              LinkType->new(
+                                  %{$lt},
+                                  entity0_type => $data->{type0},
+                                  entity1_type => $data->{type1},
+                              ),
+            type_id    => $lt->{id},
             begin_date => PartialDate->new_from_row( $begin ),
             end_date   => PartialDate->new_from_row( $end ),
             ended      => $ended,
             attributes => [
                 map {
-                    my $attr = $loaded->{LinkAttributeType}{ $_->{type}{id} };
+                    my $type_id = $_->{type}{id};
+                    my $attr = $loaded->{LinkAttributeType}{$type_id};
 
                     if ($attr) {
                         MusicBrainz::Server::Entity::LinkAttribute->new(
                             type => $attr,
+                            type_id => $type_id,
                             credited_as => $_->{credited_as},
                             text_value => $_->{text_value},
                         );
@@ -187,13 +220,19 @@ sub _build_relationship {
                 } @$attributes
             ],
         ),
-        entity0 => $loaded->{$model0}{ $entity0_id } ||
-            $self->c->model($model0)->_entity_class->new( name => $entity0->{name} ),
-        entity1 => $loaded->{$model1}{ $entity1_id } ||
-            $self->c->model($model1)->_entity_class->new( name => $entity1->{name} ),
-        entity0_credit => $change->{entity0_credit} // '',
-        entity1_credit => $change->{entity1_credit} // '',
-    );
+        entity0 => $entity0,
+        entity1 => $entity1,
+        entity0_credit => $entity0_credit,
+        entity1_credit => $entity1_credit,
+        defined $entity0->{id} ? (entity0_id => $entity0->{id}) : (),
+        defined $entity1->{id} ? (entity1_id => $entity1->{id}) : (),
+        source => $entity0,
+        target => $entity1,
+        source_type => $type0,
+        target_type => $type1,
+        source_credit => $entity0_credit,
+        target_credit => $entity1_credit,
+    ));
 }
 
 sub build_display_data {
@@ -205,12 +244,12 @@ sub build_display_data {
     return {
         old => $self->_build_relationship($loaded, $self->data, $old),
         new => $self->_build_relationship($loaded, $self->data, $new),
-        unknown_attributes => scalar(
+        unknown_attributes => boolean_to_json(scalar(
             grep { !exists $loaded->{LinkAttributeType}{$_->{type}{id}} }
                 @{ $old->{attributes} // [] },
                 @{ $new->{attributes} // [] },
                 @{ $self->data->{link}{attributes} // [] }
-        )
+        ))
     };
 }
 
@@ -377,7 +416,13 @@ sub initialize
 
     if ($existent_id && $relationship->id != $existent_id) {
         MusicBrainz::Server::Edit::Exceptions::DuplicateViolation->throw(
-            'This relationship already exists.'
+            l('The “{relationship_type}” relationship between “{entity0}” and “{entity1}” already exists.',
+              {
+                entity0 => $new_entity0->name,
+                entity1 => $new_entity1->name,
+                relationship_type => MusicBrainz::Server::Translation::Relationships::l($new_link_type->name),
+              }
+            )
         );
     }
 
@@ -409,6 +454,8 @@ sub initialize
                 name => $relationship->entity1->name
             },
         },
+        entity0_credit => $relationship->entity0_credit,
+        entity1_credit => $relationship->entity1_credit,
         edit_version => 2,
         $self->_change_data($relationship, %opts)
     });
@@ -592,23 +639,13 @@ __PACKAGE__->meta->make_immutable;
 no Moose;
 1;
 
-=head1 COPYRIGHT
+=head1 COPYRIGHT AND LICENSE
 
 Copyright (C) 2009 Lukas Lalinsky
 Copyright (C) 2010 MetaBrainz Foundation
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program; if not, write to the Free Software
-Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+This file is part of MusicBrainz, the open internet music database,
+and is licensed under the GPL version 2, or (at your option) any
+later version: http://www.gnu.org/licenses/gpl-2.0.txt
 
 =cut

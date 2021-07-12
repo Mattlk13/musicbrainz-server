@@ -58,7 +58,7 @@ is($link_attr_type, undef);
 
 };
 
-test 'get_by_gid with non existant GID' => sub {
+test 'get_by_gid with non existent GID' => sub {
     my $test = shift;
     MusicBrainz::Server::Test->prepare_test_database($test->c, '+relationships');
 
@@ -70,10 +70,12 @@ test 'Updating a link attribute invalidates cache entries for links' => sub {
     my $test = shift;
     my $c = $test->cache_aware_c;
 
-    $c->sql->do(<<'EOSQL');
-INSERT INTO link (id, link_type, attribute_count) VALUES (1, 148, 1);
-INSERT INTO link_attribute (link, attribute_type) VALUES (1, 1);
-EOSQL
+    $c->sql->do(<<~'EOSQL');
+        INSERT INTO link (id, link_type, attribute_count)
+            VALUES (1, 148, 1);
+        INSERT INTO link_attribute (link, attribute_type)
+            VALUES (1, 1);
+        EOSQL
 
     # Ensure cache is clear before calling get_by_id
     $c->cache->delete('link:1');

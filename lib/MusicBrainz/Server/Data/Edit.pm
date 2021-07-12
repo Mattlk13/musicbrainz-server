@@ -282,6 +282,24 @@ sub find_by_voter
     );
 }
 
+sub find_all_open
+{
+    my ($self, $limit, $offset) = @_;
+    my $query =
+        'SELECT ' . $self->_columns . '
+           FROM ' . $self->_table . '
+          WHERE status = ?
+       ORDER BY id ASC
+          LIMIT ' . $LIMIT_FOR_EDIT_LISTING;
+
+    $self->query_to_list_limited(
+        $query,
+        [$STATUS_OPEN],
+        $limit,
+        $offset,
+    );
+}
+
 sub find_open_for_editor
 {
     my ($self, $editor_id, $limit, $offset) = @_;
@@ -289,6 +307,7 @@ sub find_open_for_editor
         'SELECT ' . $self->_columns . '
            FROM ' . $self->_table . '
           WHERE status = ?
+            AND editor != ?
             AND NOT EXISTS (
                 SELECT TRUE FROM vote
                  WHERE vote.edit = edit.id
@@ -300,7 +319,7 @@ sub find_open_for_editor
 
     $self->query_to_list_limited(
         $query,
-        [$STATUS_OPEN, $editor_id],
+        [$STATUS_OPEN, $editor_id, $editor_id],
         $limit,
         $offset,
     );
@@ -356,10 +375,10 @@ sub subscribed_entity_edits {
         my $edit_entity_table = 'edit_' . $_;
         my $edit_status_table = $edit_entity_table;
         my $editor_subscribe_table = 'editor_subscribe_' . $_;
-        my $result = <<EOSQL;
-SELECT edit FROM $edit_entity_table
-JOIN $editor_subscribe_table ON $editor_subscribe_table.$_ = $edit_entity_table.$_
-EOSQL
+        my $result = <<~"EOSQL";
+            SELECT edit FROM $edit_entity_table
+            JOIN $editor_subscribe_table ON $editor_subscribe_table.$_ = $edit_entity_table.$_
+            EOSQL
 
         # Join with the edit table if
         # (1) this entity doesn't have a materialized edit status (e.g. series), or
@@ -389,24 +408,24 @@ EOSQL
     } entities_with('collections'));
     # FIXME: very similar to $EDIT_IDS_FOR_COLLECTION_SQL, should be generalized
 
-    my $query = <<EOSQL;
-SELECT $columns FROM $table
-JOIN (
-    $entity_sql
-    UNION
-    SELECT edit FROM ($subscriptions_sql) ce
-      JOIN edit ON ce.edit = edit.id
-     WHERE ${\($edit_filter->('edit', 'ce'))}
-) edits ON edit.id = edits.edit
-WHERE ${\($edit_filter->('edit', 'edit', '!='))}
-AND NOT EXISTS (
-    SELECT TRUE FROM vote
-    WHERE vote.edit = edit.id
-    AND vote.editor = \$1
-)
-ORDER BY id ASC
-LIMIT $LIMIT_FOR_EDIT_LISTING
-EOSQL
+    my $query = <<~"EOSQL";
+        SELECT $columns FROM $table
+        JOIN (
+            $entity_sql
+            UNION
+            SELECT edit FROM ($subscriptions_sql) ce
+            JOIN edit ON ce.edit = edit.id
+            WHERE ${\($edit_filter->('edit', 'ce'))}
+        ) edits ON edit.id = edits.edit
+        WHERE ${\($edit_filter->('edit', 'edit', '!='))}
+        AND NOT EXISTS (
+            SELECT TRUE FROM vote
+            WHERE vote.edit = edit.id
+            AND vote.editor = \$1
+        )
+        ORDER BY id ASC
+        LIMIT $LIMIT_FOR_EDIT_LISTING
+        EOSQL
 
     $self->query_to_list_limited($query, \@args, $limit, $offset, undef,
                                  dollar_placeholders => 1);
@@ -543,10 +562,6 @@ sub create {
     # ModBot can override the rules sometimes
     $edit->auto_edit(1)
         if ($edit->editor_id == $EDITOR_MODBOT && $edit->modbot_auto_edit);
-
-    # Serialize transactions per-editor. Should only be necessary for autoedits,
-    # since only they update the editor table but for now we've enabled it for everything
-    $self->c->model('Editor')->lock_row($edit->editor_id);
 
     $edit->insert;
 
@@ -829,7 +844,7 @@ sub reject
     my ($self, $edit, $status) = @_;
     $status ||= $STATUS_FAILEDVOTE;
     confess "The edit is not open anymore."
-        unless $edit->status == $STATUS_TOBEDELETED || $edit->status == $STATUS_OPEN;
+        unless $edit->status == $STATUS_OPEN;
 
     $self->_close($edit, sub { $self->_do_reject(shift, $status) });
 }
@@ -903,22 +918,12 @@ no Moose;
 
 1;
 
-=head1 COPYRIGHT
+=head1 COPYRIGHT AND LICENSE
 
 Copyright (C) 2009 Oliver Charles
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program; if not, write to the Free Software
-Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+This file is part of MusicBrainz, the open internet music database,
+and is licensed under the GPL version 2, or (at your option) any
+later version: http://www.gnu.org/licenses/gpl-2.0.txt
 
 =cut

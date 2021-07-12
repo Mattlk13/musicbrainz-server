@@ -34,18 +34,39 @@ test all => sub {
     my $long_unicode_tag1 = '松' x 255;
     my $long_unicode_tag2 = '変' x 255;
 
-    $exec_sql->(<<EOSQL);
-    BEGIN;
-    INSERT INTO replication_control (current_schema_sequence, current_replication_sequence, last_replication_date) VALUES
-        ($schema_seq, 1, now() - interval '1 hour');
-    INSERT INTO artist (id, gid, name, sort_name) VALUES
-        (666, '30238ead-59fa-41e2-a7ab-b7f6e6363c4b', 'A', 'A');
-    INSERT INTO tag (id, name, ref_count) VALUES
-        (1, '$long_unicode_tag1', 1);
-    INSERT INTO artist_tag (artist, tag, count, last_updated) VALUES
-        (666, 1, 1, now());
-    COMMIT;
-EOSQL
+    $exec_sql->(<<~"EOSQL");
+        BEGIN;
+        INSERT INTO replication_control (current_schema_sequence, current_replication_sequence, last_replication_date)
+            VALUES ($schema_seq, 1, now() - interval '1 hour');
+        INSERT INTO artist (id, gid, name, sort_name)
+            VALUES (666, '30238ead-59fa-41e2-a7ab-b7f6e6363c4b', 'A', 'A');
+        INSERT INTO tag (id, name, ref_count)
+            VALUES (1, '$long_unicode_tag1', 1);
+        INSERT INTO artist_tag (artist, tag, count, last_updated)
+            VALUES (666, 1, 1, now());
+        INSERT INTO area (
+            id, gid, name, type, edits_pending, last_updated, begin_date_year,
+            begin_date_month, begin_date_day, end_date_year, end_date_month,
+            end_date_day, ended, comment
+        ) VALUES (
+            5099, '29a709d8-0320-493e-8d0c-f2c386662b7f', 'Chicago', 3, 0,
+            '2013-05-24 20:27:13.405462+00', NULL, NULL, NULL, NULL, NULL, NULL,
+            'f', ''
+        );
+        INSERT INTO editor (
+            name, privs, email, website, bio, member_since, email_confirm_date,
+            last_login_date, last_updated, birth_date, gender, area, password,
+            ha1, deleted
+        ) VALUES (
+            'false_editor', 937, 'false_editor123\@example.com',
+            'false_editor123.example.com', 'hi im false',
+            '2020-11-26 01:13:41.810622+00', '2020-11-26 01:13:57.82052+00',
+            '2020-11-26 01:19:11.752133+00', '2020-11-26 01:13:41.810622+00',
+            '1970-01-20', 3, 5099, '{CRYPT}abc123secret',
+            '35c1f5f73559130eddbef34e50e22ad6', 'f'
+        );
+        COMMIT;
+        EOSQL
 
     system (
         File::Spec->catfile($root, 'admin/ExportAllTables'),
@@ -56,20 +77,26 @@ EOSQL
         '--compress',
     );
 
-    $exec_sql->(<<EOSQL);
-    SET client_min_messages TO WARNING;
-    INSERT INTO dbmirror_pending VALUES
-        (1, '"musicbrainz"."artist"', 'i', 1),
-        (2, '"musicbrainz"."artist"', 'u', 2),
-        (3, '"musicbrainz"."tag"', 'i', 3),
-        (4, '"musicbrainz"."artist_tag"', 'i', 3);
-    INSERT INTO dbmirror_pendingdata VALUES
-        (1, 'f', '"id"=''667'' "gid"=''b3d9590e-cd28-47a9-838a-ed41a78002f5'' "name"=''B'' "sort_name"=''B'' "last_updated"=''2016-05-03 20:00:00+00'' '),
-        (2, 't', '"id"=''666'' '),
-        (2, 'f', '"name"=''Updated A'' '),
-        (3, 'f', '"id"=''2'' "name"=''$long_unicode_tag2'' "ref_count"=''1'' '),
-        (4, 'f', '"artist"=''667'' "tag"=''2'' "count"=''1'' "last_updated"=''2016-05-03 20:00:00+00'' ');
-EOSQL
+    my $quoted_output_dir = shell_quote($output_dir);
+    system("cd $quoted_output_dir && md5sum -c MD5SUMS") == 0
+        or die $!;
+    system("cd $quoted_output_dir && sha256sum -c SHA256SUMS") == 0
+        or die $!;
+
+    $exec_sql->(<<~"EOSQL");
+        SET client_min_messages TO WARNING;
+        INSERT INTO dbmirror_pending
+            VALUES (1, '"musicbrainz"."artist"', 'i', 1),
+                   (2, '"musicbrainz"."artist"', 'u', 2),
+                   (3, '"musicbrainz"."tag"', 'i', 3),
+                   (4, '"musicbrainz"."artist_tag"', 'i', 3);
+        INSERT INTO dbmirror_pendingdata
+            VALUES (1, 'f', '"id"=''667'' "gid"=''b3d9590e-cd28-47a9-838a-ed41a78002f5'' "name"=''B'' "sort_name"=''B'' "last_updated"=''2016-05-03 20:00:00+00'' '),
+                   (2, 't', '"id"=''666'' '),
+                   (2, 'f', '"name"=''Updated A'' '),
+                   (3, 'f', '"id"=''2'' "name"=''$long_unicode_tag2'' "ref_count"=''1'' '),
+                   (4, 'f', '"artist"=''667'' "tag"=''2'' "count"=''1'' "last_updated"=''2016-05-03 20:00:00+00'' ');
+        EOSQL
 
     system (
         File::Spec->catfile($root, 'admin/ExportAllTables'),
@@ -96,17 +123,18 @@ EOSQL
         '--import',
             File::Spec->catfile($output_dir, 'mbdump.tar.bz2'),
             File::Spec->catfile($output_dir, 'mbdump-derived.tar.bz2'),
+            File::Spec->catfile($output_dir, 'mbdump-editor.tar.bz2'),
     );
 
     my $replication_setup = File::Spec->catfile($root, 'admin/sql/ReplicationSetup.sql');
     system 'sh', '-c' => "$psql TEST_FULL_EXPORT < $replication_setup";
 
-    $exec_sql->(<<EOSQL);
-    SET client_min_messages TO WARNING;
-    TRUNCATE replication_control CASCADE;
-    INSERT INTO replication_control (current_schema_sequence, current_replication_sequence, last_replication_date) VALUES
-        ($schema_seq, 1, now() - interval '1 hour');
-EOSQL
+    $exec_sql->(<<~"EOSQL");
+        SET client_min_messages TO WARNING;
+        TRUNCATE replication_control CASCADE;
+        INSERT INTO replication_control (current_schema_sequence, current_replication_sequence, last_replication_date)
+            VALUES ($schema_seq, 1, now() - interval '1 hour');
+        EOSQL
 
     system (
         File::Spec->catfile($root, 'admin/replication/LoadReplicationChanges'),
@@ -178,12 +206,53 @@ EOSQL
         },
     ]);
 
-    $exec_sql->(<<EOSQL);
-    SET client_min_messages TO WARNING;
-    TRUNCATE artist CASCADE;
-    TRUNCATE artist_tag CASCADE;
-    TRUNCATE tag CASCADE;
-EOSQL
+    my $editors = $c->sql->select_list_of_hashes('SELECT * FROM editor ORDER BY id');
+
+    cmp_deeply($editors, [
+        {
+            area => undef,
+            bio => undef,
+            birth_date => undef,
+            deleted => 0,
+            email => '',
+            email_confirm_date => '2013-07-26 11:48:31.088042+00',
+            gender => undef,
+            ha1 => '03503a81a03bdbb6055f4a6c8b86b5b8',
+            id => 4,
+            last_login_date => ignore(),
+            last_updated => ignore(),
+            member_since => ignore(),
+            name => 'ModBot',
+            password => '{CLEARTEXT}mb',
+            privs => 0,
+            website => undef,
+        },
+        {
+            area => undef,
+            bio => undef,
+            birth_date => undef,
+            deleted => 0,
+            email => '',
+            email_confirm_date => '2020-11-26 01:13:57.82052+00',
+            gender => undef,
+            ha1 => '62918b6c0e34b4bf056ecad67c96b765',
+            id => 5,
+            last_login_date => ignore(),
+            last_updated => '2020-11-26 01:13:41.810622+00',
+            member_since => '2020-11-26 01:13:41.810622+00',
+            name => 'false_editor',
+            password => '{CLEARTEXT}mb',
+            privs => 0,
+            website => undef,
+        },
+    ]);
+
+    $exec_sql->(<<~'EOSQL');
+        SET client_min_messages TO WARNING;
+        TRUNCATE artist CASCADE;
+        TRUNCATE artist_tag CASCADE;
+        TRUNCATE tag CASCADE;
+        EOSQL
 };
 
 run_me;

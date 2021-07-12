@@ -6,6 +6,8 @@ use MusicBrainz::Server::Constants qw(
     $EDIT_RELATIONSHIP_ATTRIBUTE
     $INSTRUMENT_ROOT_ID
 );
+use MusicBrainz::Server::Entity::Util::JSON qw( to_json_array );
+use MusicBrainz::Server::Translation qw( l );
 
 use MusicBrainz::Server::Validation qw( is_guid );
 
@@ -26,11 +28,39 @@ sub _load_tree
 
 sub base : Chained('/') PathPart('relationship-attribute') CaptureArgs(0) { }
 
-sub index : Path('/relationship-attributes') Args(0)
+sub show : PathPart('') Chained('load')
+{
+    my ($self, $c) = @_;
+
+    my $attribute = $c->model('LinkAttributeType')->get_tree(
+        undef, # don't filter
+        $c->stash->{link_attr_type}->{id}
+    );
+    my @relationships = $c->model('LinkType')->find_by_attribute($attribute->{id});
+
+    my %props = (
+        attribute => $attribute->TO_JSON,
+        relationships => to_json_array(\@relationships),
+    );
+
+    $c->stash(
+        component_path  => 'relationship/linkattributetype/RelationshipAttributeTypeIndex',
+        component_props => \%props,
+        current_view => 'Node',
+    );
+}
+
+sub list : Path('/relationship-attributes') Args(0)
 {
     my ($self, $c) = @_;
 
     $self->_load_tree($c);
+
+    $c->stash(
+        component_path  => 'relationship/linkattributetype/RelationshipAttributeTypesList',
+        component_props => {root => $c->stash->{root}->TO_JSON},
+        current_view    => 'Node',
+    );
 }
 
 sub create : Path('/relationship-attributes/create') Args(0) RequireAuth(relationship_editor)
@@ -47,8 +77,8 @@ sub create : Path('/relationship-attributes/create') Args(0) RequireAuth(relatio
     $form->field('parent_id')->value($parent_link_attr_type->id)
         if $parent_link_attr_type;
 
-    if ($c->form_posted && $form->process( params => $c->req->params )) {
-        $c->model('MB')->with_transaction(sub {
+    if ($c->form_posted_and_valid($form)) {
+        my $attribute_edit = $c->model('MB')->with_transaction(sub {
             $self->_insert_edit(
                 $c, $form,
                 edit_type => $EDIT_RELATIONSHIP_ADD_ATTRIBUTE,
@@ -56,7 +86,7 @@ sub create : Path('/relationship-attributes/create') Args(0) RequireAuth(relatio
             );
         });
 
-        $c->response->redirect($c->uri_for_action('relationship/linkattributetype/index'));
+        $c->response->redirect($c->uri_for_action('relationship/linkattributetype/show', [ $attribute_edit->entity_gid ]));
         $c->detach;
     }
 }
@@ -71,43 +101,63 @@ sub edit : Chained('load') RequireAuth(relationship_editor)
 
     my $form = $c->form( form => 'Admin::LinkAttributeType', init_object => $link_attr_type );
 
-    if ($c->form_posted && $form->process( params => $c->req->params )) {
+    my $attribute_in_use = $c->model('LinkAttributeType')->in_use($link_attr_type->id);
+
+    if ($attribute_in_use) {
+        $form->field('free_text')->disabled(1);
+        if ($link_attr_type->creditable) {
+            $form->field('creditable')->disabled(1);
+        }
+    }
+
+    if ($c->form_posted_and_valid($form)) {
+        my %values = map { $_->name => $_->value } $form->edit_fields;
+
+        my $edit;
+
         $c->model('MB')->with_transaction(sub {
-            $self->_insert_edit(
+            $edit = $self->_insert_edit(
                 $c, $form,
                 edit_type => $EDIT_RELATIONSHIP_ATTRIBUTE,
                 entity_id => $link_attr_type->id,
-                new => { map { $_->name => $_->value } $form->edit_fields },
+                new => \%values ,
                 old => {
                     name => $link_attr_type->name,
                     description => $link_attr_type->description,
                     parent_id => $link_attr_type->parent_id,
                     child_order => $link_attr_type->child_order,
+                    creditable => $link_attr_type->creditable,
+                    free_text => $link_attr_type->free_text,
                 }
             );
         });
 
-        $c->response->redirect($c->uri_for_action('relationship/linkattributetype/index'));
-        $c->detach;
+        if ($edit) {
+            $c->response->redirect($c->uri_for_action('relationship/linkattributetype/show', [ $link_attr_type->gid ]));
+        }
     }
 }
 
-sub delete : Chained('load') RequireAuth(relationship_editor)
+sub delete : Chained('load') RequireAuth(relationship_editor) SecureForm
 {
     my ($self, $c, $gid) = @_;
 
     my $link_attr_type = $c->stash->{link_attr_type};
     $c->detach('/error_403') if $link_attr_type->root_id == $INSTRUMENT_ROOT_ID;
     my $form = $c->form(
-        form => 'Confirm'
+        form => 'SecureConfirm'
     );
 
     if ($c->model('LinkAttributeType')->in_use($link_attr_type->id)) {
-        $c->stash( template => $c->namespace . '/in_use.tt');
+        $c->stash(
+            component_path  => 'relationship/linkattributetype/RelationshipAttributeTypeInUse',
+            component_props => {type => $link_attr_type->TO_JSON},
+            current_view    => 'Node',
+        );
         $c->detach;
     }
 
-    if ($c->form_posted && $form->process( params => $c->req->params )) {
+    if ($c->form_posted_and_valid($form)) {
         $c->model('MB')->with_transaction(sub {
             $self->_insert_edit(
                 $c, $form,
@@ -120,30 +170,20 @@ sub delete : Chained('load') RequireAuth(relationship_editor)
             );
         });
 
-        $c->response->redirect($c->uri_for_action('relationship/linkattributetype/index'));
+        $c->response->redirect($c->uri_for_action('relationship/linkattributetype/list'));
         $c->detach;
     }
 }
 
 1;
 
-=head1 COPYRIGHT
+=head1 COPYRIGHT AND LICENSE
 
 Copyright (C) 2009 Lukas Lalinsky
 Copyright (C) 2011 MetaBrainz Foundation
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program; if not, write to the Free Software
-Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+This file is part of MusicBrainz, the open internet music database,
+and is licensed under the GPL version 2, or (at your option) any
+later version: http://www.gnu.org/licenses/gpl-2.0.txt
 
 =cut

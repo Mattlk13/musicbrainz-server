@@ -7,9 +7,9 @@
  * later version: http://www.gnu.org/licenses/gpl-2.0.txt
  */
 
-import React from 'react';
+import * as React from 'react';
 
-import {withCatalystContext} from '../context';
+import CleanupBanner from '../components/CleanupBanner';
 import FormRow from '../components/FormRow';
 import FormSubmit from '../components/FormSubmit';
 import PaginatedResults from '../components/PaginatedResults';
@@ -18,18 +18,19 @@ import WikipediaExtract
 import ReleaseList from '../components/list/ReleaseList';
 import * as manifest from '../static/manifest';
 import Annotation from '../static/scripts/common/components/Annotation';
+import {returnToCurrentPage} from '../utility/returnUri';
 
 import LabelLayout from './LabelLayout';
 
-type Props = {|
+type Props = {
   +$c: CatalystContextT,
   +eligibleForCleanup: boolean,
   +label: LabelT,
   +numberOfRevisions: number,
   +pager: PagerT,
-  +releases: $ReadOnlyArray<ReleaseT>,
+  +releases: ?$ReadOnlyArray<ReleaseT>,
   +wikipediaExtract: WikipediaExtractT | null,
-|};
+};
 
 const LabelIndex = ({
   $c,
@@ -39,16 +40,10 @@ const LabelIndex = ({
   pager,
   releases,
   wikipediaExtract,
-}: Props) => (
+}: Props): React.Element<typeof LabelLayout> => (
   <LabelLayout entity={label} page="index">
     {eligibleForCleanup ? (
-      <p className="cleanup">
-        {l(
-          `This label has no relationships or releases and will be removed
-           automatically in the next few days. If this is not intended,
-           please add more data to this label.`,
-        )}
-      </p>
+      <CleanupBanner entityType="label" />
     ) : null}
     <Annotation
       annotation={label.latest_annotation}
@@ -61,12 +56,19 @@ const LabelIndex = ({
       entity={label}
     />
     <h2 className="releases">{l('Releases')}</h2>
-    {releases && releases.length > 0 ? (
-      <form action="/release/merge_queue" method="post">
+    {releases?.length ? (
+      <form
+        action={'/release/merge_queue?' + returnToCurrentPage($c)}
+        method="post"
+      >
         <PaginatedResults pager={pager}>
-          <ReleaseList checkboxes="add-to-merge" filterLabel={label} releases={releases} />
+          <ReleaseList
+            checkboxes="add-to-merge"
+            filterLabel={label}
+            releases={releases}
+          />
         </PaginatedResults>
-        {$c.user_exists ? (
+        {$c.user ? (
           <FormRow>
             <FormSubmit label={l('Add selected releases for merging')} />
           </FormRow>
@@ -79,4 +81,4 @@ const LabelIndex = ({
   </LabelLayout>
 );
 
-export default withCatalystContext(LabelIndex);
+export default LabelIndex;

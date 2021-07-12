@@ -1,5 +1,5 @@
 /*
- * @flow
+ * @flow strict-local
  * Copyright (C) 2019 MetaBrainz Foundation
  *
  * This file is part of MusicBrainz, the open internet music database,
@@ -11,15 +11,15 @@ import * as React from 'react';
 
 import Layout from '../layout';
 
-type Props = {|
+type Props = {
   +errorDescription: string,
   +errorMessage: string,
-|};
+};
 
 const OAuth2Error = ({
   errorDescription,
   errorMessage,
-}: Props) => (
+}: Props): React.Element<typeof Layout> => (
   <Layout fullWidth title={l('OAuth Authorization Error')}>
     <h1>{texp.l('Error: {error}', {error: errorMessage})}</h1>
     <p>{errorDescription}</p>

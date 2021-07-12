@@ -66,7 +66,7 @@ test 'Displays correctly following label merges' => sub {
 
     # Check that the new label loads correctly.
     $c->model('Edit')->load_all($edit);
-    is($edit->display_data->{label}->id, 3);
+    is($edit->display_data->{label}{id}, 3);
 };
 
 test 'Displays correctly following release merges' => sub {
@@ -91,7 +91,7 @@ test 'Displays correctly following release merges' => sub {
 
     # Check that the new release loads correctly.
     $c->model('Edit')->load_all($edit);
-    is($edit->display_data->{release}->id, 2);
+    is($edit->display_data->{release}{id}, 2);
 };
 
 test 'Loads correctly when there\'s just a catalog number' => sub {
@@ -99,10 +99,10 @@ test 'Loads correctly when there\'s just a catalog number' => sub {
     my $c = $test->c;
 
     MusicBrainz::Server::Test->prepare_test_database($c, '+edit_release_label');
-    $c->sql->do(<<'EOSQL');
-INSERT INTO release_label (id, release, label, catalog_number)
-    VALUES (2, 1, NULL, 'ABC-456');
-EOSQL
+    $c->sql->do(<<~'EOSQL');
+        INSERT INTO release_label (id, release, label, catalog_number)
+            VALUES (2, 1, NULL, 'ABC-456');
+        EOSQL
 
     my $edit = create_edit($c, 2);
     $c->model('Edit')->load_all($edit);

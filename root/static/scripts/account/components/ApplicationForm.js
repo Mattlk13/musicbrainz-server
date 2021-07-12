@@ -10,6 +10,7 @@
 import mutate from 'mutate-cow';
 import * as React from 'react';
 
+import FormCsrfToken from '../../../../components/FormCsrfToken';
 import FormRow from '../../../../components/FormRow';
 import FormRowSelect from '../../../../components/FormRowSelect';
 import FormRowText from '../../../../components/FormRowText';
@@ -17,23 +18,22 @@ import FormRowURLLong from '../../../../components/FormRowURLLong';
 import FormSubmit from '../../../../components/FormSubmit';
 import hydrate from '../../../../utility/hydrate';
 
-export type OauthTypeT = 'installed' | 'web';
-
-export type ApplicationFormT = FormT<{|
+export type ApplicationFormT = FormT<{
+  +csrf_token: FieldT<string>,
   +name: ReadOnlyFieldT<string>,
   +oauth_redirect_uri: FieldT<string>,
-  +oauth_type: FieldT<OauthTypeT>,
-|}>;
+  +oauth_type: FieldT<string>,
+}>;
 
-type Props = {|
+type Props = {
   +action: string,
   +form: ApplicationFormT,
   +submitLabel: string,
-|};
+};
 
-type State = {|
+type State = {
   form: ApplicationFormT,
-|};
+};
 
 const oauthTypeOptions = {
   grouped: false,
@@ -47,7 +47,8 @@ class ApplicationForm extends React.Component<Props, State> {
   constructor(props: Props) {
     super(props);
     this.state = {form: props.form};
-    this.handleOauthRedirectURIChange = this.handleOauthRedirectURIChange.bind(this);
+    this.handleOauthRedirectURIChange =
+      this.handleOauthRedirectURIChange.bind(this);
     this.handleOauthTypeChange = this.handleOauthTypeChange.bind(this);
   }
 
@@ -65,17 +66,20 @@ class ApplicationForm extends React.Component<Props, State> {
   handleOauthTypeChange(e: SyntheticEvent<HTMLSelectElement>) {
     const selectedOauthType = e.currentTarget.value;
     this.setState(prevState => mutate<State, _>(prevState, newState => {
-      newState.form.field.oauth_type.value = ((selectedOauthType: any): OauthTypeT);
+      newState.form.field.oauth_type.value = selectedOauthType;
     }));
   }
 
   render() {
     return (
       <form method="post">
+        <FormCsrfToken form={this.state.form} />
+
         <FormRowText
           field={this.state.form.field.name}
           label={addColonText(l('Name'))}
           required
+          uncontrolled
         />
         <FormRowSelect
           field={this.state.form.field.oauth_type}
@@ -112,4 +116,7 @@ class ApplicationForm extends React.Component<Props, State> {
 }
 
 export type ApplicationFormPropsT = Props;
-export default hydrate<Props>('div.application-form', ApplicationForm);
+export default (hydrate<Props>(
+  'div.application-form',
+  ApplicationForm,
+): React.AbstractComponent<Props, void>);

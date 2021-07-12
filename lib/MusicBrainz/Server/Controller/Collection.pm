@@ -2,6 +2,7 @@ package MusicBrainz::Server::Controller::Collection;
 use Moose;
 use Scalar::Util qw( looks_like_number );
 use List::Util qw( first );
+use List::AllUtils qw( uniq );
 
 BEGIN { extends 'MusicBrainz::Server::Controller' };
 
@@ -14,6 +15,7 @@ with 'MusicBrainz::Server::Controller::Role::Subscribe';
 use MusicBrainz::Server::ControllerUtils::JSON qw( serialize_pager );
 use MusicBrainz::Server::Data::Utils qw( model_to_type type_to_model load_everything_for_edits );
 use MusicBrainz::Server::Constants qw( :edit_status entities_with %ENTITIES );
+use MusicBrainz::Server::Entity::Util::JSON qw( to_json_array );
 
 sub base : Chained('/') PathPart('collection') CaptureArgs(0) { }
 
@@ -26,6 +28,7 @@ after 'load' => sub {
             $c->user->id, $collection->id);
     }
 
+    $c->model('Collection')->load_entity_count($collection);
     # Load editor and collaborators
     $c->model('Editor')->load_for_collection($collection);
     $c->model('CollectionType')->load($collection);
@@ -38,20 +41,17 @@ after 'load' => sub {
     )
 };
 
-sub own_collection : Chained('load') CaptureArgs(0) {
+sub own_collection : Chained('load') CaptureArgs(0) RequireAuth {
     my ($self, $c) = @_;
 
     my $collection = $c->stash->{collection};
-    $c->forward('/user/do_login') if !$c->user_exists;
     $c->detach('/error_403') if $c->user->id != $collection->editor_id;
 }
 
-sub collection_collaborator : Chained('load') CaptureArgs(0) {
+sub collection_collaborator : Chained('load') CaptureArgs(0) RequireAuth {
     my ($self, $c) = @_;
 
     my $collection = $c->stash->{collection};
-    $c->forward('/user/do_login') if !$c->user_exists;
-
     $c->detach('/error_403') if !$c->stash->{is_collection_collaborator};
 }
 
@@ -67,7 +67,9 @@ sub _do_add_or_remove {
 
         $c->model('Collection')->$func_name($entity_type, $collection->id, $entity_id);
 
-        $c->response->redirect($c->req->referer || $c->uri_for_action("/$entity_type/show", [ $entity->gid ]));
+        $c->redirect_back(
+            fallback => $c->uri_for_action("/$entity_type/show", [ $entity->gid ]),
+        );
         $c->detach;
     } else {
         $c->forward('show');
@@ -116,6 +118,10 @@ sub show : Chained('load') PathPart('') {
         $model->load_meta(@$entities);
     }
 
+    if ($model->does('MusicBrainz::Server::Data::Role::Rating') && $c->user_exists) {
+        $model->rating->load_user_ratings($c->user->id, @$entities);
+    }
+
     if ($entity_type eq 'area') {
         $c->model('AreaType')->load(@$entities);
         $c->model('Area')->load_containment(@$entities);
@@ -145,9 +151,6 @@ sub show : Chained('load') PathPart('') {
         $c->model('EventType')->load(@$entities);
         $model->load_performers(@$entities);
         $model->load_locations(@$entities);
-        if ($c->user_exists) {
-            $model->rating->load_user_ratings($c->user->id, @$entities);
-        }
     } elsif ($entity_type eq 'place') {
         $c->model('PlaceType')->load(@$entities);
         $c->model('Area')->load(@$entities);
@@ -155,18 +158,15 @@ sub show : Chained('load') PathPart('') {
     } elsif ($entity_type eq 'recording') {
         $c->model('ArtistCredit')->load(@$entities);
         $c->model('ISRC')->load_for_recordings(@$entities);
-        if ($c->user_exists) {
-            $c->model('Recording')->rating->load_user_ratings($c->user->id, @$entities);
-        }
     } elsif ($entity_type eq 'series') {
         $c->model('SeriesType')->load(@$entities);
         $c->model('SeriesOrderingType')->load(@$entities);
     }
 
     my %props = (
-        collection           => $collection,
+        collection           => $collection->TO_JSON,
         collectionEntityType => $entity_type,
-        entities             => $entities,
+        entities             => to_json_array($entities),
         order                => $order,
         pager                => serialize_pager($c->stash->{pager}),
     );
@@ -241,26 +241,31 @@ sub create : Local RequireAuth {
 
     my $form;
     if ($initial_entity_type) {
-        $form = $c->form( form => 'Collection', init_object => { type_id => $initial_entity_type->id } );
+        $form = $c->form( form => 'Collection', init_object => { allowed_entity_type => $initial_entity_type->item_entity_type, type_id => $initial_entity_type->id } );
     } else {
         $form = $c->form( form => 'Collection' );
     }
 
-    if ($c->form_posted && $form->submitted_and_valid($c->req->params)) {
+    if ($c->form_posted_and_valid($form)) {
         my %insert = $self->_form_to_hash($form);
-        my $collection = $c->model('Collection')->insert($c->user->id, \%insert);
+        my $collection_ids = $c->model('Collection')->insert($c->user->id, \%insert);
         if ($initial_entity_id) {
-            $c->model('Collection')->add_entities_to_collection(
-                $initial_entity_type->item_entity_type, $collection->{id}, $initial_entity_id
-            );
+            my $collection = $c->model('Collection')->get_by_gid($collection_ids->{gid});
+            $c->model('CollectionType')->load($collection);
+            # Avoid adding the entity if the collection entity type has changed somehow (MBS-11569)
+            if ($initial_entity_type->item_entity_type eq $collection->type->item_entity_type) {
+                $c->model('Collection')->add_entities_to_collection(
+                    $initial_entity_type->item_entity_type, $collection->{id}, $initial_entity_id
+                );
+            }
         }
 
-        $self->_redirect_to_collection($c, $collection->{gid});
+        $self->_redirect_to_collection($c, $collection_ids->{gid});
     }
 
     my %props = (
         collectionTypes => $form->options_type_id,
-        form => $form,
+        form => $form->TO_JSON,
     );
 
     $c->stash(
@@ -277,9 +282,7 @@ sub edit : Chained('own_collection') RequireAuth {
 
     my $form = $c->form( form => 'Collection', init_object => $collection );
 
-    $c->model('Collection')->load_entity_count($collection);
-
-    if ($c->form_posted && $form->submitted_and_valid($c->req->params)) {
+    if ($c->form_posted_and_valid($form)) {
         my %update = $self->_form_to_hash($form);
 
         $c->model('Collection')->update($collection->id, \%update);
@@ -287,15 +290,41 @@ sub edit : Chained('own_collection') RequireAuth {
     }
 
     my %props = (
-        collection => $collection,
+        collection => $collection->TO_JSON,
         collectionTypes => $form->options_type_id,
-        form => $form,
+        form => $form->TO_JSON,
     );
 
     $c->stash(
         component_path => 'collection/EditCollection',
         component_props => \%props,
         current_view => 'Node',
+    );
+}
+
+with 'MusicBrainz::Server::Controller::Role::Merge';
+
+sub _merge_form_arguments {
+    my ($self, $c, @collections) = @_;
+
+    return (requires_edit_note => 0);
+}
+
+sub _merge_load_entities {
+    my ($self, $c, @collections) = @_;
+    $c->model('Collection')->load_entity_count(@collections);
+    $c->model('CollectionType')->load(@collections);
+
+    for my $collection (@collections) {
+        $c->model('Editor')->load_for_collection($collection);
+    }
+
+    my @entity_types = uniq map { $_->type->item_entity_type } @collections;
+    my @privacy_settings = uniq map { $_->public } @collections;
+
+    $c->stash(
+        privacies_differ => @privacy_settings > 1,
+        types_differ => @entity_types > 1,
     );
 }
 
@@ -311,7 +340,7 @@ sub delete : Chained('own_collection') RequireAuth {
             $c->uri_for_action('/user/collections', [ $c->user->name ]));
     }
     my %props = (
-        collection => $collection,
+        collection => $collection->TO_JSON,
     );
 
     $c->stash(
@@ -323,23 +352,13 @@ sub delete : Chained('own_collection') RequireAuth {
 
 1;
 
-=head1 COPYRIGHT
+=head1 COPYRIGHT AND LICENSE
 
 Copyright (C) 2009 Lukas Lalinsky
 Copyright (C) 2010 Sean Burke
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program; if not, write to the Free Software
-Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+This file is part of MusicBrainz, the open internet music database,
+and is licensed under the GPL version 2, or (at your option) any
+later version: http://www.gnu.org/licenses/gpl-2.0.txt
 
 =cut

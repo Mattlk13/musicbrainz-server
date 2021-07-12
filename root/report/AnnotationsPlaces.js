@@ -1,5 +1,5 @@
 /*
- * @flow
+ * @flow strict-local
  * Copyright (C) 2018 MetaBrainz Foundation
  *
  * This file is part of MusicBrainz, the open internet music database,
@@ -9,46 +9,40 @@
 
 import * as React from 'react';
 
-import {withCatalystContext} from '../context';
-import Layout from '../layout';
-import formatUserDate from '../utility/formatUserDate';
-
 import {ANNOTATION_REPORT_TEXT} from './constants';
-import PlaceAnnotationList from './components/PlaceAnnotationList';
-import FilterLink from './FilterLink';
+import PlaceList from './components/PlaceList';
+import ReportLayout from './components/ReportLayout';
+import useAnnotationColumns from './hooks/useAnnotationColumns';
 import type {ReportDataT, ReportPlaceAnnotationT} from './types';
 
 const AnnotationsPlaces = ({
-  $c,
   canBeFiltered,
   filtered,
   generated,
   items,
   pager,
-}: ReportDataT<ReportPlaceAnnotationT>) => (
-  <Layout fullWidth title={l('Place annotations')}>
-    <h1>{l('Place annotations')}</h1>
+}: ReportDataT<ReportPlaceAnnotationT>):
+React.Element<typeof ReportLayout> => {
+  const annotationColumns = useAnnotationColumns<ReportPlaceAnnotationT>();
 
-    <ul>
-      <li>
-        {l('This report lists places with annotations.')}
-      </li>
-      <li>{ANNOTATION_REPORT_TEXT()}</li>
-      <li>
-        {texp.l('Total places found: {count}',
-                {count: pager.total_entries})}
-      </li>
-      <li>
-        {texp.l('Generated on {date}',
-                {date: formatUserDate($c.user, generated)})}
-      </li>
+  return (
+    <ReportLayout
+      canBeFiltered={canBeFiltered}
+      description={l('This report lists places with annotations.')}
+      entityType="place"
+      extraInfo={ANNOTATION_REPORT_TEXT()}
+      filtered={filtered}
+      generated={generated}
+      title={l('Place annotations')}
+      totalEntries={pager.total_entries}
+    >
+      <PlaceList
+        columnsAfter={annotationColumns}
+        items={items}
+        pager={pager}
+      />
+    </ReportLayout>
+  );
+};
 
-      {canBeFiltered ? <FilterLink filtered={filtered} /> : null}
-    </ul>
-
-    <PlaceAnnotationList items={items} pager={pager} />
-
-  </Layout>
-);
-
-export default withCatalystContext(AnnotationsPlaces);
+export default AnnotationsPlaces;

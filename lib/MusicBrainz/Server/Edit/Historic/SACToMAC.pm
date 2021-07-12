@@ -6,6 +6,7 @@ use MusicBrainz::Server::Constants qw(
     $EDIT_HISTORIC_SAC_TO_MAC
     $VARTIST_ID
 );
+use MusicBrainz::Server::Entity::Util::JSON qw( to_json_object );
 use MusicBrainz::Server::Translation qw( N_l );
 
 use aliased 'MusicBrainz::Server::Entity::Artist';
@@ -16,7 +17,7 @@ sub edit_name     { N_l('Convert release to multiple artists (historic)') }
 sub edit_kind     { 'other' }
 sub historic_type { 9 }
 sub edit_type     { $EDIT_HISTORIC_SAC_TO_MAC }
-sub edit_template { 'historic/convert_release_to_multiple_artists' }
+sub edit_template_react { 'historic/ChangeReleaseArtist' }
 
 sub _build_related_entities
 {
@@ -50,13 +51,16 @@ sub build_display_data
     my ($self, $loaded) = @_;
     return {
         releases => [
-            map { $loaded->{Release}->{ $_ } }
-                $self->release_ids
+            map {
+                to_json_object($loaded->{Release}{$_})
+            } $self->release_ids
         ],
         artist => {
-            new => $loaded->{Artist}->{ $VARTIST_ID },
-            old => $loaded->{Artist}->{ $self->data->{old_artist_id} } ||
+            new => to_json_object($loaded->{Artist}{$VARTIST_ID}),
+            old => to_json_object(
+                $loaded->{Artist}{ $self->data->{old_artist_id} } ||
                 Artist->new( name => $self->data->{old_artist_name} )
+            ),
         }
     };
 }

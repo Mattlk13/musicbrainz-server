@@ -1,5 +1,5 @@
 /*
- * @flow
+ * @flow strict-local
  * Copyright (C) 2018 MetaBrainz Foundation
  *
  * This file is part of MusicBrainz, the open internet music database,
@@ -9,19 +9,21 @@
 
 import * as React from 'react';
 
-import {withCatalystContext} from '../../../context';
+import {CatalystContext} from '../../../context';
 import EntityLink from '../../../static/scripts/common/components/EntityLink';
 
 import CollectionList from './CollectionList';
 
-type Props = {|
-  +$c: CatalystContextT,
+type Props = {
   +entity: CoreEntityT,
-|};
+};
 
-const CollectionLinks = ({$c, entity}: Props) => {
+const CollectionLinks = ({
+  entity,
+}: Props): React.Element<typeof CollectionList> | null => {
+  const $c = React.useContext(CatalystContext);
   const numberOfCollections = $c.stash.number_of_collections || 0;
-  if (!$c.user_exists) {
+  if (!$c.user) {
     return null;
   }
   return (
@@ -52,4 +54,4 @@ const CollectionLinks = ({$c, entity}: Props) => {
   );
 };
 
-export default withCatalystContext(CollectionLinks);
+export default CollectionLinks;

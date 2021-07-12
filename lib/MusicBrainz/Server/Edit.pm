@@ -7,6 +7,7 @@ use MusicBrainz::Server::Data::Utils qw( boolean_to_json datetime_to_iso8601 );
 use MusicBrainz::Server::Edit::Exceptions;
 use MusicBrainz::Server::Edit::Utils qw( edit_status_name );
 use MusicBrainz::Server::Entity::Types;
+use MusicBrainz::Server::Entity::Util::JSON qw( add_linked_entity to_json_array );
 use MusicBrainz::Server::Constants qw(
     :edit_status
     :expire_action
@@ -138,19 +139,6 @@ sub no_votes {
     scalar shift->_grep_votes(sub { $_->vote == $VOTE_NO && !$_->superseded });
 }
 
-sub votes_for_editor
-{
-    my ($self, $editor_id) = @_;
-    $self->_grep_votes(sub { $_->editor_id == $editor_id });
-}
-
-sub latest_vote_for_editor
-{
-    my ($self, $editor_id) = @_;
-    my @votes = $self->votes_for_editor($editor_id) or return;
-    return $votes[-1];
-}
-
 sub is_open
 {
     return shift->status == $STATUS_OPEN;
@@ -174,7 +162,8 @@ sub editor_may_add_note
     my ($self, $editor) = @_;
 
     return defined $editor && $editor->email_confirmation_date &&
-        ($editor->id == $self->editor_id || !$editor->is_limited);
+        ($editor->id == $self->editor_id || !$editor->is_limited) &&
+        !$editor->is_adding_notes_disabled;
 }
 
 sub editor_may_edit {
@@ -229,15 +218,6 @@ sub editor_may_cancel {
     return
          $self->is_open
       && $self->editor_id == $editor->id;
-}
-
-sub was_approved
-{
-    my $self = shift;
-
-    return 0 if $self->is_open;
-
-    return scalar $self->_grep_votes(sub { $_->vote == $VOTE_APPROVE })
 }
 
 sub approval_requires_comment {
@@ -317,9 +297,12 @@ sub initialize
 sub TO_JSON {
     my ($self) = @_;
 
+    add_linked_entity('editor', $self->editor_id, $self->editor);
+
     my $can_preview = $self->does('MusicBrainz::Server::Edit::Role::Preview');
     my $conditions = $self->edit_conditions;
     return {
+        auto_edit => boolean_to_json($self->auto_edit),
         close_time => datetime_to_iso8601($self->close_time),
         conditions => {
             duration => $conditions->{duration} + 0,
@@ -330,13 +313,19 @@ sub TO_JSON {
         created_time => datetime_to_iso8601($self->created_time),
         display_data => $self->display_data,
         data => $self->data,
+        edit_kind => $self->edit_kind,
+        edit_name => $self->edit_name,
+        edit_notes => to_json_array($self->edit_notes),
         edit_type => $self->edit_type + 0,
         editor_id => $self->editor_id + 0,
         expires_time => datetime_to_iso8601($self->expires_time),
-        id => $self->id + 0,
+        historic_type => $self->can('historic_type') ? $self->historic_type + 0 : undef,
+        id => $self->id ? $self->id + 0 : undef,
+        is_loaded => boolean_to_json($self->is_loaded),
+        is_open => boolean_to_json($self->is_open),
         $can_preview ? (preview => boolean_to_json($self->preview)) : (),
         status => $self->status + 0,
-        votes => [map { $_->TO_JSON } $self->all_votes],
+        votes => to_json_array($self->votes),
     };
 }
 

@@ -2,22 +2,12 @@
  * Copyright (C) 2011 Ian McEwen
  * Copyright (C) 2018 MetaBrainz Foundation
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+ * This file is part of MusicBrainz, the open internet music database,
+ * and is licensed under the GPL version 2, or (at your option) any
+ * later version: http://www.gnu.org/licenses/gpl-2.0.txt
  */
 
-import padStart from 'lodash/padStart';
+import {fixedWidthInteger} from '../static/scripts/common/utility/strings';
 
 const stats = {
   'category': {
@@ -254,12 +244,6 @@ const stats = {
     description: l('Count of edits per week'),
     label: l('Edits per week'),
   },
-  'count.edit.tobedeleted': {
-    category: 'edit-information',
-    color: '#ff0000',
-    description: l('Edits about to be cancelled'),
-    label: l('To-be-cancelled edits'),
-  },
   'count.editor': {
     category: 'edit-information',
     color: '#ff0000',
@@ -270,7 +254,9 @@ const stats = {
   'count.editor.activelastweek': {
     category: 'edit-information',
     color: '#ff00cc',
-    description: l('Count of active editors (editing or voting) during the last week'),
+    description: l(
+      'Count of active editors (editing or voting) during the last week',
+    ),
     label: l('Active Users'),
   },
   'count.editor.deleted': {
@@ -283,7 +269,9 @@ const stats = {
   'count.editor.editlastweek': {
     category: 'edit-information',
     color: '#6600ff',
-    description: l('Count of editors who have submitted edits during the last 7 days'),
+    description: l(
+      'Count of editors who have submitted edits during the last 7 days',
+    ),
     label: l('Active Editors'),
   },
   'count.editor.valid': {
@@ -303,7 +291,9 @@ const stats = {
   'count.editor.votelastweek': {
     category: 'edit-information',
     color: '#cc00ff',
-    description: l('Count of editors who have voted on during the last 7 days'),
+    description: l(
+      'Count of editors who have voted on during the last 7 days',
+    ),
     label: l('Active Voters'),
   },
   'count.event': {
@@ -462,6 +452,12 @@ const stats = {
     description: l('Count of all Label Ratings'),
     label: l('Label Ratings'),
   },
+  'count.rating.place': {
+    category: 'ratings-tags',
+    color: '#ff0000',
+    description: l('Count of all Place Ratings'),
+    label: l('Place Ratings'),
+  },
   'count.rating.raw': {
     category: 'ratings-tags',
     color: '#ff0000',
@@ -479,6 +475,12 @@ const stats = {
     color: '#ff0000',
     description: l('Count of all Label Ratings (raw)'),
     label: l('Label Ratings (raw)'),
+  },
+  'count.rating.raw.place': {
+    category: 'ratings-tags',
+    color: '#ff0000',
+    description: l('Count of all Place Ratings (raw)'),
+    label: l('Place Ratings (raw)'),
   },
   'count.rating.raw.recording': {
     category: 'ratings-tags',
@@ -527,6 +529,12 @@ const stats = {
     color: '#ff0000',
     description: l('Count of all Recordings with ISRCs'),
     label: l('Recordings with ISRCs'),
+  },
+  'count.recording.standalone': {
+    category: 'other',
+    color: '#ff0000',
+    description: l('Count of all standalone recordings'),
+    label: l('Standalone recordings'),
   },
   'count.release': {
     category: 'core-entities',
@@ -734,6 +742,12 @@ const stats = {
     description: l('Count of all works'),
     label: l('Works'),
   },
+  'count.work.has_iswc': {
+    category: 'other',
+    color: '#ff0000',
+    description: l('Count of all Works with ISWCs'),
+    label: l('Works with ISWCs'),
+  },
   'rateTooltipCloser': l('/day'),
 };
 
@@ -744,28 +758,48 @@ for (let n = 0; n < 11; n++) {
     category: 'other',
     color: '#ff0000',
     description: texp.l('Count of all Releases with {n} Disc IDs', no),
-    label: texp.ln('Releases with 1 Disc ID', 'Releases with {n} Disc IDs', n, no),
+    label: texp.ln(
+      'Releases with 1 Disc ID',
+      'Releases with {n} Disc IDs',
+      n,
+      no,
+    ),
   };
 
   stats[`count.medium.${n}discids`] = {
     category: 'other',
     color: '#ff0000',
     description: texp.l('Count of all Mediums with {n} Disc IDs', no),
-    label: texp.ln('Mediums with 1 Disc ID', 'Mediums with {n} Disc IDs', n, no),
+    label: texp.ln(
+      'Mediums with 1 Disc ID',
+      'Mediums with {n} Disc IDs',
+      n,
+      no,
+    ),
   };
 
   stats[`count.recording.${n}releases`] = {
     category: 'other',
     color: '#ff0000',
     description: texp.l('Count of all Recordings with {n} Releases', no),
-    label: texp.ln('Recordings with 1 Release', 'Recordings with {n} Releases', n, no),
+    label: texp.ln(
+      'Recordings with 1 Release',
+      'Recordings with {n} Releases',
+      n,
+      no,
+    ),
   };
 
   stats[`count.releasegroup.${n}releases`] = {
     category: 'other',
     color: '#ff0000',
     description: texp.l('Count of all Release Groups with {n} Releases', no),
-    label: texp.ln('Release Groups with 1 Release', 'Release Groups with {n} Releases', n, no),
+    label: texp.ln(
+      'Release Groups with 1 Release',
+      'Release Groups with {n} Releases',
+      n,
+      no,
+    ),
   };
 }
 
@@ -796,7 +830,7 @@ export function buildTypeStats(typeData) {
 
   for (const key in countries) {
     const country = countries[key];
-    const countryName = l_attributes(country.name);
+    const countryName = l_countries(country.name);
     const countryArg = {country: countryName};
 
     stats[`count.artist.country.${key}`] = {
@@ -823,7 +857,7 @@ export function buildTypeStats(typeData) {
 
   for (const key in formats) {
     const format = formats[key];
-    const formatArg = {name: l_attributes(format.name)};
+    const formatArg = {name: lp_attributes(format.name, 'medium_format')};
 
     stats[`count.release.format.${key}`] = {
       category: 'formats',
@@ -842,7 +876,7 @@ export function buildTypeStats(typeData) {
 
   for (const key in languages) {
     const language = languages[key];
-    const languageName = l_attributes(language.name);
+    const languageName = l_languages(language.name);
 
     stats[`count.release.language.${key}`] = {
       category: 'release-languages',
@@ -854,7 +888,7 @@ export function buildTypeStats(typeData) {
 
   for (let i = 0; i < relationships.length; i++) {
     const pair = relationships[i];
-    const hex = padStart(String((i + 1) * 3), 2, '0');
+    const hex = fixedWidthInteger((i + 1) * 3, 2);
     const label = texp.l('l_{first}_{second} Relationships', {
       first: pair[0],
       second: pair[1],
@@ -870,7 +904,7 @@ export function buildTypeStats(typeData) {
 
   for (const key in scripts) {
     const script = scripts[key];
-    const scriptName = l_attributes(script.name);
+    const scriptName = l_scripts(script.name);
 
     stats[`count.release.script.${key}`] = {
       category: 'release-scripts',

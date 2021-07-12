@@ -8,7 +8,7 @@ sub query {
     "
         SELECT DISTINCT ON (r.id)
             r.id AS release_id,
-            row_number() OVER (ORDER BY musicbrainz_collate(ac.name), musicbrainz_collate(r.name))
+            row_number() OVER (ORDER BY ac.name COLLATE musicbrainz, r.name COLLATE musicbrainz)
         FROM
           ( SELECT r.*
             FROM release r
@@ -21,9 +21,9 @@ sub query {
             ) events ON (events.release = r.id)
             JOIN medium m ON m.release = r.id
             LEFT JOIN medium_format mf ON mf.id = m.format
-            LEFT JOIN medium_cdtoc mcd on mcd.medium = m.id
+            LEFT JOIN medium_cdtoc mcd ON mcd.medium = m.id
             WHERE
-              (mcd.id IS NOT NULL AND date_year < (select min(year) from medium_format where has_discids = 't')) OR
+              (mcd.id IS NOT NULL AND date_year < (SELECT min(year) FROM medium_format WHERE has_discids = 't')) OR
               (mcd.id IS NOT NULL AND mf.year IS NOT NULL AND mf.has_discids = 'f') OR
               (mf.year IS NOT NULL AND date_year < mf.year)
           ) r
@@ -35,23 +35,14 @@ __PACKAGE__->meta->make_immutable;
 no Moose;
 1;
 
-=head1 COPYRIGHT
+=head1 COPYRIGHT AND LICENSE
 
 Copyright (C) 2011 MetaBrainz Foundation
 Copyright (C) 2012 MetaBrainz Foundation
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program; if not, write to the Free Software
-Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+This file is part of MusicBrainz, the open internet music database,
+and is licensed under the GPL version 2, or (at your option) any
+later version: http://www.gnu.org/licenses/gpl-2.0.txt
 
 =cut
+

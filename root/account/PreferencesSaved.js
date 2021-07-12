@@ -1,5 +1,5 @@
 /*
- * @flow
+ * @flow strict-local
  * Copyright (C) 2018 MetaBrainz Foundation
  *
  * This file is part of MusicBrainz, the open internet music database,
@@ -7,16 +7,15 @@
  * later version: http://www.gnu.org/licenses/gpl-2.0.txt
  */
 
-import React from 'react';
+import * as React from 'react';
 
-import {withCatalystContext} from '../context';
 import StatusPage from '../components/StatusPage';
 
-type Props = {|
-  +$c: CatalystContextT | SanitizedCatalystContextT,
-|};
+type Props = {
+  +$c: CatalystContextT,
+};
 
-const PreferencesSaved = ({$c}: Props) => (
+const PreferencesSaved = ({$c}: Props): React.Element<typeof StatusPage> => (
   <StatusPage title={l('Preferences')}>
     <p>
       {exp.l(
@@ -32,4 +31,4 @@ const PreferencesSaved = ({$c}: Props) => (
   </StatusPage>
 );
 
-export default withCatalystContext(PreferencesSaved);
+export default PreferencesSaved;

@@ -156,6 +156,33 @@ done with the following command:
 
     $ prove -l t/js.t
 
+### Flow
+
+Our JavaScript uses [Flow](https://flow.org/) for static type checking.
+If you're adding a new JS file, it should have a `@flow strict-local`
+header at the top to enable type checking.
+
+To ensure all types are correct after making a change, run Flow:
+
+    $ ./node_modules/.bin/flow
+
+Global type declarations available to all files are found in
+[root/types.js](root/types.js) and [root/vars.js](root/vars.js).
+The latter is for functions and variables that are auto-imported by
+Webpack's [ProvidePlugin](webpack/providePluginConfig.js).
+
+We have a couple of scripts you may find useful that generate Flow object
+types based on JSON data:
+
+ * `./script/generate_edit_data_flow_type.js --edit-type $EDIT_TYPE_ID`
+   will generate an object type to represent the edit data of `$EDIT_TYPE_ID`.
+   However, this requires having a `PROD_STANDBY` database configured in
+   DBDefs.pm, as it uses production data to ensure a correct type.
+
+ * `cat $JSON | ./script/generate_json_flow_type.js` will generate an object
+   type for a stream of JSON objects (which each must be on a single line).
+   Passing a single object is fine, too.
+
 ### Selenium
 
 We have a set of browser-automated UI tests running with Selenium WebDriver.
@@ -187,6 +214,12 @@ These are a bit more involved to set up:
 
  * Run ./script/create_test_db.sh and ./script/compile_resources.sh again.
 
+ * Create the `musicbrainz_selenium` database using `musicbrainz_test` as
+   a template:
+
+       $ # On Ubuntu, use sudo -u postgres
+       $ createdb -O musicbrainz -T musicbrainz_test -U postgres musicbrainz_selenium
+
 With the above prerequisites out of the way, the tests can be run from the
 command line like so:
 
@@ -205,13 +238,35 @@ the test database is clean and has t/sql/selenium.sql loaded into it.
 
 ### Code standards
 
-We use `Perl::Critic` to enforce certain code standards. The list of
-policies we use can be found in
-[.perlcriticrc](.perlcriticrc).
+For our Perl, we use `Perl::Critic` to enforce certain code standards.
+The list of policies we use can be found in [.perlcriticrc](.perlcriticrc).
 If you'd like to test them yourself before submitting a pull request, invoke
 `prove` as follows:
 
     $ prove -lv t/critic.t
+
+For JavaScript, we use eslint. Our rules and other configuration can be found
+in [.eslintrc.yaml](.eslintrc.yaml). To check a file or directory against all
+of these rules, run:
+
+    $ ./node_modules/.bin/eslint $file_or_directory
+
+Replace `$file_or_directory` with the path to the file or directory you'd like
+to check.
+
+If you want to check only a specific rule (say, because you'd like to fix that
+particular rule across the codebase and want to ignore others while doing so),
+we also have a script for that:
+
+    $ ./script/check_eslint_rule $rule $file_or_directory
+
+In this case, you'd replace `$rule` with a string defining the specific rule
+you'd like to check, in [levn](https://github.com/gkz/levn) format. For
+example, `'block-scoped-var: [warn]'`. Further documentation on how to specify
+these can be found
+[here](https://eslint.org/docs/user-guide/command-line-interface#--rule),
+but in most cases you can copy rules as-is from .eslintrc.yaml, since the YAML
+syntax is very similar.
 
 Reports
 -------
@@ -293,7 +348,12 @@ Common instructions for porting:
         ```
 
  3. You can access most of the [Catalyst Context](http://search.cpan.org/~ether/Catalyst-Manual-5.9009/lib/Catalyst/Manual/Intro.pod#Context) in JavaScript
-    via the variable `$c`.
+    via the variable `$c`. This is passed as a prop automatically if the
+    component is top-level or used from `React.embed`. If you need to access
+    `$c` from a deeply-nested component, you can either pass it down from
+    a parent component, or import the `CatalystContext`
+    [React context](https://reactjs.org/docs/context.html) from
+    root/context.js and use the `CatalystContext.Consumer` component.
 
  4. To communicate between the Perl and Node servers (the latter renders React
     components for us), you need to appropriately serialize the props passed

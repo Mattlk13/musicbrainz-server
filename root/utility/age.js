@@ -1,5 +1,5 @@
 /*
- * @flow
+ * @flow strict
  * Copyright (C) 2009 Kuno Woudt
  * Copyright (C) 2018 MetaBrainz Foundation
  *
@@ -8,19 +8,19 @@
  * later version: http://www.gnu.org/licenses/gpl-2.0.txt
  */
 
-import isDateEmpty from '../static/scripts/common/utility/isDateEmpty';
-
 import getDaysInMonth from './getDaysInMonth';
 
 function timestamp(date) {
   return Date.UTC(
-    (date.year || 1),
-    (date.month || 1) - 1,
-    (date.day || 1),
+    (date.year ?? 1),
+    (date.month ?? 1) - 1,
+    (date.day ?? 1),
   );
 }
 
-export function hasAge<+T: {...DatePeriodRoleT}>(entity: T) {
+export function hasAge<+T: $ReadOnly<{...DatePeriodRoleT, ...}>>(
+  entity: T,
+): boolean {
   const begin = entity.begin_date;
   const end = entity.end_date;
   const ended = entity.ended;
@@ -30,7 +30,7 @@ export function hasAge<+T: {...DatePeriodRoleT}>(entity: T) {
    * If there is no begin year, there is no age.
    * Only compute ages when the begin date is AD.
    */
-  if (!begin || !beginYear || beginYear < 1) {
+  if (!begin || beginYear == null || beginYear < 1) {
     return false;
   }
 
@@ -45,7 +45,7 @@ export function hasAge<+T: {...DatePeriodRoleT}>(entity: T) {
   }
 
   // The end date must have a year.
-  if (!end || !end.year) {
+  if (!end || end.year == null) {
     return false;
   }
 
@@ -60,14 +60,14 @@ export function hasAge<+T: {...DatePeriodRoleT}>(entity: T) {
   }
 
   if (beginYear === end.year) {
-    if (!begin.month || !end.month) {
+    if (begin.month == null || end.month == null) {
       return false;
     }
     if (begin.month < end.month) {
       return true;
     }
     if (begin.month === end.month) {
-      if (!begin.day || !end.day) {
+      if (begin.day == null || end.day == null) {
         return false;
       }
       if (begin.day < end.day) {
@@ -79,7 +79,9 @@ export function hasAge<+T: {...DatePeriodRoleT}>(entity: T) {
   return false;
 }
 
-export function age<+T: {...DatePeriodRoleT}>(entity: T) {
+export function age<+T: $ReadOnly<{...DatePeriodRoleT, ...}>>(
+  entity: T,
+): [number, number, number] | null {
   const begin = entity.begin_date;
 
   if (!begin || !hasAge(entity)) {
@@ -92,9 +94,9 @@ export function age<+T: {...DatePeriodRoleT}>(entity: T) {
   let ed;
 
   if (end) {
-    ey = end.year || 1;
-    em = end.month || 1;
-    ed = end.day || 1;
+    ey = end.year ?? 1;
+    em = end.month ?? 1;
+    ed = end.day ?? 1;
   } else {
     const now = new Date();
     ey = now.getUTCFullYear();
@@ -103,9 +105,9 @@ export function age<+T: {...DatePeriodRoleT}>(entity: T) {
     ed = now.getUTCDate();
   }
 
-  let dy = ey - (begin.year || 1);
-  let dm = em - (begin.month || 1);
-  let dd = ed - (begin.day || 1);
+  let dy = ey - (begin.year ?? 1);
+  let dm = em - (begin.month ?? 1);
+  let dd = ed - (begin.day ?? 1);
 
   /*
    * A "month" is not a fixed unit, but intuitively we'd say a month has
@@ -136,7 +138,10 @@ export function age<+T: {...DatePeriodRoleT}>(entity: T) {
   return [dy, dm, dd];
 }
 
-export function displayAge(age: [number, number, number], isPerson: bool) {
+export function displayAge(
+  age: [number, number, number],
+  isPerson: boolean,
+): string {
   const [years, months, days] = age;
 
   if (isPerson && years) {
@@ -149,13 +154,18 @@ export function displayAge(age: [number, number, number], isPerson: bool) {
   return texp.ln('{num} day', '{num} days', days, {num: days});
 }
 
-export function displayAgeAgo(age: [number, number, number]) {
+export function displayAgeAgo(age: [number, number, number]): string {
   const [years, months, days] = age;
 
   if (years) {
     return texp.ln('{num} year ago', '{num} years ago', years, {num: years});
   } else if (months) {
-    return texp.ln('{num} month ago', '{num} months ago', months, {num: months});
+    return texp.ln(
+      '{num} month ago',
+      '{num} months ago',
+      months,
+      {num: months},
+    );
   }
   return texp.ln('{num} day ago', '{num} days ago', days, {num: days});
 }

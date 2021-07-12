@@ -1,5 +1,5 @@
 /*
- * @flow
+ * @flow strict-local
  * Copyright (C) 2018 Shamroy Pellew
  *
  * This file is part of MusicBrainz, the open internet music database,
@@ -7,17 +7,16 @@
  * later version: http://www.gnu.org/licenses/gpl-2.0.txt
  */
 
-import React from 'react';
-import type {Node as ReactNode} from 'react';
+import * as React from 'react';
 
 import Layout from '../layout';
 
-type Props = {|
-  children: ReactNode,
-  title: string,
-|};
+type Props = {
+  +children: React.Node,
+  +title: string,
+};
 
-const StatusPage = ({title, children}: Props) => (
+const StatusPage = ({title, children}: Props): React.MixedElement => (
   <Layout fullWidth title={title}>
     <h1>{title}</h1>
     {children}

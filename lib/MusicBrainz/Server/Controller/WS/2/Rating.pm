@@ -13,6 +13,7 @@ my $ws_defs = Data::OptList::mkopt([
      rating => {
                          method   => 'GET',
                          required => [ qw(id entity) ],
+                         optional => [ qw(fmt) ],
      },
      rating => {
                          method   => 'POST',
@@ -85,7 +86,7 @@ sub rating_lookup : Chained('root') PathPart('rating') Args(0)
     $stash->store($entity)->{user_ratings} = $entity->user_rating;
 
     $c->res->content_type($c->stash->{serializer}->mime_type . '; charset=utf-8');
-    $c->res->body($c->stash->{serializer}->serialize('rating', $entity, $c->stash->{inc}, $stash));
+    $c->res->body($c->stash->{serializer}->serialize('user-rating', $entity, $c->stash->{inc}, $stash));
 }
 
 __PACKAGE__->meta->make_immutable;

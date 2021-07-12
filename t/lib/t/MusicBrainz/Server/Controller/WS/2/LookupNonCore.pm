@@ -48,7 +48,7 @@ ws_test 'discid lookup with artist-credits',
                 </text-representation>
                 <artist-credit>
                     <name-credit>
-                        <artist id="a16d1433-ba89-4f72-a47b-a370add0bb55">
+                        <artist id="a16d1433-ba89-4f72-a47b-a370add0bb55" type="Person" type-id="b6e035f4-3ce9-331c-97df-83397230b0df">
                             <name>BoA</name>
                             <sort-name>BoA</sort-name>
                         </artist>
@@ -131,14 +131,16 @@ ws_test 'isrc lookup with releases',
         <isrc id="JPA600102460">
             <recording-list count="1">
                 <recording id="487cac92-eed5-4efa-8563-c9a818079b9a">
-                    <title>HELLO! また会おうね (7人祭 version)</title><length>213106</length>
+                    <title>HELLO! また会おうね (7人祭 version)</title>
+                    <length>213106</length>
+                    <first-release-date>2001-07-04</first-release-date>
                     <release-list count="2">
-                        <release id="0385f276-5f4f-4c81-a7a4-6bd7b8d85a7e">
-                            <title>サマーれげぇ!レインボー</title>
-                            <status id="4e304316-386d-3409-af2e-78857eec5cfe">Official</status>
-                            <quality>normal</quality>
+                        <release id="b3b7e934-445b-4c68-a097-730c6a6d47e6">
+                            <title>Summer Reggae! Rainbow</title>
+                            <status id="41121bb9-3413-3818-8a9a-9742318349aa">Pseudo-Release</status>
+                            <quality>high</quality>
                             <text-representation>
-                                <language>jpn</language><script>Jpan</script>
+                                <language>jpn</language><script>Latn</script>
                             </text-representation>
                             <date>2001-07-04</date>
                             <country>JP</country>
@@ -156,12 +158,12 @@ ws_test 'isrc lookup with releases',
                             </release-event-list>
                             <barcode>4942463511227</barcode>
                         </release>
-                        <release id="b3b7e934-445b-4c68-a097-730c6a6d47e6">
-                            <title>Summer Reggae! Rainbow</title>
-                            <status id="41121bb9-3413-3818-8a9a-9742318349aa">Pseudo-Release</status>
+                        <release id="0385f276-5f4f-4c81-a7a4-6bd7b8d85a7e">
+                            <title>サマーれげぇ!レインボー</title>
+                            <status id="4e304316-386d-3409-af2e-78857eec5cfe">Official</status>
                             <quality>normal</quality>
                             <text-representation>
-                                <language>jpn</language><script>Latn</script>
+                                <language>jpn</language><script>Jpan</script>
                             </text-representation>
                             <date>2001-07-04</date>
                             <country>JP</country>

@@ -1,5 +1,5 @@
 /*
- * @flow
+ * @flow strict-local
  * Copyright (C) 2018 MetaBrainz Foundation
  *
  * This file is part of MusicBrainz, the open internet music database,
@@ -7,13 +7,13 @@
  * later version: http://www.gnu.org/licenses/gpl-2.0.txt
  */
 
-import React from 'react';
+import * as React from 'react';
 
 import {l_statistics as l} from '../static/scripts/common/i18n/statistics';
 
 import StatisticsLayout from './StatisticsLayout';
 
-const NoStatistics = () => (
+const NoStatistics = (): React.Element<typeof StatisticsLayout> => (
   <StatisticsLayout fullWidth page="index" title={l('No Statistics')}>
     <h2>{l('No Statistics')}</h2>
     <p>

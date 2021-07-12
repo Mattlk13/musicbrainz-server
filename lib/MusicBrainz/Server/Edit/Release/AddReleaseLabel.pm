@@ -6,6 +6,7 @@ use MooseX::Types::Structured qw( Dict Optional );
 use MusicBrainz::Server::Constants qw( $EDIT_RELEASE_ADDRELEASELABEL );
 use MusicBrainz::Server::Edit::Types qw( Nullable NullableOnPreview );
 use MusicBrainz::Server::Edit::Utils qw( gid_or_id );
+use MusicBrainz::Server::Entity::Util::JSON qw( to_json_object );
 use MusicBrainz::Server::Translation qw( N_l );
 
 extends 'MusicBrainz::Server::Edit';
@@ -19,6 +20,7 @@ sub edit_name { N_l('Add release label') }
 sub edit_kind { 'add' }
 sub edit_type { $EDIT_RELEASE_ADDRELEASELABEL }
 sub alter_edit_pending { { Release => [ shift->release_id ] } }
+sub edit_template_react { 'AddReleaseLabel' }
 
 use aliased 'MusicBrainz::Server::Entity::Label';
 use aliased 'MusicBrainz::Server::Entity::Release';
@@ -102,13 +104,17 @@ sub build_display_data {
     };
 
     unless ($self->preview) {
-        $display_data->{release} = $loaded->{Release}->{gid_or_id($data->{release})} //
-            Release->new(name => $data->{release}{name});
+        $display_data->{release} = to_json_object(
+            $loaded->{Release}{ gid_or_id($data->{release}) } //
+            Release->new(name => $data->{release}{name})
+        );
     }
 
     if ($data->{label}) {
-        $display_data->{label} = $loaded->{Label}->{gid_or_id($data->{label})} //
-            Label->new(name => $data->{label}{name});
+        $display_data->{label} = to_json_object(
+            $loaded->{Label}{ gid_or_id($data->{label}) } //
+            Label->new(name => $data->{label}{name})
+        );
     }
 
     return $display_data;
@@ -141,22 +147,12 @@ __PACKAGE__->meta->make_immutable;
 no Moose;
 1;
 
-=head1 COPYRIGHT
+=head1 COPYRIGHT AND LICENSE
 
 Copyright (C) 2010 MetaBrainz Foundation
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program; if not, write to the Free Software
-Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+This file is part of MusicBrainz, the open internet music database,
+and is licensed under the GPL version 2, or (at your option) any
+later version: http://www.gnu.org/licenses/gpl-2.0.txt
 
 =cut

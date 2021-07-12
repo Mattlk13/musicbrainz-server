@@ -1,5 +1,5 @@
 /*
- * @flow
+ * @flow strict
  * Copyright (C) 2018 MetaBrainz Foundation
  *
  * This file is part of MusicBrainz, the open internet music database,
@@ -7,19 +7,17 @@
  * later version: http://www.gnu.org/licenses/gpl-2.0.txt
  */
 
-import React from 'react';
-import type {ElementRef} from 'react';
+import * as React from 'react';
 
-
-type Props = {|
+type Props = {
   +className: string,
   +html: string,
-|};
+};
 
-type State = {|
+type State = {
   isCollapsed: boolean,
   isCollapsible: boolean,
-|};
+};
 
 class Collapsible extends React.Component<Props, State> {
   constructor(props: Props) {
@@ -42,7 +40,7 @@ class Collapsible extends React.Component<Props, State> {
     }
   }
 
-  containerRef: {current: null | ElementRef<'div'>};
+  containerRef: {current: null | React.ElementRef<'div'>};
 
   handleToggle: (event: SyntheticEvent<HTMLAnchorElement>) => void;
 
@@ -53,7 +51,7 @@ class Collapsible extends React.Component<Props, State> {
     }));
   }
 
-  render() {
+  render(): React.MixedElement {
     const {className, html} = this.props;
     const {isCollapsed, isCollapsible} = this.state;
 

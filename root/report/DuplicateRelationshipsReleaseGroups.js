@@ -1,5 +1,5 @@
 /*
- * @flow
+ * @flow strict-local
  * Copyright (C) 2018 MetaBrainz Foundation
  *
  * This file is part of MusicBrainz, the open internet music database,
@@ -9,48 +9,31 @@
 
 import * as React from 'react';
 
-import {withCatalystContext} from '../context';
-import Layout from '../layout';
-import formatUserDate from '../utility/formatUserDate';
-
 import ReleaseGroupList from './components/ReleaseGroupList';
-import FilterLink from './FilterLink';
+import ReportLayout from './components/ReportLayout';
 import type {ReportDataT, ReportReleaseGroupT} from './types';
 
 const DuplicateRelationshipsReleaseGroups = ({
-  $c,
   canBeFiltered,
   filtered,
   generated,
   items,
   pager,
-}: ReportDataT<ReportReleaseGroupT>) => (
-  <Layout
-    fullWidth
+}: ReportDataT<ReportReleaseGroupT>): React.Element<typeof ReportLayout> => (
+  <ReportLayout
+    canBeFiltered={canBeFiltered}
+    description={l(
+      `This report lists release groups which have multiple relationships
+       to the same entity using the same relationship type.`,
+    )}
+    entityType="release_group"
+    filtered={filtered}
+    generated={generated}
     title={l('Release groups with possible duplicate relationships')}
+    totalEntries={pager.total_entries}
   >
-    <h1>{l('Release groups with possible duplicate relationships')}</h1>
-
-    <ul>
-      <li>
-        {l(`This report lists release groups which have multiple relationships
-            to the same entity using the same relationship type.`)}
-      </li>
-      <li>
-        {texp.l('Total release groups found: {count}',
-                {count: pager.total_entries})}
-      </li>
-      <li>
-        {texp.l('Generated on {date}',
-                {date: formatUserDate($c.user, generated)})}
-      </li>
-
-      {canBeFiltered ? <FilterLink filtered={filtered} /> : null}
-    </ul>
-
     <ReleaseGroupList items={items} pager={pager} />
-
-  </Layout>
+  </ReportLayout>
 );
 
-export default withCatalystContext(DuplicateRelationshipsReleaseGroups);
+export default DuplicateRelationshipsReleaseGroups;

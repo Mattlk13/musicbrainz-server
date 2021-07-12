@@ -1,5 +1,5 @@
 /*
- * @flow
+ * @flow strict
  * Copyright (C) 2018 MetaBrainz Foundation
  *
  * This file is part of MusicBrainz, the open internet music database,
@@ -7,7 +7,7 @@
  * later version: http://www.gnu.org/licenses/gpl-2.0.txt
  */
 
-import React from 'react';
+import * as React from 'react';
 
 type Props = {
   +field: ReadOnlyFieldT<number | string>,
@@ -15,7 +15,7 @@ type Props = {
 
 const HiddenField = ({
   field,
-}: Props) => (
+}: Props): React.Element<'input'> => (
   <input
     name={field.html_name}
     type="hidden"

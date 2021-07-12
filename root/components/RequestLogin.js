@@ -1,5 +1,5 @@
 /*
- * @flow
+ * @flow strict
  * Copyright (C) 2018 MetaBrainz Foundation
  *
  * This file is part of MusicBrainz, the open internet music database,
@@ -11,9 +11,9 @@ import * as React from 'react';
 
 import returnUri from '../utility/returnUri';
 
-type Props = {|+$c: CatalystContextT, text: string|};
+type Props = {+$c: CatalystContextT, text: string};
 
-const RequestLogin = ({$c, text}: Props) => (
+const RequestLogin = ({$c, text}: Props): React.Element<'a'> => (
   <a href={returnUri($c, '/login')}>
     {text || l('Log in')}
   </a>

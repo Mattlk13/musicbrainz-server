@@ -1,5 +1,5 @@
 /*
- * @flow
+ * @flow strict-local
  * Copyright (C) 2019 MetaBrainz Foundation
  *
  * This file is part of MusicBrainz, the open internet music database,
@@ -7,32 +7,35 @@
  * later version: http://www.gnu.org/licenses/gpl-2.0.txt
  */
 
-import React from 'react';
+import * as React from 'react';
 
-import {withCatalystContext} from '../context';
 import EventList from '../components/list/EventList';
 import PaginatedResults from '../components/PaginatedResults';
+import {returnToCurrentPage} from '../utility/returnUri';
 
 import AreaLayout from './AreaLayout';
 
-type Props = {|
+type Props = {
   +$c: CatalystContextT,
   +area: AreaT,
   +events: $ReadOnlyArray<EventT>,
   +pager: PagerT,
-|};
+};
 
 const AreaEvents = ({
   $c,
   area,
   events,
   pager,
-}: Props) => (
+}: Props): React.Element<typeof AreaLayout> => (
   <AreaLayout entity={area} page="events" title={l('Events')}>
     <h2>{l('Events')}</h2>
 
     {events.length > 0 ? (
-      <form action="/event/merge_queue" method="post">
+      <form
+        action={'/event/merge_queue?' + returnToCurrentPage($c)}
+        method="post"
+      >
         <PaginatedResults pager={pager}>
           <EventList
             checkboxes="add-to-merge"
@@ -43,7 +46,7 @@ const AreaEvents = ({
             showType
           />
         </PaginatedResults>
-        {$c.user_exists ? (
+        {$c.user ? (
           <div className="row">
             <span className="buttons">
               <button type="submit">
@@ -61,4 +64,4 @@ const AreaEvents = ({
   </AreaLayout>
 );
 
-export default withCatalystContext(AreaEvents);
+export default AreaEvents;

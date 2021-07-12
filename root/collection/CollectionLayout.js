@@ -1,5 +1,5 @@
 /*
- * @flow
+ * @flow strict-local
  * Copyright (C) 2018 MetaBrainz Foundation
  *
  * This file is part of MusicBrainz, the open internet music database,
@@ -7,38 +7,46 @@
  * later version: http://www.gnu.org/licenses/gpl-2.0.txt
  */
 
-import React from 'react';
-import type {Node as ReactNode} from 'react';
+import * as React from 'react';
 
+import {CatalystContext} from '../context';
 import Layout from '../layout';
-import CollectionSidebar from '../layout/components/sidebar/CollectionSidebar';
+import CollectionSidebar
+  from '../layout/components/sidebar/CollectionSidebar';
 
 import CollectionHeader from './CollectionHeader';
 
-type Props = {|
-  +children: ReactNode,
+type Props = {
+  +children: React.Node,
   +entity: CollectionT,
   +fullWidth?: boolean,
   +page: string,
   +title?: string,
-|};
+};
 
 const CollectionLayout = ({
   children,
   entity: collection,
-  fullWidth,
+  fullWidth = false,
   page,
   title,
-}: Props) => {
+}: Props): React.Element<typeof Layout> => {
+  const $c = React.useContext(CatalystContext);
   const mainTitle = texp.l(
     'Collection “{collection}”',
     {collection: collection.name},
   );
 
   return (
-    <Layout title={title ? hyphenateTitle(mainTitle, title) : mainTitle}>
+    <Layout
+      title={nonEmpty(title) ? hyphenateTitle(mainTitle, title) : mainTitle}
+    >
       <div id="content">
-        <CollectionHeader collection={collection} page={page} />
+        <CollectionHeader
+          $c={$c}
+          collection={collection}
+          page={page}
+        />
         {children}
       </div>
       {fullWidth ? null : <CollectionSidebar collection={collection} />}

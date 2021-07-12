@@ -1,7 +1,9 @@
 package MusicBrainz::Server::Entity::ArtistCredit;
 use Moose;
 
+use Scalar::Util qw( refaddr );
 use MusicBrainz::Server::Entity::Types;
+use MusicBrainz::Server::Entity::Util::JSON qw( to_json_array );
 use aliased 'MusicBrainz::Server::Entity::Artist';
 use aliased 'MusicBrainz::Server::Entity::ArtistCreditName';
 
@@ -35,17 +37,22 @@ has 'artist_count' => (
 
 sub is_equal {
     my ($a, $b) = @_;
+
     return 0 unless
         (defined($a) && defined($b)) &&
-        (ref($a) eq ref($b)) &&
-        ($a->name_count == $b->name_count);
+        (ref($a) eq ref($b));
+
+    # refaddr is needed since == is overloaded
+    return 1 if refaddr($a) == refaddr($b);
+
+    return 0 unless $a->name_count == $b->name_count;
 
     for my $i (0 .. ($a->name_count - 1)) {
         my ($an, $bn) = ($a->names->[$i], $b->names->[$i]);
         return 0 unless
             ($an->name eq $bn->name) &&
             (($an->join_phrase || '') eq ($bn->join_phrase || '')) &&
-            ($an->artist_id == $bn->artist_id);
+            (($an->artist_id || 0) == ($bn->artist_id || 0));
     }
 
     return 1;
@@ -141,7 +148,7 @@ around TO_JSON => sub {
     my ($orig, $self) = @_;
 
     my $json = $self->$orig;
-    $json->{names} = [map { $_->TO_JSON } @{$self->names}];
+    $json->{names} = to_json_array($self->names);
     return $json;
 };
 
@@ -149,23 +156,13 @@ __PACKAGE__->meta->make_immutable;
 no Moose;
 1;
 
-=head1 COPYRIGHT
+=head1 COPYRIGHT AND LICENSE
 
 Copyright (C) 2009 Lukas Lalinsky
 Copyright (C) 2011 MetaBrainz Foundation
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program; if not, write to the Free Software
-Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+This file is part of MusicBrainz, the open internet music database,
+and is licensed under the GPL version 2, or (at your option) any
+later version: http://www.gnu.org/licenses/gpl-2.0.txt
 
 =cut

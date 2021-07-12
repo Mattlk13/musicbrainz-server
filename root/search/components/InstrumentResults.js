@@ -1,5 +1,5 @@
 /*
- * @flow
+ * @flow strict-local
  * Copyright (C) 2018 MetaBrainz Foundation
  *
  * This file is part of MusicBrainz, the open internet music database,
@@ -11,17 +11,20 @@ import * as React from 'react';
 
 import InstrumentListEntry
   from '../../static/scripts/common/components/InstrumentListEntry';
-import type {ResultsPropsT} from '../types';
+import {isRelationshipEditor}
+  from '../../static/scripts/common/utility/privileges';
+import type {ResultsPropsWithContextT} from '../types';
 
 import PaginatedSearchResults from './PaginatedSearchResults';
 import ResultsLayout from './ResultsLayout';
 
-function buildResult(result, index) {
+function buildResult($c, result, index) {
   const instrument = result.entity;
   const score = result.score;
 
   return (
     <InstrumentListEntry
+      $c={$c}
       index={index}
       instrument={instrument}
       key={instrument.id}
@@ -31,15 +34,17 @@ function buildResult(result, index) {
 }
 
 const InstrumentResults = ({
+  $c,
   form,
   lastUpdated,
   pager,
   query,
   results,
-}: ResultsPropsT<InstrumentT>) => (
+}: ResultsPropsWithContextT<InstrumentT>):
+React.Element<typeof ResultsLayout> => (
   <ResultsLayout form={form} lastUpdated={lastUpdated}>
     <PaginatedSearchResults
-      buildResult={buildResult}
+      buildResult={(result, index) => buildResult($c, result, index)}
       columns={
         <>
           <th>{l('Name')}</th>
@@ -51,6 +56,14 @@ const InstrumentResults = ({
       query={query}
       results={results}
     />
+    {isRelationshipEditor($c.user) ? (
+      <p>
+        {exp.l('Alternatively, you may {uri|add a new instrument}.', {
+          uri: '/instrument/create?edit-instrument.name=' +
+            encodeURIComponent(query),
+        })}
+      </p>
+    ) : null}
   </ResultsLayout>
 );
 

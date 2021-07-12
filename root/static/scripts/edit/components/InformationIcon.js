@@ -1,5 +1,5 @@
 /*
- * @flow
+ * @flow strict
  * Copyright (C) 2019 MetaBrainz Foundation
  *
  * This file is part of MusicBrainz, the open internet music database,
@@ -9,11 +9,12 @@
 
 import * as React from 'react';
 
-type Props = {|
+type Props = {
+  className?: string,
   title?: string,
-|};
+};
 
-const InformationIcon = (props: Props) => (
+const InformationIcon = (props: Props): React.Element<'img'> => (
   <img
     src={require('../../../images/icons/information.png')}
     {...props}

@@ -1,5 +1,5 @@
 /*
- * @flow
+ * @flow strict-local
  * Copyright (C) 2018 MetaBrainz Foundation
  *
  * This file is part of MusicBrainz, the open internet music database,
@@ -7,10 +7,10 @@
  * later version: http://www.gnu.org/licenses/gpl-2.0.txt
  */
 
-import React from 'react';
+import * as React from 'react';
 
-import {withCatalystContext} from '../../../context';
-import ArtistCreditLink from '../../../static/scripts/common/components/ArtistCreditLink';
+import ArtistCreditLink
+  from '../../../static/scripts/common/components/ArtistCreditLink';
 import entityHref from '../../../static/scripts/common/utility/entityHref';
 import ExternalLinks from '../ExternalLinks';
 import releaseGroupType from '../../../utility/releaseGroupType';
@@ -26,12 +26,11 @@ import {SidebarProperty, SidebarProperties} from './SidebarProperties';
 import SidebarRating from './SidebarRating';
 import SidebarTags from './SidebarTags';
 
-type Props = {|
-  +$c: CatalystContextT,
+type Props = {
   +releaseGroup: ReleaseGroupT,
-|};
+};
 
-const ReleaseGroupSidebar = ({$c, releaseGroup}: Props) => {
+const ReleaseGroupSidebar = ({releaseGroup}: Props): React.Element<'div'> => {
   const gid = encodeURIComponent(releaseGroup.gid);
   const typeName = releaseGroupType(releaseGroup);
 
@@ -61,12 +60,7 @@ const ReleaseGroupSidebar = ({$c, releaseGroup}: Props) => {
 
       <SidebarRating entity={releaseGroup} />
 
-      <SidebarTags
-        aggregatedTags={$c.stash.top_tags}
-        entity={releaseGroup}
-        more={!!$c.stash.more_tags}
-        userTags={$c.stash.user_tags}
-      />
+      <SidebarTags entity={releaseGroup} />
 
       <ExternalLinks empty entity={releaseGroup} />
 
@@ -101,4 +95,4 @@ const ReleaseGroupSidebar = ({$c, releaseGroup}: Props) => {
   );
 };
 
-export default withCatalystContext(ReleaseGroupSidebar);
+export default ReleaseGroupSidebar;

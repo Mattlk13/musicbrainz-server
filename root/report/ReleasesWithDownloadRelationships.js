@@ -1,5 +1,5 @@
 /*
- * @flow
+ * @flow strict-local
  * Copyright (C) 2018 MetaBrainz Foundation
  *
  * This file is part of MusicBrainz, the open internet music database,
@@ -9,50 +9,35 @@
 
 import * as React from 'react';
 
-import {withCatalystContext} from '../context';
-import Layout from '../layout';
-import formatUserDate from '../utility/formatUserDate';
-
 import ReleaseList from './components/ReleaseList';
-import FilterLink from './FilterLink';
+import ReportLayout from './components/ReportLayout';
 import type {ReportDataT, ReportReleaseT} from './types';
 
 const ReleasesWithDownloadRelationships = ({
-  $c,
   canBeFiltered,
   filtered,
   generated,
   items,
   pager,
-}: ReportDataT<ReportReleaseT>) => (
-  <Layout
-    fullWidth
-    title={l('Non-digital releases with download relationships')}
+}: ReportDataT<ReportReleaseT>): React.Element<typeof ReportLayout> => (
+  <ReportLayout
+    canBeFiltered={canBeFiltered}
+    description={l(
+      `This report shows releases that have relationships
+       that only apply to digital media releases (download/streaming),
+       but have media whose format is not “Digital Media”.
+       Generally, these should be moved to the appropriate
+       digital media release. If one doesn’t exist yet,
+       feel free to create it.`,
+    )}
+    entityType="release"
+    filtered={filtered}
+    generated={generated}
+    title={l('Non-digital releases with digital relationships')}
+    totalEntries={pager.total_entries}
   >
-    <h1>
-      {l('Non-digital releases with download relationships')}
-    </h1>
-
-    <ul>
-      <li>
-        {l(`This report shows releases that have download relationships, but
-            have media whose format is not “Digital Media”.`)}
-      </li>
-      <li>
-        {texp.l('Total releases found: {count}',
-                {count: pager.total_entries})}
-      </li>
-      <li>
-        {texp.l('Generated on {date}',
-                {date: formatUserDate($c.user, generated)})}
-      </li>
-
-      {canBeFiltered ? <FilterLink filtered={filtered} /> : null}
-    </ul>
-
     <ReleaseList items={items} pager={pager} />
-
-  </Layout>
+  </ReportLayout>
 );
 
-export default withCatalystContext(ReleasesWithDownloadRelationships);
+export default ReleasesWithDownloadRelationships;

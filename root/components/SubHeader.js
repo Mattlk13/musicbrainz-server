@@ -1,5 +1,5 @@
 /*
- * @flow
+ * @flow strict
  * Copyright (C) 2018 MetaBrainz Foundation
  *
  * This file is part of MusicBrainz, the open internet music database,
@@ -9,7 +9,9 @@
 
 import * as React from 'react';
 
-const SubHeader = ({subHeading}: {subHeading: React.Node}) => (
+type Props = {+subHeading: React.Node};
+
+const SubHeader = ({subHeading}: Props): React.Element<'p'> => (
   <p className="subheader">
     <span className="prefix">{'~'}</span>
     {' '}

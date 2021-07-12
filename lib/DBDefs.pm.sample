@@ -101,15 +101,21 @@ MusicBrainz::Server::DatabaseConnectionFactory->register_databases(
 #       host            => "",
 #       port            => "5432",
 #   },
-    # Fill out only if RAWDATA lives on a different host from the READWRITE server.
-    # RAWDATA_SYSTEM => undef,
+    # How to connect when running development scripts that query the production database.
+#   PROD_STANDBY    => {
+#       database    => "musicbrainz_db",
+#       username    => "musicbrainz_ro",
+#       password        => "",
+#       host            => "",
+#       port            => "5432",
+#   },
 );
 
 # The schema sequence number.  Must match the value in
 # replication_control.current_schema_sequence.
 # This is required, there is no default in order to prevent it changing without
 # manual intervention.
-sub DB_SCHEMA_SEQUENCE { 25 }
+sub DB_SCHEMA_SEQUENCE { 26 }
 
 # What type of server is this?
 # * RT_MASTER - This is a master replication server.  Changes are allowed, and
@@ -164,7 +170,7 @@ sub WEB_SERVER                { "www.musicbrainz.example.com" }
 # Relevant only if SSL redirects are enabled
 # sub WEB_SERVER_SSL            { "localhost" }
 # sub SEARCH_SERVER             { "search.musicbrainz.org" }
-# sub SEARCH_ENGINE             { "LUCENE" }
+# sub SEARCH_ENGINE             { "SOLR" }
 # Used, for example, to have emails sent from the beta server list the
 # main server
 # sub WEB_SERVER_USED_IN_EMAIL  { my $self = shift; $self->WEB_SERVER }
@@ -203,8 +209,10 @@ sub WEB_SERVER                { "www.musicbrainz.example.com" }
 # If left empty the default value will be shown.
 # sub DB_STAGING_SERVER_DESCRIPTION { '' }
 
-# Only change this if running a non-sanitized database on a dev server,
-# e.g. http://test.musicbrainz.org.
+# Only change this if running a non-sanitized database on a staging server,
+# e.g. http://beta.musicbrainz.org.
+# * It shows a banner informing that 'all passwords have been reset to "mb"'.
+# * It disables the IP lookup admin tool.
 # sub DB_STAGING_SERVER_SANITIZED { 1 }
 
 # Testing features enable "Accept edit" and "Reject edit" links on edits,
@@ -272,6 +280,21 @@ sub WEB_SERVER                { "www.musicbrainz.example.com" }
 #
 #     return \%CACHE_MANAGER_OPTIONS
 # }
+#
+# Alternatively, you may disable caching by pointing to Cache::Null:
+# sub CACHE_MANAGER_OPTIONS {
+#     my $self = shift;
+#     my %CACHE_MANAGER_OPTIONS = (
+#         profiles => {
+#             null => {
+#                 class => 'Cache::Null',
+#                 wrapped => 1,
+#             },
+#         },
+#         default_profile => 'null',
+#     );
+#     return \%CACHE_MANAGER_OPTIONS;
+# }
 
 # Sets the TTL for entities stored in Redis, in seconds. A value of 0
 # indicates that no expiration is set.
@@ -335,9 +358,6 @@ sub WEB_SERVER                { "www.musicbrainz.example.com" }
 # for database maintainance.
 # EOF
 
-# How long an annotation is considered as being locked.
-# sub ANNOTATION_LOCK_TIME { 60*15 }
-
 # Amazon associate and developer ids
 #my %amazon_store_associate_ids = (
 #    'amazon.ca'         => 'music0b72-20',
@@ -373,6 +393,10 @@ sub WEB_SERVER                { "www.musicbrainz.example.com" }
 # sub COVER_ART_ARCHIVE_SECRET_KEY { };
 # sub COVER_ART_ARCHIVE_UPLOAD_PREFIXER { shift; sprintf("//%s.s3.us.archive.org/", shift) };
 # sub COVER_ART_ARCHIVE_DOWNLOAD_PREFIX { "//coverartarchive.org" };
+
+# Mapbox access token must be set to display area/place maps.
+# sub MAPBOX_MAP_ID { 'mapbox/streets-v11' }
+# sub MAPBOX_ACCESS_TOKEN { '' }
 
 # Disallow OAuth2 requests over plain HTTP
 # sub OAUTH2_ENFORCE_TLS { my $self = shift; !$self->DB_STAGING_SERVER }

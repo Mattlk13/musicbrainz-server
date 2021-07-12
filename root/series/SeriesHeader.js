@@ -1,5 +1,5 @@
 /*
- * @flow
+ * @flow strict-local
  * Copyright (C) 2018 MetaBrainz Foundation
  *
  * This file is part of MusicBrainz, the open internet music database,
@@ -7,21 +7,26 @@
  * later version: http://www.gnu.org/licenses/gpl-2.0.txt
  */
 
-import React from 'react';
+import * as React from 'react';
 
 import EntityHeader from '../components/EntityHeader';
 
-type Props = {|
+type Props = {
   page: string,
   series: SeriesT,
-|};
+};
 
-const SeriesHeader = ({series, page}: Props) => (
+const SeriesHeader = ({
+  series,
+  page,
+}: Props): React.Element<typeof EntityHeader> => (
   <EntityHeader
     entity={series}
     headerClass="seriesheader"
     page={page}
-    subHeading={series.typeName ? lp_attributes(series.typeName, 'series_type') : lp('Series', 'singular')}
+    subHeading={nonEmpty(series.typeName)
+      ? lp_attributes(series.typeName, 'series_type')
+      : lp('Series', 'singular')}
   />
 );
 

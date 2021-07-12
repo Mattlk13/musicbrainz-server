@@ -1,5 +1,5 @@
 /*
- * @flow
+ * @flow strict-local
  * Copyright (C) 2019 MetaBrainz Foundation
  *
  * This file is part of MusicBrainz, the open internet music database,
@@ -7,14 +7,24 @@
  * later version: http://www.gnu.org/licenses/gpl-2.0.txt
  */
 
-import React from 'react';
+import * as React from 'react';
 
 import TagLink from '../static/scripts/common/components/TagLink';
 
 import GenreLayout from './GenreLayout';
 
-const GenreIndex = ({genre}: {genre: GenreT}) => (
-  <GenreLayout entity={genre} page="index" title={l('Genre information')}>
+type Props = {
+  +genre: GenreT,
+};
+
+const GenreIndex = ({
+  genre,
+}: Props): React.Element<typeof GenreLayout> => (
+  <GenreLayout
+    entity={genre}
+    page="index"
+    title={l('Genre information')}
+  >
     <h2>{l('Associated tags')}</h2>
     <table className="details">
       <tr>

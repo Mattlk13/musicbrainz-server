@@ -1,5 +1,5 @@
 /*
- * @flow
+ * @flow strict-local
  * Copyright (C) 2018 MetaBrainz Foundation
  *
  * This file is part of MusicBrainz, the open internet music database,
@@ -11,36 +11,41 @@ import * as React from 'react';
 
 import {CatalystContext} from '../context';
 import {ENTITIES} from '../static/scripts/common/constants';
-import isSpecialPurposeArtist from '../static/scripts/common/utility/isSpecialPurposeArtist';
+import isSpecialPurpose
+  from '../static/scripts/common/utility/isSpecialPurpose';
+import {
+  isLocationEditor,
+  isRelationshipEditor,
+} from '../static/scripts/common/utility/privileges';
 
 import Tabs from './Tabs';
 import EntityTabLink from './EntityTabLink';
 
 const tabLinkNames = {
-  'artists': N_l('Artists'),
-  'cover-art': N_l('Cover Art'),
-  'discids': N_l('Disc IDs'),
-  'events': N_l('Events'),
-  'fingerprints': N_l('Fingerprints'),
-  'labels': N_l('Labels'),
-  'map': N_l('Map'),
-  'performances': N_l('Performances'),
-  'places': N_l('Places'),
-  'recordings': N_l('Recordings'),
-  'releases': N_l('Releases'),
-  'users': N_l('Users'),
-  'works': N_l('Works'),
+  artists: N_l('Artists'),
+  events: N_l('Events'),
+  fingerprints: N_l('Fingerprints'),
+  labels: N_l('Labels'),
+  map: N_l('Map'),
+  performances: N_l('Performances'),
+  places: N_l('Places'),
+  recordings: N_l('Recordings'),
+  releases: N_l('Releases'),
+  users: N_l('Users'),
+  works: N_l('Works'),
 };
 
 const buildLink = (
-  content,
+  content: string,
   entity,
   subPath,
   page,
+  disabled = false,
   pageName = subPath,
 ) => (
   <EntityTabLink
     content={content}
+    disabled={disabled}
     entity={entity}
     key={subPath}
     selected={pageName === page}
@@ -49,29 +54,32 @@ const buildLink = (
 );
 
 function showEditTab(
-  user: ?EditorT,
+  user: ?UnsanitizedEditorT,
   entity: CoreEntityT,
 ): boolean {
   switch (entity.entityType) {
     case 'area':
-      return user ? user.is_location_editor : false;
+      return isLocationEditor(user);
     case 'artist':
-      return !isSpecialPurposeArtist(entity);
+      return !isSpecialPurpose(entity);
     case 'genre':
     case 'instrument':
-      return user ? user.is_relationship_editor : false;
+      return isRelationshipEditor(user);
+    case 'label':
+      return !isSpecialPurpose(entity);
     default:
       return true;
   }
 }
 
 function buildLinks(
-  user: ?EditorT,
+  $c: CatalystContextT,
   entity: CoreEntityT,
-  page: string,
-  editTab: ?React.Node,
-): React.Node {
-  const links = [buildLink(l('Overview'), entity, '', page, 'index')];
+  page?: string,
+  editTab: ?React.Element<typeof EntityTabLink>,
+): $ReadOnlyArray<React.Element<typeof EntityTabLink>> {
+  const links = [buildLink(l('Overview'), entity, '', page, false, 'index')];
+  const user = $c.user;
 
   const entityProperties = ENTITIES[entity.entityType];
 
@@ -83,6 +91,38 @@ function buildLinks(
 
   if (entityProperties.mbid.relatable === 'dedicated') {
     links.push(buildLink(l('Relationships'), entity, 'relationships', page));
+  }
+
+  if (entity.entityType === 'release') {
+    // Drop # + grey out if can't have discIDs unless it has them due to bug
+    const enabledDiscIdTab = entity.may_have_discids /*:: === true */ ||
+      ($c.stash.release_cdtoc_count || 0) > 0;
+    links.push(buildLink(
+      enabledDiscIdTab
+        ? texp.l(
+          'Disc IDs ({num})',
+          {num: $c.stash.release_cdtoc_count || 0},
+        )
+        : l('Disc IDs'),
+      entity,
+      'discids',
+      page,
+      !enabledDiscIdTab, /* disable tab if irrelevant */
+    ));
+  }
+
+  if (entityProperties.cover_art) {
+    links.push(buildLink(
+      entity.cover_art_presence === 'darkened' ? l('Cover Art') : (
+        texp.l(
+          'Cover Art ({num})',
+          {num: $c.stash.release_artwork_count || 0},
+        )
+      ),
+      entity,
+      'cover-art',
+      page,
+    ));
   }
 
   if (entityProperties.aliases) {
@@ -105,23 +145,32 @@ function buildLinks(
     }
   }
 
+  if (entity.entityType === 'release') {
+    links.push(buildLink(
+      l('Edit Relationships'),
+      entity,
+      'edit-relationships',
+      page,
+    ));
+  }
+
   return links;
 }
 
-type Props = {|
-  +editTab: ?React.Node,
+type Props = {
+  +editTab: ?React.Element<typeof EntityTabLink>,
   +entity: CoreEntityT,
-  +page: string,
-|};
+  +page?: string,
+};
 
 const EntityTabs = ({
   editTab,
   entity,
   page,
-}: Props) => (
+}: Props): React.Element<typeof Tabs> => (
   <Tabs>
     <CatalystContext.Consumer>
-      {($c: CatalystContextT) => buildLinks($c.user, entity, page, editTab)}
+      {($c: CatalystContextT) => buildLinks($c, entity, page, editTab)}
     </CatalystContext.Consumer>
   </Tabs>
 );

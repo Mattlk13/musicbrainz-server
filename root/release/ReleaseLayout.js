@@ -1,5 +1,5 @@
 /*
- * @flow
+ * @flow strict-local
  * Copyright (C) 2019 MetaBrainz Foundation
  *
  * This file is part of MusicBrainz, the open internet music database,
@@ -7,36 +7,38 @@
  * later version: http://www.gnu.org/licenses/gpl-2.0.txt
  */
 
-import React from 'react';
-import type {Node as ReactNode} from 'react';
+import * as React from 'react';
 
 import Layout from '../layout';
 import ReleaseSidebar from '../layout/components/sidebar/ReleaseSidebar';
-import {reduceArtistCredit} from '../static/scripts/common/immutable-entities';
+import {reduceArtistCredit}
+  from '../static/scripts/common/immutable-entities';
 
 import ReleaseHeader from './ReleaseHeader';
 
-type Props = {|
-  +children: ReactNode,
+type Props = {
+  +children: React.Node,
   +entity: ReleaseT,
   +fullWidth?: boolean,
-  +page: string,
+  +page?: string,
   +title?: string,
-|};
+};
 
 const ReleaseLayout = ({
   children,
   entity: release,
-  fullWidth,
+  fullWidth = false,
   page,
   title,
-}: Props) => {
+}: Props): React.Element<typeof Layout> => {
   const mainTitle = texp.l('Release “{name}” by {artist}', {
     artist: reduceArtistCredit(release.artistCredit),
     name: release.name,
   });
   return (
-    <Layout title={title ? hyphenateTitle(mainTitle, title) : mainTitle}>
+    <Layout
+      title={nonEmpty(title) ? hyphenateTitle(mainTitle, title) : mainTitle}
+    >
       <div id="content">
         <ReleaseHeader page={page} release={release} />
         {children}

@@ -1,5 +1,5 @@
 /*
- * @flow
+ * @flow strict-local
  * Copyright (C) 2019 MetaBrainz Foundation
  *
  * This file is part of MusicBrainz, the open internet music database,
@@ -7,72 +7,65 @@
  * later version: http://www.gnu.org/licenses/gpl-2.0.txt
  */
 
-import React from 'react';
+import * as React from 'react';
 
-import {withCatalystContext} from '../../context';
-import InstrumentListEntry
-  from '../../static/scripts/common/components/InstrumentListEntry';
-import SortableTableHeader from '../SortableTableHeader';
+import {CatalystContext} from '../../context';
+import Table from '../Table';
+import {
+  defineCheckboxColumn,
+  defineNameColumn,
+  defineTypeColumn,
+  instrumentDescriptionColumn,
+  removeFromMergeColumn,
+} from '../../utility/tableColumns';
 
-type Props = {|
-  +$c: CatalystContextT,
+type Props = {
   +checkboxes?: string,
   +instruments: $ReadOnlyArray<InstrumentT>,
+  +mergeForm?: MergeFormT,
   +order?: string,
   +sortable?: boolean,
-|};
+};
 
 const InstrumentList = ({
-  $c,
   checkboxes,
   instruments,
+  mergeForm,
   order,
   sortable,
-}: Props) => (
-  <table className="tbl">
-    <thead>
-      <tr>
-        {$c.user_exists && checkboxes ? (
-          <th className="checkbox-cell">
-            <input type="checkbox" />
-          </th>
-        ) : null}
-        <th>
-          {sortable
-            ? (
-              <SortableTableHeader
-                label={l('Instrument')}
-                name="name"
-                order={order}
-              />
-            )
-            : l('Instrument')}
-        </th>
-        <th>
-          {sortable
-            ? (
-              <SortableTableHeader
-                label={l('Type')}
-                name="type"
-                order={order}
-              />
-            )
-            : l('Type')}
-        </th>
-        <th>{l('Description')}</th>
-      </tr>
-    </thead>
-    <tbody>
-      {instruments.map((instrument, index) => (
-        <InstrumentListEntry
-          checkboxes={checkboxes}
-          index={index}
-          instrument={instrument}
-          key={instrument.id}
-        />
-      ))}
-    </tbody>
-  </table>
-);
+}: Props): React.Element<typeof Table> => {
+  const $c = React.useContext(CatalystContext);
 
-export default withCatalystContext(InstrumentList);
+  const columns = React.useMemo(
+    () => {
+      const checkboxColumn = $c.user && (nonEmpty(checkboxes) || mergeForm)
+        ? defineCheckboxColumn({mergeForm: mergeForm, name: checkboxes})
+        : null;
+      const nameColumn = defineNameColumn<InstrumentT>({
+        order: order,
+        sortable: sortable,
+        title: l('Instrument'),
+      });
+      const typeColumn = defineTypeColumn({
+        order: order,
+        sortable: sortable,
+        typeContext: 'instrument_type',
+      });
+
+      return [
+        ...(checkboxColumn ? [checkboxColumn] : []),
+        nameColumn,
+        typeColumn,
+        instrumentDescriptionColumn,
+        ...(mergeForm && instruments.length > 2
+          ? [removeFromMergeColumn]
+          : []),
+      ];
+    },
+    [$c.user, checkboxes, instruments, mergeForm, order, sortable],
+  );
+
+  return <Table columns={columns} data={instruments} />;
+};
+
+export default InstrumentList;

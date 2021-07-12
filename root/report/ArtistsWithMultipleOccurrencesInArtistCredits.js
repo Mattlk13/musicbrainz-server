@@ -1,5 +1,5 @@
 /*
- * @flow
+ * @flow strict-local
  * Copyright (C) 2018 MetaBrainz Foundation
  *
  * This file is part of MusicBrainz, the open internet music database,
@@ -9,82 +9,31 @@
 
 import * as React from 'react';
 
-import {withCatalystContext} from '../context';
-import Layout from '../layout';
-import formatUserDate from '../utility/formatUserDate';
-import PaginatedResults from '../components/PaginatedResults';
-import loopParity from '../utility/loopParity';
-import EntityLink from '../static/scripts/common/components/EntityLink';
-
-import FilterLink from './FilterLink';
+import ArtistList from './components/ArtistList';
+import ReportLayout from './components/ReportLayout';
 import type {ReportArtistT, ReportDataT} from './types';
 
 const ArtistsWithMultipleOccurrencesInArtistCredits = ({
-  $c,
   canBeFiltered,
   filtered,
   generated,
   items,
   pager,
-}: ReportDataT<ReportArtistT>) => (
-  <Layout
-    fullWidth
+}: ReportDataT<ReportArtistT>): React.Element<typeof ReportLayout> => (
+  <ReportLayout
+    canBeFiltered={canBeFiltered}
+    description={l(
+      `This report lists artists that appear more than once
+       in different positions within the same artist credit.`,
+    )}
+    entityType="artist"
+    filtered={filtered}
+    generated={generated}
     title={l('Artists occurring multiple times in the same artist credit')}
+    totalEntries={pager.total_entries}
   >
-    <h1>{l('Artists occurring multiple times in the same artist credit')}</h1>
-
-    <ul>
-      <li>
-        {l(`This report lists artists that appear more than once in different
-            positions within the same artist credit.`)}
-      </li>
-      <li>
-        {texp.l('Total artists found: {count}',
-                {count: pager.total_entries})}
-      </li>
-      <li>
-        {texp.l('Generated on {date}',
-                {date: formatUserDate($c.user, generated)})}
-      </li>
-
-      {canBeFiltered ? <FilterLink filtered={filtered} /> : null}
-    </ul>
-
-    <PaginatedResults pager={pager}>
-      <table className="tbl">
-        <thead>
-          <tr>
-            <th>{l('Artist')}</th>
-            <th>{l('Type')}</th>
-          </tr>
-        </thead>
-        <tbody>
-          {items.map((item, index) => (
-            <tr className={loopParity(index)} key={item.artist_id}>
-              {item.artist ? (
-                <>
-                  <td>
-                    <EntityLink entity={item.artist} subPath="aliases" />
-                  </td>
-                  <td>
-                    {item.artist.typeName
-                      ? lp_attributes(item.artist.typeName, 'artist_type')
-                      : l('Unknown')}
-                  </td>
-                </>
-              ) : (
-                <td colSpan="2">
-                  {l('This artist no longer exists.')}
-                </td>
-              )}
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </PaginatedResults>
-  </Layout>
+    <ArtistList items={items} pager={pager} subPath="aliases" />
+  </ReportLayout>
 );
 
-export default withCatalystContext(
-  ArtistsWithMultipleOccurrencesInArtistCredits,
-);
+export default ArtistsWithMultipleOccurrencesInArtistCredits;

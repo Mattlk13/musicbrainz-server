@@ -7,7 +7,7 @@
  * later version: http://www.gnu.org/licenses/gpl-2.0.txt
  */
 
-import React from 'react';
+import * as React from 'react';
 
 import Annotation from '../static/scripts/common/components/Annotation';
 import WikipediaExtract
@@ -18,17 +18,17 @@ import * as manifest from '../static/manifest';
 
 import InstrumentLayout from './InstrumentLayout';
 
-type Props = {|
+type Props = {
   +instrument: InstrumentT,
   +numberOfRevisions: number,
   +wikipediaExtract: WikipediaExtractT | null,
-|};
+};
 
 const InstrumentIndex = ({
   instrument,
   numberOfRevisions,
   wikipediaExtract,
-}: Props) => (
+}: Props): React.Element<typeof InstrumentLayout> => (
   <InstrumentLayout entity={instrument} page="index">
     {instrument.description ? (
       <>

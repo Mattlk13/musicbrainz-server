@@ -9,6 +9,7 @@ use MusicBrainz::Server::Constants qw(
 use MusicBrainz::Server::Data::Series;
 use MusicBrainz::Server::Edit::Utils qw( changed_display_data changed_relations );
 use MusicBrainz::Server::Entity::PartialDate;
+use MusicBrainz::Server::Entity::Util::JSON qw( to_json_object );
 use MusicBrainz::Server::Translation qw ( N_l );
 
 use MooseX::Types::Moose qw( Int Str );
@@ -80,8 +81,20 @@ sub build_display_data {
 
     my $data = changed_display_data($self->data, $loaded, %map);
 
-    $data->{series} = $loaded->{Series}{ $self->data->{entity}{id} }
-        || Series->new( name => $self->data->{entity}{name} );
+    $data->{series} = to_json_object(
+        $loaded->{Series}{ $self->data->{entity}{id} } ||
+        Series->new( name => $self->data->{entity}{name} )
+    );
+
+    if (exists $data->{type}) {
+        $data->{type}{old} = to_json_object($data->{type}{old});
+        $data->{type}{new} = to_json_object($data->{type}{new});
+    }
+
+    if (exists $data->{ordering_type}) {
+        $data->{ordering_type}{old} = to_json_object($data->{ordering_type}{old});
+        $data->{ordering_type}{new} = to_json_object($data->{ordering_type}{new});
+    }
 
     return $data;
 }
@@ -135,27 +148,19 @@ sub _changes_ordering_type {
     return ($self->data->{old}{ordering_type_id} // 0) != ($self->data->{new}{ordering_type_id} // 0);
 }
 
+sub edit_template_react { "EditSeries" }
+
 __PACKAGE__->meta->make_immutable;
 no Moose;
 
 1;
 
-=head1 LICENSE
+=head1 COPYRIGHT AND LICENSE
 
 Copyright (C) 2014 MetaBrainz Foundation
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program; if not, write to the Free Software
-Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+This file is part of MusicBrainz, the open internet music database,
+and is licensed under the GPL version 2, or (at your option) any
+later version: http://www.gnu.org/licenses/gpl-2.0.txt
 
 =cut

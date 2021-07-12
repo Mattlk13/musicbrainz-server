@@ -1,5 +1,5 @@
 /*
- * @flow
+ * @flow strict-local
  * Copyright (C) 2019 MetaBrainz Foundation
  *
  * This file is part of MusicBrainz, the open internet music database,
@@ -7,24 +7,23 @@
  * later version: http://www.gnu.org/licenses/gpl-2.0.txt
  */
 
-import React from 'react';
+import * as React from 'react';
 
-import {withCatalystContext} from '../context';
 import Layout from '../layout';
-import * as DBDefs from '../static/scripts/common/DBDefs';
+import DBDefs from '../static/scripts/common/DBDefs';
 import bugTrackerURL from '../static/scripts/common/utility/bugTrackerURL';
 
 import DocSearchBox from './components/DocSearchBox';
 
-type Props = {|
+type Props = {
   +$c: CatalystContextT,
   +id: string,
-|};
+};
 
 const DocError = ({
   $c,
   id,
-}: Props) => {
+}: Props): React.Element<typeof Layout> => {
   // We check whether we have a Google Custom Search engine
   const useGoogleCustomSearch = !!DBDefs.GOOGLE_CUSTOM_SEARCH;
 
@@ -66,4 +65,4 @@ const DocError = ({
   );
 };
 
-export default withCatalystContext(DocError);
+export default DocError;

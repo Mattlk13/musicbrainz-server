@@ -69,21 +69,28 @@ sub _id_column
 
 sub _where_filter
 {
-    my ($filter) = @_;
+    my ($filter, $using_artist_release_group_table) = @_;
 
     my (@query, @joins, @params);
 
     if (defined $filter) {
+        my $needs_rg_table = 0;
         if (exists $filter->{name}) {
-            push @query, "(to_tsvector('mb_simple', rg.name) @@ plainto_tsquery('mb_simple', ?) OR rg.name = ?)";
+            $needs_rg_table = 1 if $using_artist_release_group_table;
+            push @query, "(mb_simple_tsvector(rg.name) @@ plainto_tsquery('mb_simple', mb_lower(?)) OR rg.name = ?)";
             push @params, $filter->{name}, $filter->{name};
         }
         if (exists $filter->{artist_credit_id}) {
-            push @query, "rg.artist_credit = ?";
+            $needs_rg_table = 1 if $using_artist_release_group_table;
+            push @query, 'rg.artist_credit = ?';
             push @params, $filter->{artist_credit_id};
         }
         if (exists $filter->{type_id}) {
-            push @query, "rg.type = ?";
+            if ($using_artist_release_group_table) {
+                push @query, 'arg.primary_type = ?';
+            } else {
+                push @query, 'rg.type = ?';
+            }
             push @params, $filter->{type_id};
         }
         if (exists $filter->{type} && $filter->{type}) {
@@ -93,15 +100,26 @@ sub _where_filter
             } @types;
 
             if (my $primary = $partitioned_types{primary}) {
-                push @query, 'rg.type = any(?)';
+                if ($using_artist_release_group_table) {
+                    push @query, 'arg.primary_type = any(?)';
+                } else {
+                    push @query, 'rg.type = any(?)';
+                }
                 push @params, $primary;
             }
 
             if (my $secondary = $partitioned_types{secondary}) {
-                push @query, 'st.secondary_type = any(?)';
+                if ($using_artist_release_group_table) {
+                    push @query, 'arg.secondary_types @> ?';
+                } else {
+                    push @query, 'st.secondary_type = any(?)';
+                    push @joins, 'JOIN release_group_secondary_type_join st ON rg.id = st.release_group';
+                }
                 push @params, [ map { substr($_, 3) } @$secondary ];
-                push @joins, 'JOIN release_group_secondary_type_join st ON rg.id = st.release_group';
             }
+        }
+        if ($needs_rg_table) {
+            unshift @joins, 'JOIN release_group rg ON rg.id = arg.release_group';
         }
     }
 
@@ -127,17 +145,109 @@ sub find_artist_credits_by_artist
     return $self->c->model('ArtistCredit')->find_by_ids($ids);
 }
 
-sub find_by_artist
+sub has_materialized_artist_release_group_data {
+    my ($self) = @_;
+    CORE::state $has_data;
+    if (defined $has_data) {
+        return $has_data;
+    }
+    $has_data = $self->sql->select_single_value(
+        'SELECT 1 FROM artist_release_group LIMIT 1',
+    ) ? 1 : 0;
+    return $has_data;
+}
+
+sub pick_status_condition
+{
+    my ($self, $query_extra_only) = @_;
+
+    if ($query_extra_only) {
+        return '
+            AND (
+                NOT EXISTS (
+                    SELECT 1 FROM release
+                    WHERE release.release_group = rg.id
+                    AND release.status = 1
+                ) AND EXISTS (
+                    SELECT 1 FROM release
+                    WHERE release.release_group = rg.id
+                    AND release.status IS NOT NULL
+                )
+            )
+        ';
+    } else {
+        return '
+            AND (
+                EXISTS (
+                    SELECT 1 FROM release
+                    WHERE release.release_group = rg.id
+                    AND release.status = 1
+                ) OR NOT EXISTS (
+                    SELECT 1 FROM release
+                    WHERE release.release_group = rg.id
+                    AND release.status IS NOT NULL
+                )
+            )
+        ';
+    }
+}
+
+sub _has_by_artist_slow
+{
+    my ($self, $artist_id, $query_extra_only) = @_;
+
+    my $status_condition = $self->pick_status_condition($query_extra_only);
+
+    my $query ="
+        SELECT EXISTS (
+            SELECT 1
+            FROM release_group rg
+            JOIN artist_credit_name acn
+                ON acn.artist_credit = rg.artist_credit
+            WHERE acn.artist = ?
+            $status_condition
+        )";
+    $self->sql->select_single_value($query, $artist_id);
+}
+
+sub _has_by_artist_fast
+{
+    my ($self, $artist_id, $query_extra_only) = @_;
+
+    my $status_condition = 'arg.unofficial = ' .
+        ($query_extra_only ? 'TRUE' : 'FALSE');
+
+    my $query ="
+        SELECT EXISTS (
+            SELECT 1
+            FROM artist_release_group arg
+            WHERE arg.artist = ?
+            AND $status_condition
+        )";
+    $self->sql->select_single_value($query, $artist_id);
+}
+
+sub has_by_artist
+{
+    my ($self, $artist_id, $query_extra_only) = @_;
+
+    if ($self->has_materialized_artist_release_group_data) {
+        return $self->_has_by_artist_fast($artist_id, $query_extra_only);
+    }
+    return $self->_has_by_artist_slow($artist_id, $query_extra_only);
+}
+
+sub _find_by_artist_slow
 {
     my ($self, $artist_id, $show_all, $limit, $offset, %args) = @_;
 
-    my ($conditions, $extra_joins, $params) = _where_filter($args{filter});
+    my ($conditions, $extra_joins, $params) = _where_filter($args{filter}, 0);
 
     push @$conditions, "acn.artist = ?";
     # Show only RGs with official releases by default, plus all-status-less ones so people fix the status
     unless ($show_all) {
-        push @$conditions, "(EXISTS (SELECT 1 FROM release where release.release_group = rg.id AND release.status = '1') OR
-                            NOT EXISTS (SELECT 1 FROM release where release.release_group = rg.id AND release.status IS NOT NULL))";
+        push @$conditions, "(EXISTS (SELECT 1 FROM release WHERE release.release_group = rg.id AND release.status = '1') OR
+                            NOT EXISTS (SELECT 1 FROM release WHERE release.release_group = rg.id AND release.status IS NOT NULL))";
        }
     push @$params, $artist_id;
 
@@ -148,7 +258,7 @@ sub find_by_artist
                     rgm.release_count,
                     rgm.rating_count,
                     rgm.rating,
-                    musicbrainz_collate(rg.name) AS name_collate,
+                    rg.name COLLATE musicbrainz AS name_collate,
                     array(
                       SELECT name FROM release_group_secondary_type rgst
                       JOIN release_group_secondary_type_join rgstj
@@ -166,7 +276,7 @@ sub find_by_artist
                     rgm.first_release_date_year,
                     rgm.first_release_date_month,
                     rgm.first_release_date_day,
-                    musicbrainz_collate(rg.name)";
+                    rg.name COLLATE musicbrainz";
     $self->query_to_list_limited(
         $query,
         $params,
@@ -184,15 +294,130 @@ sub find_by_artist
     );
 }
 
-sub find_by_track_artist
+sub _find_by_artist_fast {
+    my ($self, $artist_id, $show_all, $va, $limit, $offset, %args) = @_;
+
+    my ($conditions, $extra_joins, $params) = _where_filter($args{filter}, 1);
+
+    push @$conditions, 'arg.is_track_artist = ' . ($va ? 'TRUE' : 'FALSE');
+
+    # Show only RGs with official releases by default,
+    # plus all-status-less ones so people fix the status.
+    unless ($show_all) {
+        push @$conditions, 'unofficial = FALSE';
+    }
+    push @$conditions, 'arg.artist = ?';
+    push @$params, $artist_id;
+
+    my $inner_query = "FROM artist_release_group arg " .
+        join(' ', @$extra_joins) . ' ' .
+        'WHERE ' . join(' AND ', @$conditions);
+
+    my $count_query = 'SELECT count(*) ' . $inner_query;
+    my $total_row_count = $self->sql->select_single_value($count_query, @$params);
+
+    my $results_query = 'SELECT release_group ' .
+        $inner_query . ' ' .
+        # Do NOT modify the `ORDER BY` here. We're returning things in
+        # index order (`artist_release_group_*_idx_sort`) to avoid a
+        # sort operation. Changing the order is a schema change.
+        'ORDER BY arg.artist, ' .
+            'arg.unofficial, ' .
+            'arg.primary_type NULLS FIRST, ' .
+            'arg.secondary_types NULLS FIRST, ' .
+            'arg.first_release_date NULLS LAST, ' .
+            'arg.sort_character, ' .
+            'arg.release_group ' .
+        'LIMIT ? OFFSET ?';
+
+    my $release_group_ids = $self->sql->select_single_column_array(
+        $results_query, @$params, $limit, $offset,
+    );
+    my $release_groups_by_id = $self->get_by_ids(@$release_group_ids);
+
+    my @release_groups = map { $release_groups_by_id->{$_} } @$release_group_ids;
+    $self->load_meta(@release_groups);
+
+    return (\@release_groups, $total_row_count);
+}
+
+sub find_by_artist
+{
+    my ($self, $artist_id, $show_all, $limit, $offset, %args) = @_;
+
+    if ($self->has_materialized_artist_release_group_data) {
+        return $self->_find_by_artist_fast($artist_id, $show_all, 0, $limit, $offset, %args);
+    }
+    return $self->_find_by_artist_slow($artist_id, $show_all, $limit, $offset, %args);
+}
+
+sub _has_by_track_artist_slow
+{
+    my ($self, $artist_id, $query_extra_only) = @_;
+
+    my $status_condition = $self->pick_status_condition($query_extra_only);
+
+    my $query ="
+        SELECT EXISTS (
+            SELECT 1
+            FROM release_group rg
+            WHERE rg.id IN (
+                SELECT release_group FROM release
+                    JOIN medium
+                    ON medium.release = release.id
+                    JOIN track tr
+                    ON tr.medium = medium.id
+                    JOIN artist_credit_name acn
+                    ON acn.artist_credit = tr.artist_credit
+                WHERE acn.artist = ?
+            )
+            AND rg.id NOT IN (
+                SELECT id FROM release_group
+                JOIN artist_credit_name acn
+                    ON release_group.artist_credit = acn.artist_credit
+                WHERE acn.artist = ?)
+            $status_condition
+        )";
+    $self->sql->select_single_value($query, $artist_id, $artist_id);
+}
+
+sub _has_by_track_artist_fast
+{
+    my ($self, $artist_id, $query_extra_only) = @_;
+
+    my $status_condition =  'targ.unofficial = ' .
+        ($query_extra_only ? 'TRUE' : 'FALSE');
+
+    my $query ="
+        SELECT EXISTS (
+            SELECT 1
+            FROM artist_release_group targ
+            WHERE targ.is_track_artist = TRUE
+            AND targ.artist = ?
+            AND $status_condition
+        )";
+    $self->sql->select_single_value($query, $artist_id);
+}
+
+sub has_by_track_artist
+{
+    my ($self, $artist_id, $query_extra_only) = @_;
+
+    if ($self->has_materialized_artist_release_group_data) {
+        return $self->_has_by_track_artist_fast($artist_id, $query_extra_only);
+    }
+    return $self->_has_by_track_artist_slow($artist_id, $query_extra_only);
+}
+
+sub _find_by_track_artist_slow
 {
     my ($self, $artist_id, $show_all, $limit, $offset) = @_;
 
     my $extra_conditions = '';
     # Show only RGs with official releases by default, plus all-status-less ones so people fix the status
     unless ($show_all) {
-        $extra_conditions = " AND (EXISTS (SELECT 1 FROM release where release.release_group = rg.id AND release.status = '1') OR
-                            NOT EXISTS (SELECT 1 FROM release where release.release_group = rg.id AND release.status IS NOT NULL)) ";
+        $extra_conditions = " AND (EXISTS (SELECT 1 FROM release WHERE release.release_group = rg.id AND release.status = '1') OR
+                            NOT EXISTS (SELECT 1 FROM release WHERE release.release_group = rg.id AND release.status IS NOT NULL)) ";
        }
 
     my $query = "SELECT DISTINCT " . $self->_columns . ",
@@ -202,7 +427,7 @@ sub find_by_track_artist
                     rgm.release_count,
                     rgm.rating_count,
                     rgm.rating,
-                    musicbrainz_collate(rg.name),
+                    rg.name COLLATE musicbrainz,
                     array(
                       SELECT name FROM release_group_secondary_type rgst
                       JOIN release_group_secondary_type_join rgstj
@@ -234,7 +459,7 @@ sub find_by_track_artist
                     rgm.first_release_date_year,
                     rgm.first_release_date_month,
                     rgm.first_release_date_day,
-                    musicbrainz_collate(rg.name)";
+                    rg.name COLLATE musicbrainz";
     $self->query_to_list_limited(
         $query,
         [$artist_id, $artist_id],
@@ -252,6 +477,30 @@ sub find_by_track_artist
     );
 }
 
+sub find_by_track_artist
+{
+    my ($self, $artist_id, $show_all, $limit, $offset) = @_;
+
+    # Note: This excludes release groups where $artist_id appears in
+    # the release group artist credit.
+    if ($self->has_materialized_artist_release_group_data) {
+        return $self->_find_by_artist_fast($artist_id, $show_all, 1, $limit, $offset);
+    }
+    return $self->_find_by_track_artist_slow($artist_id, $show_all, $limit, $offset);
+}
+
+sub find_by_artist_credit
+{
+    my ($self, $artist_credit_id, $limit, $offset) = @_;
+
+    my $query = "SELECT " . $self->_columns . ",
+                    rg.name COLLATE musicbrainz AS name_collate
+                 FROM " . $self->_table . "
+                 WHERE rg.artist_credit = ?
+                 ORDER BY rg.name COLLATE musicbrainz";
+    $self->query_to_list_limited($query, [$artist_credit_id], $limit, $offset);
+}
+
 sub find_by_release
 {
     my ($self, $release_id, $limit, $offset) = @_;
@@ -267,7 +516,7 @@ sub find_by_release
                     rgm.first_release_date_year,
                     rgm.first_release_date_month,
                     rgm.first_release_date_day,
-                    musicbrainz_collate(rg.name)";
+                    rg.name COLLATE musicbrainz";
     $self->query_to_list_limited($query, [$release_id], $limit, $offset, sub {
         my ($model, $row) = @_;
         my $rg = $model->_new_from_row($row);
@@ -291,7 +540,7 @@ sub find_by_release_gids
                     rgm.first_release_date_year,
                     rgm.first_release_date_month,
                     rgm.first_release_date_day,
-                    musicbrainz_collate(rg.name)";
+                    rg.name COLLATE musicbrainz";
     $self->query_to_list($query, \@release_gids, sub {
         my ($model, $row) = @_;
         my $rg = $model->_new_from_row($row);
@@ -312,26 +561,38 @@ sub find_by_recording
                  WHERE recording.id = ?
                  ORDER BY
                     rg.type,
-                    musicbrainz_collate(rg.name)";
+                    rg.name COLLATE musicbrainz";
 
     $self->query_to_list($query, [$recording]);
 }
 
 sub _order_by {
     my ($self, $order) = @_;
+
+    my $extra_join = "";
+    my $also_select = "";
+
     my $order_by = order_by($order, "name", {
         "name" => sub {
-            return "musicbrainz_collate(name)"
+            return "name COLLATE musicbrainz"
+        },
+        "artist" => sub {
+            $extra_join = "JOIN artist_credit ac ON ac.id = rg.artist_credit";
+            $also_select = "ac.name AS ac_name";
+            return "ac_name COLLATE musicbrainz, release_group.name COLLATE musicbrainz";
         },
         "primary_type" => sub {
-            return "primary_type_id, musicbrainz_collate(name)"
+            return "primary_type_id, name COLLATE musicbrainz"
         },
         "year" => sub {
-            return "first_release_date_year, musicbrainz_collate(name)"
+            return "first_release_date_year, name COLLATE musicbrainz"
         }
     });
 
-    return $order_by
+    my $inner_order_by = $order_by
+        =~ s/ac_name/ac.name/r;
+
+    return ($order_by, $extra_join, $also_select, $inner_order_by);
 }
 
 sub _insert_hook_after_each {
@@ -556,25 +817,25 @@ sub is_empty {
     my $used_in_relationship =
         used_in_relationship($self->c, release_group => 'release_group_row.id');
 
-    return $self->sql->select_single_value(<<EOSQL, $release_group_id, $STATUS_OPEN);
+    return $self->sql->select_single_value(<<~"EOSQL", $release_group_id, $STATUS_OPEN);
         SELECT TRUE
         FROM release_group release_group_row
         WHERE id = ?
         AND edits_pending = 0
         AND NOT (
-          EXISTS (
-            SELECT TRUE FROM edit_release_group
-            JOIN edit ON edit.id = edit_release_group.edit
-            WHERE status = ? AND release_group = release_group_row.id
-          ) OR
-          EXISTS (
-            SELECT TRUE FROM release
-            WHERE release.release_group = release_group_row.id
-            LIMIT 1
-          ) OR
-          $used_in_relationship
+            EXISTS (
+                SELECT TRUE FROM edit_release_group
+                JOIN edit ON edit.id = edit_release_group.edit
+                WHERE status = ? AND release_group = release_group_row.id
+            ) OR
+            EXISTS (
+                SELECT TRUE FROM release
+                WHERE release.release_group = release_group_row.id
+                LIMIT 1
+            ) OR
+            $used_in_relationship
         )
-EOSQL
+        EOSQL
 }
 
 sub series_ordering {
@@ -604,22 +865,12 @@ a reference to the array of release groups and the total number of found
 release groups. The $limit parameter is used to limit the number of returned
 release groups.
 
-=head1 COPYRIGHT
+=head1 COPYRIGHT AND LICENSE
 
 Copyright (C) 2009 Lukas Lalinsky
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program; if not, write to the Free Software
-Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+This file is part of MusicBrainz, the open internet music database,
+and is licensed under the GPL version 2, or (at your option) any
+later version: http://www.gnu.org/licenses/gpl-2.0.txt
 
 =cut

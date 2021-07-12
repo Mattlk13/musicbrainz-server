@@ -6,6 +6,7 @@ use List::MoreUtils qw( uniq );
 use List::AllUtils qw( any );
 use MusicBrainz::Server::Constants qw( $EDIT_RECORDING_ADD_ISRCS );
 use MusicBrainz::Server::Edit::Types qw( Nullable );
+use MusicBrainz::Server::Entity::Util::JSON qw( to_json_object );
 use MusicBrainz::Server::Translation qw( N_l );
 use MusicBrainz::Server::Edit::Exceptions;
 
@@ -22,6 +23,7 @@ use aliased 'MusicBrainz::Server::Entity::ISRC';
 sub edit_type { $EDIT_RECORDING_ADD_ISRCS }
 sub edit_name { N_l('Add ISRCs') }
 sub edit_kind { 'add' }
+sub edit_template_react { 'AddIsrcs' }
 
 sub recording_ids { map { $_->{recording}{id} } @{ shift->data->{isrcs} } }
 
@@ -81,12 +83,16 @@ sub build_display_data
     return {
         additions => [
             map { +{
-                recording => $loaded->{Recording}{ $_->{recording}{id} }
-                    || Recording->new( name => $_->{recording}{name} ),
-                isrc      => ISRC->new( isrc => $_->{isrc} ),
+                recording => to_json_object(
+                    $loaded->{Recording}{ $_->{recording}{id} } ||
+                    Recording->new( id => $_->{recording}{id}, name => $_->{recording}{name} )
+                ),
+                isrc      => to_json_object(ISRC->new( isrc => $_->{isrc} )),
                 source    => $_->{source}
             } } @{ $self->data->{isrcs} }
-        ]
+        ],
+        client_version => $self->data->{client_version},
+
     }
 }
 

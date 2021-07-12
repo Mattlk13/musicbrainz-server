@@ -1,5 +1,5 @@
 /*
- * @flow
+ * @flow strict-local
  * Copyright (C) 2018 MetaBrainz Foundation
  *
  * This file is part of MusicBrainz, the open internet music database,
@@ -9,14 +9,15 @@
 
 import * as React from 'react';
 
-import {bracketedText} from '../../../static/scripts/common/utility/bracketed';
+import {bracketedText}
+  from '../../../static/scripts/common/utility/bracketed';
 import formatDate from '../../../static/scripts/common/utility/formatDate';
 import isDateEmpty from '../../../static/scripts/common/utility/isDateEmpty';
 import {displayAge} from '../../../utility/age';
 
 import {SidebarProperty} from './SidebarProperties';
 
-type Props = {|
+type Props = {
   +age?: [number, number, number] | null,
   +entity:
     | AreaT
@@ -25,9 +26,13 @@ type Props = {|
     | LabelT
     | PlaceT,
   +label: string,
-|};
+};
 
-const SidebarEndDate = ({age, entity, label}: Props) => (
+const SidebarEndDate = ({
+  age,
+  entity,
+  label,
+}: Props): React.MixedElement | null => (
   isDateEmpty(entity.end_date) ? (
     entity.ended ? (
       <SidebarProperty className="end-date" label={label}>

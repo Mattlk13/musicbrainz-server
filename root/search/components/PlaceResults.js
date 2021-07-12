@@ -1,5 +1,5 @@
 /*
- * @flow
+ * @flow strict-local
  * Copyright (C) 2018 MetaBrainz Foundation
  *
  * This file is part of MusicBrainz, the open internet music database,
@@ -9,10 +9,11 @@
 
 import * as React from 'react';
 
-import {withCatalystContext} from '../../context';
 import EntityLink from '../../static/scripts/common/components/EntityLink';
 import formatDate from '../../static/scripts/common/utility/formatDate';
 import formatEndDate from '../../static/scripts/common/utility/formatEndDate';
+import {isEditingEnabled}
+  from '../../static/scripts/common/utility/privileges';
 import loopParity from '../../utility/loopParity';
 import type {ResultsPropsWithContextT} from '../types';
 
@@ -28,7 +29,11 @@ function buildResult(result, index) {
       <td>
         <EntityLink entity={place} />
       </td>
-      <td>{place.typeName ? lp_attributes(place.typeName, 'place_type') : null}</td>
+      <td>
+        {nonEmpty(place.typeName)
+          ? lp_attributes(place.typeName, 'place_type')
+          : null}
+      </td>
       <td>{place.address}</td>
       <td>
         {place.area ? <EntityLink entity={place.area} /> : null}
@@ -46,7 +51,8 @@ const PlaceResults = ({
   pager,
   query,
   results,
-}: ResultsPropsWithContextT<PlaceT>) => (
+}: ResultsPropsWithContextT<PlaceT>):
+React.Element<typeof ResultsLayout> => (
   <ResultsLayout form={form} lastUpdated={lastUpdated}>
     <PaginatedSearchResults
       buildResult={buildResult}
@@ -64,7 +70,7 @@ const PlaceResults = ({
       query={query}
       results={results}
     />
-    {$c.user && !$c.user.is_editing_disabled ? (
+    {isEditingEnabled($c.user) ? (
       <p>
         {exp.l('Alternatively, you may {uri|add a new place}.', {
           uri: '/place/create?edit-place.name=' + encodeURIComponent(query),
@@ -74,4 +80,4 @@ const PlaceResults = ({
   </ResultsLayout>
 );
 
-export default withCatalystContext(PlaceResults);
+export default PlaceResults;

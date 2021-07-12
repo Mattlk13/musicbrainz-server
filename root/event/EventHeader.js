@@ -1,5 +1,5 @@
 /*
- * @flow
+ * @flow strict-local
  * Copyright (C) 2018 MetaBrainz Foundation
  *
  * This file is part of MusicBrainz, the open internet music database,
@@ -7,21 +7,26 @@
  * later version: http://www.gnu.org/licenses/gpl-2.0.txt
  */
 
-import React from 'react';
+import * as React from 'react';
 
 import EntityHeader from '../components/EntityHeader';
 
-type Props = {|
+type Props = {
   +event: EventT,
   +page: string,
-|};
+};
 
-const EventHeader = ({event, page}: Props) => (
+const EventHeader = ({
+  event,
+  page,
+}: Props): React.Element<typeof EntityHeader> => (
   <EntityHeader
     entity={event}
     headerClass="eventheader"
     page={page}
-    subHeading={event.typeName ? lp_attributes(event.typeName, 'event_type') : l('Event')}
+    subHeading={nonEmpty(event.typeName)
+      ? lp_attributes(event.typeName, 'event_type')
+      : l('Event')}
   />
 );
 

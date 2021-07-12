@@ -7,9 +7,10 @@ use HTTP::Request::Common qw( POST );
 
 around run_test => sub {
     my ($orig, $test, @args) = @_;
-    $test->c->sql->do(<<'EOSQL');
-INSERT INTO editor (id, name, password, email, privs, ha1, email_confirm_date) VALUES (1, 'editor1', '{CLEARTEXT}pass', 'editor1@example.com', 255, '16a4862191803cb596ee4b16802bb7ee', now())
-EOSQL
+    $test->c->sql->do(<<~'EOSQL');
+        INSERT INTO editor (id, name, password, email, privs, ha1, email_confirm_date)
+            VALUES (1, 'editor1', '{CLEARTEXT}pass', 'editor1@example.com', 255, '16a4862191803cb596ee4b16802bb7ee', now())
+        EOSQL
 
     $test->mech->get('/login');
     $test->mech->submit_form( with_fields => { username => 'editor1', password => 'pass' } );
@@ -28,13 +29,11 @@ test 'Deleting relationship attributes' => sub {
     html_ok($mech->content);
 
     my @edits = capture_edits {
-        my $response = $mech->request(
-            POST $mech->uri, [ 'confirm.submit' => 1 ]
-        );
+        $mech->form_with_fields('confirm.submit');
+        $mech->click('confirm.submit');
         ok($mech->success);
 
-        my @redir = $response->redirects;
-        like($redir[0]->content, qr{http://localhost/relationship-attributes}, "Redirect contains link to main relationship page.");
+        is($mech->uri, 'http://localhost/relationship-attributes', "Redirect contains link to main relationship page.");
     } $test->c;
 
     is(@edits, 1);

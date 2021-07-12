@@ -16,6 +16,7 @@ use MusicBrainz::Server::Edit::Utils qw(
     load_artist_credit_definitions
     verify_artist_credits
 );
+use MusicBrainz::Server::Entity::Util::JSON qw( to_json_object );
 use MusicBrainz::Server::Translation qw( N_l );
 
 extends 'MusicBrainz::Server::Edit';
@@ -25,6 +26,7 @@ with 'MusicBrainz::Server::Edit::Role::NeverAutoEdit';
 sub edit_name { N_l('Edit artist credit') }
 sub edit_kind { 'edit' }
 sub edit_type { $EDIT_ARTIST_EDITCREDIT }
+sub edit_template_react { 'EditArtistCredit' }
 
 sub new_artist_ids {
     my $self = shift;
@@ -85,9 +87,15 @@ sub build_display_data
 
     my $data = {};
     $data->{artist_credit} = {
-        new => artist_credit_from_loaded_definition($loaded, $self->data->{new}{artist_credit}),
-        old => artist_credit_from_loaded_definition($loaded, $self->data->{old}{artist_credit})
+        new => to_json_object(artist_credit_from_loaded_definition($loaded, $self->data->{new}{artist_credit})),
+        old => to_json_object(artist_credit_from_loaded_definition($loaded, $self->data->{old}{artist_credit}))
     };
+
+    my $old_ac_id = $self->c->model('ArtistCredit')->find($self->data->{old}{artist_credit});
+
+    if ($old_ac_id) {
+        $data->{artist_credit}{old}{id} = $old_ac_id;
+    }
 
     return $data;
 }

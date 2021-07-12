@@ -21,6 +21,7 @@ test 'basic recording lookup' => sub {
             length => 296026,
             disambiguation => "",
             video => JSON::false,
+            'first-release-date' => '2001-07-04',
         };
 };
 
@@ -39,6 +40,7 @@ test 'basic recording lookup, inc=annotation' => sub {
             annotation => "this is a recording annotation",
             disambiguation => "",
             video => JSON::false,
+            'first-release-date' => '1999-09-13',
         };
 };
 
@@ -54,7 +56,34 @@ test 'recording lookup with releases' => sub {
             length => 296026,
             disambiguation => "",
             video => JSON::false,
+            'first-release-date' => '2001-07-04',
             releases => [
+                {
+                    id => "b3b7e934-445b-4c68-a097-730c6a6d47e6",
+                    title => "Summer Reggae! Rainbow",
+                    status => "Pseudo-Release",
+                    "status-id" => "41121bb9-3413-3818-8a9a-9742318349aa",
+                    quality => "high",
+                    "text-representation" => { language => "jpn", script => "Latn" },
+                    date => "2001-07-04",
+                    country => "JP",
+                    "release-events" => [{
+                        date => "2001-07-04",
+                        "area" => {
+                            disambiguation => '',
+                            "id" => "2db42837-c832-3c27-b4a3-08198f75693c",
+                            "name" => "Japan",
+                            "sort-name" => "Japan",
+                            "iso-3166-1-codes" => ["JP"],
+                            "type" => JSON::null,
+                            "type-id" => JSON::null,
+                        },
+                    }],
+                    barcode => "4942463511227",
+                    disambiguation => "",
+                    packaging => JSON::null,
+                    "packaging-id" => JSON::null,
+                },
                 {
                     id => "0385f276-5f4f-4c81-a7a4-6bd7b8d85a7e",
                     title => "サマーれげぇ!レインボー",
@@ -72,6 +101,8 @@ test 'recording lookup with releases' => sub {
                             "name" => "Japan",
                             "sort-name" => "Japan",
                             "iso-3166-1-codes" => ["JP"],
+                            "type" => JSON::null,
+                            "type-id" => JSON::null,
                         },
                     }],
                     barcode => "4942463511227",
@@ -79,30 +110,7 @@ test 'recording lookup with releases' => sub {
                     packaging => JSON::null,
                     "packaging-id" => JSON::null,
                 },
-                {
-                    id => "b3b7e934-445b-4c68-a097-730c6a6d47e6",
-                    title => "Summer Reggae! Rainbow",
-                    status => "Pseudo-Release",
-                    "status-id" => "41121bb9-3413-3818-8a9a-9742318349aa",
-                    quality => "normal",
-                    "text-representation" => { language => "jpn", script => "Latn" },
-                    date => "2001-07-04",
-                    country => "JP",
-                    "release-events" => [{
-                        date => "2001-07-04",
-                        "area" => {
-                            disambiguation => '',
-                            "id" => "2db42837-c832-3c27-b4a3-08198f75693c",
-                            "name" => "Japan",
-                            "sort-name" => "Japan",
-                            "iso-3166-1-codes" => ["JP"],
-                        },
-                    }],
-                    barcode => "4942463511227",
-                    disambiguation => "",
-                    packaging => JSON::null,
-                    "packaging-id" => JSON::null,
-                }]
+            ],
         };
 };
 
@@ -118,6 +126,7 @@ test 'lookup recording with official singles' => sub {
             length => 296026,
             disambiguation => "",
             video => JSON::false,
+            'first-release-date' => '2001-07-04',
             releases => [
                 {
                     id => "0385f276-5f4f-4c81-a7a4-6bd7b8d85a7e",
@@ -136,6 +145,8 @@ test 'lookup recording with official singles' => sub {
                             "name" => "Japan",
                             "sort-name" => "Japan",
                             "iso-3166-1-codes" => ["JP"],
+                            "type" => JSON::null,
+                            "type-id" => JSON::null,
                         },
                     }],
                     barcode => "4942463511227",
@@ -158,6 +169,7 @@ test 'lookup recording with official singles (+media)' => sub {
             length => 296026,
             disambiguation => "",
             video => JSON::false,
+            'first-release-date' => '2001-07-04',
             releases => [
                 {
                     id => "0385f276-5f4f-4c81-a7a4-6bd7b8d85a7e",
@@ -178,6 +190,8 @@ test 'lookup recording with official singles (+media)' => sub {
                             "name" => "Japan",
                             "sort-name" => "Japan",
                             "iso-3166-1-codes" => ["JP"],
+                            "type" => JSON::null,
+                            "type-id" => JSON::null,
                         },
                     }],
                     barcode => '4942463511227',
@@ -218,6 +232,7 @@ test 'recording lookup with artists' => sub {
             disambiguation => "",
             length => 243000,
             video => JSON::false,
+            'first-release-date' => '2004-03-17',
             "artist-credit" => [
                 {
                     name => "m-flo",
@@ -226,6 +241,8 @@ test 'recording lookup with artists' => sub {
                         name => "m-flo",
                         "sort-name" => "m-flo",
                         disambiguation => "",
+                        "type" => "Group",
+                        "type-id" => 'e431f5f6-b5d2-343d-8b36-72607fffb74b',
                     },
                     joinphrase => "♥",
                 },
@@ -236,6 +253,8 @@ test 'recording lookup with artists' => sub {
                         name => "BoA",
                         "sort-name" => "BoA",
                         disambiguation => "",
+                        "type" => "Person",
+                        "type-id" => "b6e035f4-3ce9-331c-97df-83397230b0df",
                     },
                     joinphrase => "",
                 }
@@ -243,7 +262,7 @@ test 'recording lookup with artists' => sub {
         };
 };
 
-test 'recording lookup with puids and isrcs' => sub {
+test 'recording lookup with puids (no-op) and isrcs' => sub {
 
     MusicBrainz::Server::Test->prepare_test_database(shift->c, '+webservice');
 
@@ -256,6 +275,7 @@ test 'recording lookup with puids and isrcs' => sub {
             length => 296026,
             video => JSON::false,
             isrcs => [ "JPA600102450" ],
+            'first-release-date' => '2001-07-04',
         };
 };
 
@@ -263,14 +283,29 @@ test 'recording lookup with release relationships' => sub {
 
     MusicBrainz::Server::Test->prepare_test_database(shift->c, '+webservice');
 
-    ws_test_json 'recording lookup with release relationships',
-    '/recording/37a8d72a-a9c9-4edc-9ecf-b5b58e6197a9?inc=release-rels' =>
+    ws_test_json 'recording lookup with release relationships and artist credits',
+    '/recording/37a8d72a-a9c9-4edc-9ecf-b5b58e6197a9?inc=release-rels+artist-credits' =>
         {
             id => "37a8d72a-a9c9-4edc-9ecf-b5b58e6197a9",
             title => "Dear Diary",
+            "artist-credit" => [
+                {
+                    name => "Wedlock",
+                    artist => {
+                        id => "6fe9f838-112e-44f1-af83-97464f08285b",
+                        name => "Wedlock",
+                        "sort-name" => "Wedlock",
+                        disambiguation => "USA electro pop",
+                        "type" => "Group",
+                        "type-id" => 'e431f5f6-b5d2-343d-8b36-72607fffb74b',
+                    },
+                    joinphrase => "",
+                },
+            ],
             disambiguation => "",
             length => 86666,
             video => JSON::false,
+            'first-release-date' => '2008-04-29',
             relations => [
                 {
                     attributes => [],
@@ -283,6 +318,20 @@ test 'recording lookup with release relationships' => sub {
                         barcode => '634479663338',
                         country => 'US',
                         date => '2007-11-08',
+                        "artist-credit" => [
+                            {
+                                name => "Paul Allgood",
+                                artist => {
+                                    id => "05d83760-08b5-42bb-a8d7-00d80b3bf47c",
+                                    name => "Paul Allgood",
+                                    "sort-name" => "Allgood, Paul",
+                                    disambiguation => "",
+                                    "type" => JSON::null,
+                                    "type-id" => JSON::null,
+                                },
+                                joinphrase => "",
+                            },
+                        ],
                         "release-events" => [{
                             area => {
                               disambiguation => '',
@@ -291,7 +340,9 @@ test 'recording lookup with release relationships' => sub {
                                 'US'
                               ],
                               name => 'United States',
-                              'sort-name' => 'United States'
+                              'sort-name' => 'United States',
+                              'type' => JSON::null,
+                              'type-id' => JSON::null,
                             },
                             date => '2007-11-08',
                         }],
@@ -331,6 +382,7 @@ test 'recording lookup with work relationships' => sub {
             disambiguation => "",
             length => 243000,
             video => JSON::false,
+            'first-release-date' => '2004-03-17',
             relations => [
                 {
                     attributes => [],
@@ -394,7 +446,9 @@ test 'recording lookup with work-level relationships' => sub {
                         disambiguation => 'UK dubstep artist Greg Sanders',
                         id => '472bc127-8861-45e8-bc9e-31e8dd32de7a',
                         name => 'Distance',
-                        'sort-name' => 'Distance'
+                        'sort-name' => 'Distance',
+                        "type" => "Person",
+                        "type-id" => "b6e035f4-3ce9-331c-97df-83397230b0df",
                     },
                     attributes => [],
                     "attribute-ids" => {},
@@ -417,7 +471,24 @@ test 'recording lookup with work-level relationships' => sub {
             'target-credit' => '',
             'target-type' => 'work',
         } ],
-        title => 'Asseswaving'
+        title => 'Asseswaving',
+        'first-release-date' => '2008-04-29',
+    };
+};
+
+test 'standalone recording lookup' => sub {
+    my $c = shift->c;
+    MusicBrainz::Server::Test->prepare_test_database($c, '+webservice');
+    MusicBrainz::Server::Test->prepare_test_database($c, '+standalone_recording');
+
+    ws_test_json 'standalone recording lookup',
+    '/recording/c289a368-867e-4ae0-a1ac-ba28a99822f3' =>
+    {
+        disambiguation => '',
+        id => 'c289a368-867e-4ae0-a1ac-ba28a99822f3',
+        length => 10000,
+        video => JSON::false,
+        title => '[silence]',
     };
 };
 

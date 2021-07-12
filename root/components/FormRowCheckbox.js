@@ -7,32 +7,70 @@
  * later version: http://www.gnu.org/licenses/gpl-2.0.txt
  */
 
-import React from 'react';
+import * as React from 'react';
 
 import FieldErrors from './FieldErrors';
 import FormRow from './FormRow';
 
-type Props = {|
+type CommonProps = {
+  +disabled?: boolean,
   +field: ReadOnlyFieldT<boolean>,
+  +help?: React.Node,
   +label: string,
-  +onChange?: (event: SyntheticEvent<HTMLInputElement>) => void,
-|};
+};
 
-const FormRowCheckbox = ({field, label, onChange}: Props) => (
-  <FormRow hasNoLabel>
-    <label className="inline">
-      <input
-        defaultChecked={field.value}
-        name={field.html_name}
-        onChange={onChange}
-        type="checkbox"
-        value="1"
-      />
-      {' '}
-      {label}
-    </label>
-    <FieldErrors field={field} />
-  </FormRow>
-);
+type Props =
+  | $ReadOnly<{
+      ...CommonProps,
+      onChange: (event: SyntheticEvent<HTMLInputElement>) => void,
+      uncontrolled?: false,
+    }>
+  | $ReadOnly<{
+      ...CommonProps,
+      uncontrolled: true,
+    }>;
+
+const FormRowCheckbox = ({
+  disabled,
+  field,
+  help,
+  label,
+  // $FlowIssue[prop-missing]
+  onChange,
+  uncontrolled,
+}: Props): React.Element<typeof FormRow> => {
+  const extraProps = {};
+  if (uncontrolled) {
+    extraProps.defaultChecked = field.value;
+  } else {
+    extraProps.onChange = onChange;
+    extraProps.checked = field.value;
+  }
+
+  return (
+    <FormRow hasNoLabel>
+      <label className="inline">
+        <input
+          aria-describedby={help ? `field-help-${field.id}` : null}
+          disabled={disabled}
+          id={'id-' + String(field.html_name)}
+          name={field.html_name}
+          onChange={onChange}
+          type="checkbox"
+          value="1"
+          {...extraProps}
+        />
+        {' '}
+        {label}
+      </label>
+      <FieldErrors field={field} />
+      {help ? (
+        <div className="form-help" id={`field-help-${field.id}`}>
+          {help}
+        </div>
+      ) : null}
+    </FormRow>
+  );
+};
 
 export default FormRowCheckbox;

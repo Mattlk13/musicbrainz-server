@@ -41,6 +41,7 @@ Images:
     icons/delete.png
     icons/edit.png
     icons/information.png
+    icons/tick.png (recolored to gold by CatQuest)
 
 ----------------------------------------------------------------------------
 
@@ -63,7 +64,8 @@ Images:
     flags/su.png (https://commons.wikimedia.org/wiki/File:Icons-flag-su.png)
     flags/sx.png (https://commons.wikimedia.org/wiki/File:Icons-flag-sx.png)
     flags/xg.png (https://commons.wikimedia.org/wiki/File:Icons-flag-ddde.png)
-    flags/xw.png (https://commons.wikimedia.org/wiki/File:Icons-flag-unitednations.png)
+    flags/xk.png (https://commons.wikimedia.org/wiki/File:Flag_of_Kosovo.svg)
+    flags/xw.png (author: pmepepnoute (https://tickets.metabrainz.org/browse/MBS-11292), released as CC0)
 
 ----------------------------------------------------------------------------
 
@@ -73,8 +75,8 @@ License:     CC-NC-ND-BY/3.0 (see: http://creativecommons.org/licenses/by-nc-nd/
 Download:    http://gentleface.com/free_icon_set.html
 Images:
 
-    favicons/home-32.png (original: black/png/home_icon&32.png)
-    favicons/blog-32.png (original: black/png/speechbubble_sq_line_icon&32.png)
+    external-favicons/home-32.png (original: black/png/home_icon&32.png)
+    external-favicons/blog-32.png (original: black/png/speechbubble_sq_line_icon&32.png)
 
 ----------------------------------------------------------------------------
 
@@ -131,11 +133,16 @@ Author:      http://www.androidicons.com
 License:     CC-BY (see download page)
 Download:    http://findicons.com/icon/80718/monitor (original, cropped in MusicBrainz)
              http://findicons.com/icon/80717/magnet (original, cropped in MusicBrainz)
+             https://github.com/opoloo/androidicons/releases/tag/v1.0
+
 
 Images:
 
     icons/video.png
     icons/magnet.png
+    icons/timeline.png (original: ai-line-chart)
+    icons/picture.png (original: /androidicons-1.0/assets/holo_light/hdpi/ic_action_picture.png)
+    icons/pregap.png (mashup of ai-playback-rew and ai-record)
 
 ----------------------------------------------------------------------------
 
@@ -183,3 +190,12 @@ Images:
 
     (original .svg versions are in src/icons/*.svg)
 
+----------------------------------------------------------------------------
+
+Source:      Calvin Walton (kepstin)
+License:     CC0
+Authors:     Calvin Walton (kepstin)
+
+Image:
+
+    no-cover-art.png

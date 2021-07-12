@@ -7,10 +7,15 @@ with 'MusicBrainz::Server::Controller::Role::Load' => {
     model           => 'Area',
     relationships   => {
         cardinal    => ['edit'],
-        default     => ['url'],
         subset      => {
-            show => [qw( area artist label place series instrument release release_group recording work url )],
-        }
+            show => [qw( area artist label place series instrument release_group url )],
+        },
+        paged_subset => {
+            recordings => ['recording'],
+            releases => ['release'],
+            works => ['work'],
+        },
+        default     => ['url']
     },
 };
 with 'MusicBrainz::Server::Controller::Role::LoadWithRowID';
@@ -23,7 +28,7 @@ with 'MusicBrainz::Server::Controller::Role::WikipediaExtract';
 with 'MusicBrainz::Server::Controller::Role::CommonsImage';
 with 'MusicBrainz::Server::Controller::Role::EditRelationships';
 with 'MusicBrainz::Server::Controller::Role::JSONLD' => {
-    endpoints => {show => {}, aliases => {copy_stash => ['aliases']}}
+    endpoints => {show => {copy_stash => ['top_tags']}, aliases => {copy_stash => ['aliases']}}
 };
 with 'MusicBrainz::Server::Controller::Role::Collection' => {
     entity_type => 'area'
@@ -34,6 +39,7 @@ use HTTP::Status qw( :constants );
 use MusicBrainz::Server::Translation qw( l );
 use MusicBrainz::Server::Constants qw( $EDIT_AREA_CREATE $EDIT_AREA_EDIT $EDIT_AREA_DELETE $EDIT_AREA_MERGE );
 use MusicBrainz::Server::ControllerUtils::JSON qw( serialize_pager );
+use MusicBrainz::Server::Entity::Util::JSON qw( to_json_array to_json_object );
 use Sql;
 
 =head1 NAME
@@ -89,9 +95,9 @@ sub show : PathPart('') Chained('load')
     my ($self, $c) = @_;
 
     my %props = (
-        area              => $c->stash->{area},
+        area              => $c->stash->{area}->TO_JSON,
         numberOfRevisions => $c->stash->{number_of_revisions},
-        wikipediaExtract  => $c->stash->{wikipedia_extract},
+        wikipediaExtract  => to_json_object($c->stash->{wikipedia_extract}),
     );
 
     $c->stash(
@@ -117,13 +123,14 @@ sub artists : Chained('load')
         $c->model('Gender')->load(@$artists);
         $c->model('Area')->load(@$artists);
         $c->model('Area')->load_containment(map { $_->{area}, $_->{begin_area}, $_->{end_area} } @$artists);
+        $c->model('Artist')->load_meta(@$artists);
     if ($c->user_exists) {
         $c->model('Artist')->rating->load_user_ratings($c->user->id, @$artists);
     }
 
     my %props = (
-        area        => $c->stash->{area},
-        artists     => $artists,
+        area        => $c->stash->{area}->TO_JSON,
+        artists     => to_json_array($artists),
         pager       => serialize_pager($c->stash->{pager}),
     );
 
@@ -150,11 +157,12 @@ sub events : Chained('load')
     $c->model('Area')->load(map { $_->{entity} } map { $_->all_places } @$events);
     $c->model('Area')->load_containment(map { (map { $_->{entity} } $_->all_areas),
                                               (map { $_->{entity}->area } $_->all_places) } @$events);
+    $c->model('Event')->load_meta(@$events);
     $c->model('Event')->rating->load_user_ratings($c->user->id, @$events) if $c->user_exists;
 
     my %props = (
-        area       => $c->stash->{area},
-        events      => $events,
+        area       => $c->stash->{area}->TO_JSON,
+        events      => to_json_array($events),
         pager       => serialize_pager($c->stash->{pager}),
     );
 
@@ -180,13 +188,14 @@ sub labels : Chained('load')
     $c->model('LabelType')->load(@$labels);
     $c->model('Area')->load(@$labels);
     $c->model('Area')->load_containment(map { $_->{area} } @$labels);
+    $c->model('Label')->load_meta(@$labels);
     if ($c->user_exists) {
         $c->model('Label')->rating->load_user_ratings($c->user->id, @$labels);
     }
 
     my %props = (
-        area         => $c->stash->{area},
-        labels       => $labels,
+        area         => $c->stash->{area}->TO_JSON,
+        labels       => to_json_array($labels),
         pager        => serialize_pager($c->stash->{pager}),
     );
 
@@ -207,17 +216,27 @@ sub releases : Chained('load')
 {
     my  ($self, $c) = @_;
 
-    my $releases = $self->_load_paged($c, sub {
-            $c->model('Release')->find_by_country($c->stash->{area}->id, shift, shift);
-        });
+    my $stash = $c->stash;
+    my $paged_link_type_group = $stash->{paged_link_type_group};
+    my $releases;
 
-    $c->model('ArtistCredit')->load(@$releases);
-    $c->model('Release')->load_related_info(@$releases);
+    unless ($paged_link_type_group) {
+        $releases = $self->_load_paged($c, sub {
+            $c->model('Release')->find_by_country($stash->{area}->id, shift, shift);
+        });
+        $c->model('ArtistCredit')->load(@$releases);
+        $c->model('Release')->load_related_info(@$releases);
+    }
+
+    my $pager = defined $stash->{pager}
+        ? serialize_pager($stash->{pager})
+        : undef;
 
     my %props = (
-        area        => $c->stash->{area},
-        releases    => $releases,
-        pager       => serialize_pager($c->stash->{pager}),
+        area => $stash->{area}->TO_JSON,
+        releases => to_json_array($releases),
+        pagedLinkTypeGroup => to_json_object($paged_link_type_group),
+        pager => $pager,
     );
 
     $c->stash(
@@ -242,21 +261,23 @@ sub places : Chained('load')
     $c->model('PlaceType')->load(@$places);
     $c->model('Area')->load(@$places);
     $c->model('Area')->load_containment(map { $_->area } @$places);
+    $c->model('Place')->load_meta(@$places);
+    $c->model('Place')->rating->load_user_ratings($c->user->id, @$places) if $c->user_exists;
 
     my %props = (
-        area        => $c->stash->{area},
+        area        => $c->stash->{area}->TO_JSON,
         mapDataArgs => $c->json->encode({
             places => [
                 map {
                     my $json = $_->TO_JSON;
                     # These arguments aren't needed at all to render the map,
                     # and only increase the page size.
-                    delete @{$json}{qw(annotation unaccented_name)};
+                    delete @{$json}{qw(annotation)};
                     $json;
                 } grep { $_->coordinates } @$places
             ],
         }),
-        places      => $places,
+        places      => to_json_array($places),
         pager       => serialize_pager($c->stash->{pager}),
     );
 
@@ -266,11 +287,6 @@ sub places : Chained('load')
         current_view    => 'Node',
     );
 }
-
-after [qw( show collections details tags aliases artists labels releases places )] => sub {
-    my ($self, $c) = @_;
-    $self->_stash_collections($c);
-};
 
 =head2 users
 
@@ -287,8 +303,8 @@ sub users : Chained('load') {
     });
 
     my %props = (
-        area        => $c->stash->{area},
-        editors     => $editors,
+        area        => $c->stash->{area}->TO_JSON,
+        editors     => to_json_array($editors),
         pager       => serialize_pager($c->stash->{pager}),
     );
 
@@ -299,6 +315,59 @@ sub users : Chained('load') {
     );
 }
 
+=head2 recordings
+
+Shows recordings related to this area.
+
+=cut
+
+sub recordings : Chained('load') {
+    my ($self, $c) = @_;
+
+    my $stash = $c->stash;
+    my $pager = defined $stash->{pager}
+        ? serialize_pager($stash->{pager})
+        : undef;
+    $c->stash(
+        component_path => 'area/AreaRecordings',
+        component_props => {
+            area => $stash->{area}->TO_JSON,
+            pagedLinkTypeGroup => to_json_object($stash->{paged_link_type_group}),
+            pager => $pager,
+        },
+        current_view => 'Node',
+    );
+}
+
+=head2 works
+
+Shows works related to this area.
+
+=cut
+
+sub works : Chained('load') {
+    my ($self, $c) = @_;
+
+    my $stash = $c->stash;
+    my $pager = defined $stash->{pager}
+        ? serialize_pager($stash->{pager})
+        : undef;
+    $c->stash(
+        component_path => 'area/AreaWorks',
+        component_props => {
+            area => $stash->{area}->TO_JSON,
+            pagedLinkTypeGroup => to_json_object($stash->{paged_link_type_group}),
+            pager => $pager,
+        },
+        current_view => 'Node',
+    );
+}
+
+after [qw( show collections details tags aliases artists events labels releases recordings places users works )] => sub {
+    my ($self, $c) = @_;
+    $self->_stash_collections($c);
+};
+
 =head2 WRITE METHODS
 
 =cut
@@ -306,6 +375,7 @@ sub users : Chained('load') {
 with 'MusicBrainz::Server::Controller::Role::Create' => {
     form      => 'Area',
     edit_type => $EDIT_AREA_CREATE,
+    dialog_template => 'area/edit_form.tt',
 };
 
 with 'MusicBrainz::Server::Controller::Role::Edit' => {
@@ -330,28 +400,26 @@ for my $method (qw( create edit merge merge_queue delete add_alias edit_alias de
     };
 };
 
+before qw( create edit ) => sub {
+    my ($self, $c) = @_;
+    my %area_types = map {$_->id => $_} $c->model('AreaType')->get_all();
+    $c->stash->{area_types} = \%area_types;
+};
+
 sub _merge_load_entities
 {
     my ($self, $c, @areas) = @_;
     $c->model('Area')->load_containment(@areas);
+    $c->model('AreaType')->load(@areas);
 };
 
-=head1 LICENSE
+=head1 COPYRIGHT AND LICENSE
 
-This software is provided "as is", without warranty of any kind, express or
-implied, including  but not limited  to the warranties of  merchantability,
-fitness for a particular purpose and noninfringement. In no event shall the
-authors or  copyright  holders be  liable for any claim,  damages or  other
-liability, whether  in an  action of  contract, tort  or otherwise, arising
-from,  out of  or in  connection with  the software or  the  use  or  other
-dealings in the software.
+Copyright (C) 2013 MetaBrainz Foundation
 
-GPL - The GNU General Public License    http://www.gnu.org/licenses/gpl.txt
-Permits anyone the right to use and modify the software without limitations
-as long as proper  credits are given  and the original  and modified source
-code are included. Requires  that the final product, software derivate from
-the original  source or any  software  utilizing a GPL  component, such  as
-this, is also licensed under the GPL license.
+This file is part of MusicBrainz, the open internet music database,
+and is licensed under the GPL version 2, or (at your option) any
+later version: http://www.gnu.org/licenses/gpl-2.0.txt
 
 =cut
 

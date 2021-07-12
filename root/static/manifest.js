@@ -1,7 +1,10 @@
-// This file is part of MusicBrainz, the open internet music database.
-// Copyright (C) 2015 MetaBrainz Foundation
-// Licensed under the GPL version 2, or (at your option) any later version:
-// http://www.gnu.org/licenses/gpl-2.0.txt
+/*
+ * @flow
+ * This file is part of MusicBrainz, the open internet music database.
+ * Copyright (C) 2015 MetaBrainz Foundation
+ * Licensed under the GPL version 2, or (at your option) any later version:
+ * http://www.gnu.org/licenses/gpl-2.0.txt
+ */
 
 /*
  * This module is used to look up assets in webpack's manifest, which maps
@@ -14,12 +17,15 @@
  */
 const React = require('react');
 
+// $FlowIgnore[cannot-resolve-module]
 const revManifest = require('./build/rev-manifest');
+const DBDefs = require('./scripts/common/DBDefs');
 
 function pathTo(manifest) {
   manifest = manifest.replace(/^\//, '');
 
-  const publicPath = revManifest[manifest];
+  const publicPath = DBDefs.STATIC_RESOURCES_LOCATION + '/' +
+    revManifest[manifest];
 
   if (!publicPath) {
     return manifest;
@@ -29,15 +35,18 @@ function pathTo(manifest) {
 }
 
 const jsExt = /\.js(?:on)?$/;
-function js(manifest, extraAttrs={}) {
+function js(
+  manifest: string,
+  extraAttrs?: {+'async'?: 'async', +'data-args'?: mixed} | null = null,
+): React.Element<'script'> {
   if (!jsExt.test(manifest)) {
     manifest += '.js';
   }
   return (
     <script
       src={pathTo(manifest)}
-      {...extraAttrs}>
-    </script>
+      {...extraAttrs}
+    />
   );
 }
 

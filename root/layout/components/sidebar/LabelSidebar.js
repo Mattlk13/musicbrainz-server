@@ -1,5 +1,5 @@
 /*
- * @flow
+ * @flow strict-local
  * Copyright (C) 2018 MetaBrainz Foundation
  *
  * This file is part of MusicBrainz, the open internet music database,
@@ -9,9 +9,13 @@
 
 import * as React from 'react';
 
-import {withCatalystContext} from '../../../context';
-import CommonsImage from '../../../static/scripts/common/components/CommonsImage';
-import DescriptiveLink from '../../../static/scripts/common/components/DescriptiveLink';
+import {CatalystContext} from '../../../context';
+import CommonsImage
+  from '../../../static/scripts/common/components/CommonsImage';
+import DescriptiveLink
+  from '../../../static/scripts/common/components/DescriptiveLink';
+import isSpecialPurpose
+  from '../../../static/scripts/common/utility/isSpecialPurpose';
 import * as age from '../../../utility/age';
 import formatLabelCode from '../../../utility/formatLabelCode';
 import ExternalLinks from '../ExternalLinks';
@@ -33,14 +37,16 @@ import SidebarTags from './SidebarTags';
 import SidebarType from './SidebarType';
 import SubscriptionLinks from './SubscriptionLinks';
 
-type Props = {|
-  +$c: CatalystContextT,
+type Props = {
   +label: LabelT,
-|};
+};
 
-const LabelSidebar = ({$c, label}: Props) => {
+const LabelSidebar = ({label}: Props): React.Element<'div'> => {
+  const $c = React.useContext(CatalystContext);
   const labelAge = age.age(label);
   const gid = encodeURIComponent(label.gid);
+  const area = label.area;
+  const isSpecialPurposeLabel = isSpecialPurpose(label);
 
   return (
     <div id="sidebar">
@@ -56,9 +62,17 @@ const LabelSidebar = ({$c, label}: Props) => {
       <SidebarProperties>
         <SidebarType entity={label} typeType="label_type" />
 
-        <SidebarBeginDate age={labelAge} entity={label} label={l('Founded:')} />
+        <SidebarBeginDate
+          age={labelAge}
+          entity={label}
+          label={l('Founded:')}
+        />
 
-        <SidebarEndDate age={labelAge} entity={label} label={l('Defunct:')} />
+        <SidebarEndDate
+          age={labelAge}
+          entity={label}
+          label={l('Defunct:')}
+        />
 
         <SidebarIpis entity={label} />
 
@@ -70,21 +84,16 @@ const LabelSidebar = ({$c, label}: Props) => {
           </SidebarProperty>
         ) : null}
 
-        {label.area ? (
+        {area ? (
           <SidebarProperty className="area" label={l('Area:')}>
-            <DescriptiveLink entity={label.area} />
+            <DescriptiveLink entity={area} />
           </SidebarProperty>
         ) : null}
       </SidebarProperties>
 
       <SidebarRating entity={label} />
 
-      <SidebarTags
-        aggregatedTags={$c.stash.top_tags}
-        entity={label}
-        more={!!$c.stash.more_tags}
-        userTags={$c.stash.user_tags}
-      />
+      <SidebarTags entity={label} />
 
       <ExternalLinks empty entity={label} />
 
@@ -106,7 +115,9 @@ const LabelSidebar = ({$c, label}: Props) => {
         <li className="separator" role="separator" />
       </EditLinks>
 
-      <SubscriptionLinks entity={label} />
+      {isSpecialPurposeLabel
+        ? null
+        : <SubscriptionLinks entity={label} />}
 
       <CollectionLinks entity={label} />
 
@@ -117,4 +128,4 @@ const LabelSidebar = ({$c, label}: Props) => {
   );
 };
 
-export default withCatalystContext(LabelSidebar);
+export default LabelSidebar;

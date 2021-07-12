@@ -1,5 +1,5 @@
 /*
- * @flow
+ * @flow strict-local
  * Copyright (C) 2018 MetaBrainz Foundation
  *
  * This file is part of MusicBrainz, the open internet music database,
@@ -7,10 +7,11 @@
  * later version: http://www.gnu.org/licenses/gpl-2.0.txt
  */
 
-import React from 'react';
+import * as React from 'react';
 
-import {withCatalystContext} from '../../context';
 import EntityLink from '../../static/scripts/common/components/EntityLink';
+import {isEditingEnabled}
+  from '../../static/scripts/common/utility/privileges';
 import loopParity from '../../utility/loopParity';
 import type {ResultsPropsWithContextT} from '../types';
 
@@ -27,7 +28,9 @@ function buildResult(result, index) {
         <EntityLink entity={series} />
       </td>
       <td>
-        {series.typeName ? lp_attributes(series.typeName, 'series_type') : null}
+        {nonEmpty(series.typeName)
+          ? lp_attributes(series.typeName, 'series_type')
+          : null}
       </td>
     </tr>
   );
@@ -40,7 +43,8 @@ const SeriesResults = ({
   pager,
   query,
   results,
-}: ResultsPropsWithContextT<SeriesT>) => (
+}: ResultsPropsWithContextT<SeriesT>):
+React.Element<typeof ResultsLayout> => (
   <ResultsLayout form={form} lastUpdated={lastUpdated}>
     <PaginatedSearchResults
       buildResult={buildResult}
@@ -54,7 +58,7 @@ const SeriesResults = ({
       query={query}
       results={results}
     />
-    {$c.user && !$c.user.is_editing_disabled ? (
+    {isEditingEnabled($c.user) ? (
       <p>
         {exp.l('Alternatively, you may {uri|add a new series}.', {
           uri: '/series/create?edit-series.name=' + encodeURIComponent(query),
@@ -64,4 +68,4 @@ const SeriesResults = ({
   </ResultsLayout>
 );
 
-export default withCatalystContext(SeriesResults);
+export default SeriesResults;

@@ -153,20 +153,20 @@ sub is_empty {
     my ($self, $event_id) = @_;
 
     my $used_in_relationship = used_in_relationship($self->c, event => 'event_row.id');
-    return $self->sql->select_single_value(<<EOSQL, $event_id, $STATUS_OPEN);
+    return $self->sql->select_single_value(<<~"EOSQL", $event_id, $STATUS_OPEN);
         SELECT TRUE
         FROM event event_row
         WHERE id = ?
         AND edits_pending = 0
         AND NOT (
-          EXISTS (
-            SELECT TRUE
-            FROM edit_event JOIN edit ON edit_event.edit = edit.id
-            WHERE status = ? AND event = event_row.id
-          ) OR
-          $used_in_relationship
+            EXISTS (
+                SELECT TRUE
+                FROM edit_event JOIN edit ON edit_event.edit = edit.id
+                WHERE status = ? AND event = event_row.id
+            ) OR
+            $used_in_relationship
         )
-EOSQL
+        EOSQL
 }
 
 sub load_related_info {
@@ -191,23 +191,29 @@ sub find_by_area
 {
     my ($self, $area_id, $limit, $offset) = @_;
     my (
-        $containment_query,
-        @containment_query_args,
-    ) = get_area_containment_query('$2', 'lae.entity0');
+        $area_containment_query,
+        @area_containment_query_args,
+    ) = get_area_containment_query('$2', 'ea.area');
     my $query =
         "SELECT " . $self->_columns ."
-           FROM (
-                    SELECT lae.entity1 AS event
-                      FROM l_area_event lae
-                     WHERE lae.entity0 = \$1 OR EXISTS (
-                        SELECT 1 FROM ($containment_query) ac
-                         WHERE ac.descendant = lae.entity0 AND ac.parent = \$1
-                     )
-                ) s, " . $self->_table . "
+            FROM (
+                SELECT ea.event FROM (
+                    SELECT lae.entity1 AS event, lae.entity0 AS area
+                    FROM l_area_event lae
+                    UNION
+                    SELECT lep.entity0 AS event, p.area
+                    FROM l_event_place lep
+                    JOIN place p ON lep.entity1 = p.id
+                ) ea
+                WHERE ea.area = \$1 OR EXISTS (
+                    SELECT 1 FROM ($area_containment_query) ac
+                    WHERE ac.descendant = ea.area AND ac.parent = \$1
+                )
+            ) s, " . $self->_table . "
           WHERE event.id = s.event
-       ORDER BY event.begin_date_year, event.begin_date_month, event.begin_date_day, event.time, musicbrainz_collate(event.name)";
+       ORDER BY event.begin_date_year, event.begin_date_month, event.begin_date_day, event.time, event.name COLLATE musicbrainz";
     $self->query_to_list_limited(
-        $query, [$area_id, @containment_query_args], $limit, $offset, undef,
+        $query, [$area_id, @area_containment_query_args], $limit, $offset, undef,
         dollar_placeholders => 1,
     );
 }
@@ -219,14 +225,14 @@ sub find_by_artist
     my $query =
         'SELECT ' . $self->_columns .'
            FROM (
-                    SELECT entity1 AS event
+                    SELECT DISTINCT entity1 AS event
                       FROM l_artist_event ar
                       JOIN link ON ar.link = link.id
                       JOIN link_type lt ON lt.id = link.link_type
                      WHERE entity0 = ?
                 ) s, ' . $self->_table .'
           WHERE event.id = s.event
-       ORDER BY event.begin_date_year, event.begin_date_month, event.begin_date_day, event.time, musicbrainz_collate(event.name)';
+       ORDER BY event.begin_date_year, event.begin_date_month, event.begin_date_day, event.time, event.name COLLATE musicbrainz';
 
     $self->query_to_list_limited($query, [$artist_id], $limit, $offset);
 }
@@ -237,13 +243,13 @@ sub _order_by {
 
     my $order_by = order_by($order, "date", {
         "date" => sub {
-            return "begin_date_year, begin_date_month, begin_date_day, time, musicbrainz_collate(name)"
+            return "begin_date_year, begin_date_month, begin_date_day, time, name COLLATE musicbrainz"
         },
         "name" => sub {
-            return "musicbrainz_collate(name), begin_date_year, begin_date_month, begin_date_day, time"
+            return "name COLLATE musicbrainz, begin_date_year, begin_date_month, begin_date_day, time"
         },
         "type" => sub {
-            return "type, begin_date_year, begin_date_month, begin_date_day, time, musicbrainz_collate(name)"
+            return "type, begin_date_year, begin_date_month, begin_date_day, time, name COLLATE musicbrainz"
         },
     });
 
@@ -257,14 +263,14 @@ sub find_by_place
     my $query =
         'SELECT ' . $self->_columns .'
            FROM (
-                    SELECT entity0 AS event
+                    SELECT DISTINCT entity0 AS event
                       FROM l_event_place ar
                       JOIN link ON ar.link = link.id
                       JOIN link_type lt ON lt.id = link.link_type
                      WHERE entity1 = ?
                 ) s, ' . $self->_table .'
           WHERE event.id = s.event
-       ORDER BY event.begin_date_year, event.begin_date_month, event.begin_date_day, event.time, musicbrainz_collate(event.name)';
+       ORDER BY event.begin_date_year, event.begin_date_month, event.begin_date_day, event.time, event.name COLLATE musicbrainz';
 
     $self->query_to_list_limited($query, [$place_id], $limit, $offset);
 }
@@ -380,13 +386,14 @@ sub _find_performers
     return unless @$ids;
 
     my $query = "
-        SELECT lae.entity1 AS event, lae.entity0 AS artist, array_agg(lt.name) AS roles
+        SELECT lae.entity1 AS event, lae.entity0 AS artist,
+            lae.entity0_credit AS credit, array_agg(lt.name) AS roles
         FROM l_artist_event lae
         JOIN link l ON lae.link = l.id
         JOIN link_type lt ON l.link_type = lt.id
         WHERE lae.entity1 IN (" . placeholders(@$ids) . ")
-        GROUP BY lae.entity1, lae.entity0
-        ORDER BY count(*) DESC, artist
+        GROUP BY lae.entity1, lae.entity0, lae.entity0_credit
+        ORDER BY count(*) DESC, artist, credit
     ";
 
     my $rows = $self->sql->select_list_of_lists($query, @$ids);
@@ -395,9 +402,10 @@ sub _find_performers
     my $artists = $self->c->model('Artist')->get_by_ids(@artist_ids);
 
     for my $row (@$rows) {
-        my ($event_id, $artist_id, $roles) = @$row;
+        my ($event_id, $artist_id, $credit, $roles) = @$row;
         $map->{$event_id} ||= [];
         push @{ $map->{$event_id} }, {
+            credit => $credit,
             entity => $artists->{$artist_id},
             roles => [ uniq @{ $roles } ]
         }
@@ -439,13 +447,14 @@ sub _find_places
     return unless @$ids;
 
     my $query = "
-        SELECT lep.entity0 AS event, lep.entity1 AS place
+        SELECT lep.entity0 AS event, lep.entity1 AS place,
+            lep.entity1_credit AS credit
         FROM l_event_place lep
         JOIN link l ON lep.link = l.id
         JOIN link_type lt ON l.link_type = lt.id
         WHERE lep.entity0 IN (" . placeholders(@$ids) . ")
-        GROUP BY lep.entity0, lep.entity1
-        ORDER BY count(*) DESC, place
+        GROUP BY lep.entity0, lep.entity1, lep.entity1_credit
+        ORDER BY count(*) DESC, place, credit
     ";
 
     my $rows = $self->sql->select_list_of_lists($query, @$ids);
@@ -454,9 +463,10 @@ sub _find_places
     my $places = $self->c->model('Place')->get_by_ids(@place_ids);
 
     for my $row (@$rows) {
-        my ($event_id, $place_id) = @$row;
+        my ($event_id, $place_id, $credit) = @$row;
         $map->{$event_id} ||= [];
         push @{ $map->{$event_id} }, {
+            credit => $credit,
             entity => $places->{$place_id}
         }
     }
@@ -468,13 +478,14 @@ sub _find_areas
     return unless @$ids;
 
     my $query = "
-        SELECT lare.entity1 AS event, lare.entity0 AS area
+        SELECT lare.entity1 AS event, lare.entity0 AS area,
+            lare.entity0_credit AS credit
         FROM l_area_event lare
         JOIN link l ON lare.link = l.id
         JOIN link_type lt ON l.link_type = lt.id
         WHERE lare.entity1 IN (" . placeholders(@$ids) . ")
-        GROUP BY lare.entity1, lare.entity0
-        ORDER BY count(*) DESC, area
+        GROUP BY lare.entity1, lare.entity0, lare.entity0_credit
+        ORDER BY count(*) DESC, area, credit
     ";
 
     my $rows = $self->sql->select_list_of_lists($query, @$ids);
@@ -483,9 +494,10 @@ sub _find_areas
     my $areas = $self->c->model('Area')->get_by_ids(@area_ids);
 
     for my $row (@$rows) {
-        my ($event_id, $area_id) = @$row;
+        my ($event_id, $area_id, $credit) = @$row;
         $map->{$event_id} ||= [];
         push @{ $map->{$event_id} }, {
+            credit => $credit,
             entity => $areas->{$area_id}
         }
     }
@@ -505,22 +517,12 @@ __PACKAGE__->meta->make_immutable;
 no Moose;
 1;
 
-=head1 COPYRIGHT
+=head1 COPYRIGHT AND LICENSE
 
 Copyright (C) 2014 MetaBrainz Foundation
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program; if not, write to the Free Software
-Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+This file is part of MusicBrainz, the open internet music database,
+and is licensed under the GPL version 2, or (at your option) any
+later version: http://www.gnu.org/licenses/gpl-2.0.txt
 
 =cut

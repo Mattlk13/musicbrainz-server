@@ -1,4 +1,6 @@
-#!/bin/bash -u
+#!/usr/bin/env bash
+
+set -u
 
 export PATH=/usr/local/bin:$PATH
 export PERL_CARTON_PATH=~/carton-local
@@ -27,5 +29,7 @@ fi
 ./admin/CheckVotes.pl --verbose --summary
 
 ./admin/CheckElectionVotes.pl
+
+./admin/cleanup/MergeDuplicateArtistCredits --limit 100
 
 ./admin/RunExport

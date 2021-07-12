@@ -94,6 +94,18 @@ around get_by_gid => sub
     return $obj;
 };
 
+sub find_by_attribute
+{
+    my ($self, $attribute_id) = @_;
+    my $query = "SELECT " . $self->_columns . "
+                 FROM " . $self->_table . "
+                     JOIN link_type_attribute_type ltat ON ltat.link_type = link_type.id
+                 WHERE ltat.attribute_type = ?
+                 ORDER BY link_type.name COLLATE musicbrainz";
+
+    $self->query_to_list($query, [$attribute_id]);
+}
+
 sub load
 {
     my ($self, @objs) = @_;
@@ -197,6 +209,27 @@ sub get_attribute_type_list
     }
 
     return \@result;
+}
+
+sub load_root_ids {
+    my ($self, @objs) = @_;
+
+    my $rows = $self->sql->select_list_of_hashes(q{
+        WITH RECURSIVE link_type_hierarchy(id, root) AS (
+          SELECT id, id FROM link_type WHERE parent IS NULL
+           UNION ALL
+          SELECT child.id, parent.root
+            FROM link_type_hierarchy parent, link_type child
+           WHERE parent.id = child.parent
+        )
+        SELECT * FROM link_type_hierarchy
+         WHERE id = any(?)
+    }, [map { $_->id } @objs]);
+
+    my %mapping = map { $_->{id} => $_->{root} } @{$rows};
+    for my $obj (@objs) {
+        $obj->root_id($mapping{$obj->id});
+    }
 }
 
 sub insert
@@ -415,22 +448,12 @@ __PACKAGE__->meta->make_immutable;
 no Moose;
 1;
 
-=head1 COPYRIGHT
+=head1 COPYRIGHT AND LICENSE
 
 Copyright (C) 2009 Lukas Lalinsky
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program; if not, write to the Free Software
-Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+This file is part of MusicBrainz, the open internet music database,
+and is licensed under the GPL version 2, or (at your option) any
+later version: http://www.gnu.org/licenses/gpl-2.0.txt
 
 =cut

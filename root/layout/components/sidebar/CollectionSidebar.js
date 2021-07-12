@@ -1,5 +1,5 @@
 /*
- * @flow
+ * @flow strict-local
  * Copyright (C) 2018 MetaBrainz Foundation
  *
  * This file is part of MusicBrainz, the open internet music database,
@@ -9,91 +9,117 @@
 
 import * as React from 'react';
 
-import RequestLogin from '../../../components/RequestLogin';
-import {withCatalystContext} from '../../../context';
+import {CatalystContext} from '../../../context';
 import EditorLink from '../../../static/scripts/common/components/EditorLink';
 import EntityLink from '../../../static/scripts/common/components/EntityLink';
+import {formatCount} from '../../../statistics/utilities';
+import {returnToCurrentPage} from '../../../utility/returnUri';
 
+import MergeLink from './MergeLink';
 import {SidebarProperties, SidebarProperty} from './SidebarProperties';
 
-type Props = {|
-  +$c: CatalystContextT,
+type Props = {
   +collection: CollectionT,
-|};
+};
 
-const CollectionSidebar = ({$c, collection}: Props) => (
-  <div id="sidebar">
-    <h2 className="collection-information">
-      {l('Collection information')}
-    </h2>
+const CollectionSidebar = ({
+  collection,
+}: Props): React.Element<'div'> => {
+  const $c = React.useContext(CatalystContext);
+  const typeName = collection.typeName;
+  const owner = collection.editor;
+  const viewingOwnCollection = Boolean(
+    $c.user && owner && owner.id === $c.user.id,
+  );
 
-    <SidebarProperties>
-      <SidebarProperty className="" label={l('Owner:')}>
-        <EditorLink editor={collection.editor} />
-      </SidebarProperty>
+  return (
+    <div id="sidebar">
+      <h2 className="collection-information">
+        {l('Collection information')}
+      </h2>
 
-      {collection.typeName ? (
-        <SidebarProperty className="type" label={l('Type:')}>
-          {lp_attributes(collection.typeName, 'collection_type')}
+      <SidebarProperties>
+        <SidebarProperty className="" label={l('Owner:')}>
+          <EditorLink editor={collection.editor} />
         </SidebarProperty>
-      ) : null}
-    </SidebarProperties>
 
-    <h2 className="editing">{l('Editing')}</h2>
+        {nonEmpty(typeName) ? (
+          <SidebarProperty className="type" label={l('Type:')}>
+            {lp_attributes(typeName, 'collection_type')}
+          </SidebarProperty>
+        ) : null}
 
-    <ul className="links">
-      {$c.user_exists ? (
-        <>
-          <li>
-            <EntityLink
-              content={l('Open edits')}
-              entity={collection}
-              subPath="open_edits"
-            />
-          </li>
-          <li>
-            <EntityLink
-              content={l('Editing history')}
-              entity={collection}
-              subPath="edits"
-            />
-          </li>
-        </>
-      ) : (
+        <SidebarProperty
+          className=""
+          label={addColonText(l('Number of entities'))}
+        >
+          {formatCount($c, collection.entity_count)}
+        </SidebarProperty>
+      </SidebarProperties>
+
+      <h2 className="editing">{l('Editing')}</h2>
+
+      <ul className="links">
         <li>
-          <RequestLogin $c={$c} text={l('Log in to edit')} />
+          <EntityLink
+            content={l('Open edits')}
+            entity={collection}
+            subPath="open_edits"
+          />
         </li>
-      )}
-    </ul>
+        <li>
+          <EntityLink
+            content={l('Editing history')}
+            entity={collection}
+            subPath="edits"
+          />
+        </li>
+        {viewingOwnCollection ? (
+          <MergeLink entity={collection} />
+        ) : null}
+      </ul>
 
-    {$c.user_exists ? (
-      <>
-        <h2 className="subscriptions">{l('Subscriptions')}</h2>
-        <ul className="links">
-          {$c.stash.subscribed ? (
+      {$c.user ? (
+        <>
+          <h2 className="subscriptions">{l('Subscriptions')}</h2>
+          <ul className="links">
+            {$c.stash.subscribed /*:: === true */ ? (
+              <li>
+                <a
+                  href={
+                    '/account/subscriptions/collection/remove?id=' +
+                    String(collection.id) +
+                    '&' + returnToCurrentPage($c)
+                  }
+                >
+                  {l('Unsubscribe')}
+                </a>
+              </li>
+            ) : (
+              <li>
+                <a
+                  href={
+                    '/account/subscriptions/collection/add?id=' +
+                    String(collection.id) +
+                    '&' + returnToCurrentPage($c)
+                  }
+                >
+                  {l('Subscribe')}
+                </a>
+              </li>
+            )}
             <li>
-              <a href={'/account/subscriptions/collection/remove?id=' + String(collection.id)}>
-                {l('Unsubscribe')}
-              </a>
+              <EntityLink
+                content={l('Subscribers')}
+                entity={collection}
+                subPath="subscribers"
+              />
             </li>
-          ) : (
-            <li>
-              <a href={'/account/subscriptions/collection/add?id=' + String(collection.id)}>
-                {l('Subscribe')}
-              </a>
-            </li>
-          )}
-          <li>
-            <EntityLink
-              content={l('Subscribers')}
-              entity={collection}
-              subPath="subscribers"
-            />
-          </li>
-        </ul>
-      </>
-    ) : null}
-  </div>
-);
+          </ul>
+        </>
+      ) : null}
+    </div>
+  );
+};
 
-export default withCatalystContext(CollectionSidebar);
+export default CollectionSidebar;

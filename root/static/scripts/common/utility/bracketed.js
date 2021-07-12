@@ -1,5 +1,5 @@
 /*
- * @flow
+ * @flow strict-local
  * Copyright (C) 2015 MetaBrainz Foundation
  *
  * This file is part of MusicBrainz, the open internet music database,
@@ -10,7 +10,7 @@
 import expand2react from '../i18n/expand2react';
 import expand2text from '../i18n/expand2text';
 
-type Args = {|+type: '()' | '[]'|};
+type Args = {+type: '()' | '[]'};
 
 function _bracketed(args?: Args) {
   const type = args ? args.type : undefined;
@@ -23,15 +23,18 @@ function _bracketed(args?: Args) {
   }
 }
 
-export default function bracketed(text: ?VarSubstArg, args?: Args) {
-  if (text) {
+export default function bracketed(
+  text: ?VarSubstArg,
+  args?: Args,
+): Expand2ReactOutput {
+  if (nonEmpty(text)) {
     return expand2react(_bracketed(args), {text});
   }
   return '';
 }
 
-export function bracketedText(text: ?StrOrNum, args?: Args) {
-  if (text) {
+export function bracketedText(text: ?StrOrNum, args?: Args): string {
+  if (nonEmpty(text)) {
     return expand2text(_bracketed(args), {text});
   }
   return '';

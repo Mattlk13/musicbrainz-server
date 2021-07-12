@@ -1,5 +1,5 @@
 /*
- * @flow
+ * @flow strict-local
  * Copyright (C) 2019 MetaBrainz Foundation
  *
  * This file is part of MusicBrainz, the open internet music database,
@@ -12,11 +12,13 @@ import * as React from 'react';
 import Layout from '../layout';
 import EntityLink from '../static/scripts/common/components/EntityLink';
 
-type PropsT = {|
+type PropsT = {
   +genres: $ReadOnlyArray<GenreT>,
-|};
+};
 
-const GenreListPage = ({genres}: PropsT) => (
+const GenreListPage = ({
+  genres,
+}: PropsT): React.Element<typeof Layout> => (
   <Layout fullWidth title={l('Genre List')}>
     <div id="content">
       <h1>{l('Genre List')}</h1>

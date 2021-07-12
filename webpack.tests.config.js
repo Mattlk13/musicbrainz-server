@@ -12,13 +12,15 @@ const webpack = require('webpack');
 const browserConfig = require('./webpack/browserConfig');
 const dirs = require('./webpack/dirs');
 const moduleConfig = require('./webpack/moduleConfig');
+const definePluginConfig = require('./webpack/definePluginConfig');
 const providePluginConfig = require('./webpack/providePluginConfig');
 
 process.env.MUSICBRAINZ_RUNNING_TESTS = true;
-process.env.NODE_ENV = 'development';
+process.env.NODE_ENV = 'test';
 
 const baseTestsConfig = {
   context: dirs.CHECKOUT,
+  devtool: 'source-map',
   mode: 'development',
   module: moduleConfig,
   output: {
@@ -29,6 +31,8 @@ const baseTestsConfig = {
 
 const webTestsConfig = {
   entry: {
+    'autocomplete2': path.resolve(dirs.SCRIPTS, 'tests', 'autocomplete2.js'),
+    'dialog-test': path.resolve(dirs.SCRIPTS, 'tests', 'dialog.js'),
     'web-tests': path.resolve(dirs.SCRIPTS, 'tests', 'browser-runner.js'),
   },
 
@@ -47,7 +51,11 @@ const webTestsConfig = {
 const nodeTestsConfig = {
   entry: {
     'tests': path.resolve(dirs.SCRIPTS, 'tests', 'node-runner.js'),
-    'react-macros-tests': path.resolve(dirs.SCRIPTS, 'tests', 'react-macros.js'),
+    'react-macros-tests': path.resolve(
+      dirs.SCRIPTS,
+      'tests',
+      'react-macros.js',
+    ),
   },
 
   node: {
@@ -56,6 +64,7 @@ const nodeTestsConfig = {
   },
 
   plugins: [
+    new webpack.DefinePlugin(definePluginConfig),
     new webpack.ProvidePlugin(providePluginConfig),
   ],
 

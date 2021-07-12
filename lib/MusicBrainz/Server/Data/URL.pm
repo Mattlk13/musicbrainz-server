@@ -21,11 +21,13 @@ my %URL_SPECIALIZATIONS = (
     '45cat'               => qr{^https?://(?:www\.)?45cat\.com/}i,
     '45worlds'            => qr{^https?://(?:www\.)?45worlds\.com/}i,
     'Allmusic'            => qr{^https?://(?:www\.)?allmusic\.com/}i,
+    'AmazonMusic'         => qr{^https:\/\/music\.amazon\.(?:ae|at|com\.au|com\.br|ca|cn|com|de|es|fr|in|it|jp|co\.jp|com\.mx|nl|se|sg|com\.tr|co\.uk)/}i,
     'Animationsong'       => qr{^https?://(?:www\.)?animationsong\.com/}i,
     'AnimeNewsNetwork'    => qr{^https?://(?:www\.)?animenewsnetwork\.com/}i,
     'AnisonGeneration'    => qr{^https?://anison\.info/}i,
+    'AppleBooks'          => qr{^https?://books\.apple\.com/}i,
+    'AppleMusic'          => qr{^https?://music\.apple\.com/}i,
     'ASIN'                => qr{^https?://(?:www\.)?amazon(.*?)(?:\:[0-9]+)?/.*/([0-9B][0-9A-Z]{9})(?:[^0-9A-Z]|$)}i,
-    'BBCMusic'            => qr{^https?://(?:www\.)?bbc\.co\.uk/music/}i,
     'BaiduBaike'          => qr{^https?://baike\.baidu\.com/}i,
     'Bandcamp'            => qr{^https?://([^/]+\.)?bandcamp\.com/}i,
     'Bandsintown'         => qr{^https?://(?:www\.)?bandsintown\.com/}i,
@@ -39,21 +41,24 @@ my %URL_SPECIALIZATIONS = (
     'Castalbums'          => qr{^https?://(?:www\.)?castalbums\.org/}i,
     'CBFiddleRx'          => qr{^https?://(?:www\.)?cbfiddle\.com/rx/}i,
     'CcMixter'            => qr{^https?://(?:www\.)?ccmixter\.org/}i,
-    'CDBaby'              => qr{^https?://(?:(?:store|www)\.)?cdbaby\.com/}i,
+    'CDJapan'             => qr{^https?://(?:www\.)?cdjapan\.co\.jp/}i,
     'ChangeTip'           => qr{^https?://(?:www\.)?changetip\.com/tipme/}i,
     'CiNii'               => qr{^https?://(?:www\.)?ci\.nii\.ac\.jp/}i,
     'ClassicalArchives'   => qr{^https?://(?:www\.)?classicalarchives\.com/}i,
     'Commons'             => qr{^https?://commons\.wikimedia\.org/wiki/File:}i,
     'CPDL'                => qr{^https?://cpdl\.org/wiki/}i,
+    'DAHR'                => qr{^https?://adp\.library\.ucsb\.edu/}i,
     'Dailymotion'         => qr{^https?://(?:www\.)?dailymotion\.com/}i,
     'DanceDB'             => qr{^https?://(?:www\.)?tedcrane\.com/DanceDB/}i,
-    'Decoda'              => qr{^https?://(?:www\.)?decoda\.com/}i,
+    'Deezer'              => qr{^https?://(?:www\.)?deezer\.com/}i,
     'DHHU'                => qr{^https?://(?:www\.)?dhhu\.dk/}i,
     'Directlyrics'        => qr{^https?://(?:www\.)?directlyrics\.com/}i,
     'Discogs'             => qr{^https?://(?:www\.)?discogs\.com/}i,
     'DiscosDoBrasil'      => qr{^https?://(?:www\.)?discosdobrasil\.com\.br/}i,
+    'Dogmazic'            => qr{^https?://(?:[^/]+\.)?dogmazic\.net/}i,
     'DNB'                 => qr{^https?://(?:www\.)?d-nb\.info/}i,
     'DRAM'                => qr{^https?://(?:www\.)?dramonline\.org/}i,
+    'DynamicRangeDB'      => qr{^https?://dr\.loudness-war\.info/}i,
     'Encyclopedisque'     => qr{^https?://(?:www\.)?encyclopedisque\.fr/}i,
     'ESTER'               => qr{^https?://(?:www\.)?ester\.ee/}i,
     'Facebook'            => qr{^https?://(?:www\.)?facebook\.com/}i,
@@ -62,10 +67,10 @@ my %URL_SPECIALIZATIONS = (
     'Flattr'              => qr{^https?://(?:www\.)?flattr\.com/profile/}i,
     'FolkWiki'            => qr{^https?://(?:www\.)?folkwiki\.se/}i,
     'FonoFi'              => qr{^https?://(?:www\.)?fono\.fi/}i,
+    'Gakki'               => qr{^https?://(?:www\.)?saisaibatake\.ame-zaiku\.com/(?:gakki|musical|musical_instrument)/}i,
     'Generasia'           => qr{^https?://(?:www\.)?generasia\.com/wiki/}i,
     'Genius'              => qr{^https?://(?:[^/]+\.)?genius\.com/}i,
-    'GooglePlay'          => qr{^https?://play\.google\.com/}i,
-    'GooglePlus'          => qr{^https?://(?:www\.)?plus\.google\.com/}i,
+    'GeoNames'            => qr{^http://sws\.geonames\.org/}i,
     'Gutenberg'           => qr{^https?://(?:www\.)?gutenberg\.org/}i,
     'HMikuWiki'           => qr{^https?://www5\.atwiki\.jp/hmiku/}i,
     'Hoick'               => qr{^https?://(?:www\.)?hoick\.jp/}i,
@@ -86,7 +91,6 @@ my %URL_SPECIALIZATIONS = (
     'Joysound'            => qr{^https?://(?:www\.)?joysound\.com/}i,
     'JunoDownload'        => qr{^https?://(?:www\.)?junodownload\.com/}i,
     'Kashinavi'           => qr{^https?://(?:www\.)?kashinavi\.com/}i,
-    'KasiTime'            => qr{^https?://(?:www\.)?kasi-time\.com/}i,
     'Kget'                => qr{^https?://(?:www\.)?kget\.jp/}i,
     'Kickstarter'         => qr{^https?://(?:www\.)?kickstarter\.com/}i,
     'Kofi'                => qr{^https?://(?:www\.)?ko-fi\.com/}i,
@@ -99,40 +103,46 @@ my %URL_SPECIALIZATIONS = (
     'Loudr'               => qr{^https?://(?:www\.)?loudr\.fm/}i,
     'LyricEvesta'         => qr{^https?://lyric\.evesta\.jp/}i,
     'LyricsNMusic'        => qr{^https?://lyricsnmusic\.com/}i,
-    'LyricWiki'           => qr{^https?://lyrics\.(?:wikia|fandom)\.com/wiki/}i,
     'MainlyNorfolk'       => qr{^https?://(?:www\.)?mainlynorfolk\.info/}i,
     'Maniadb'             => qr{^https?://(?:www\.)?maniadb\.com/}i,
     'MetalArchives'       => qr{^https?://(?:www\.)?metal-archives\.com/}i,
+    'MiguMusic'           => qr{^https?://music\.migu\.cn/}i,
     'Mixcloud'            => qr{^https?://(?:www\.)?mixcloud\.com/}i,
+    'Mora'                => qr{^https?://(?:www\.)?mora\.jp/}i,
     'MusicaPopularCl'     => qr{^https?://(?:www\.)?musicapopular\.cl/}i,
     'MusicMoz'            => qr{^https?://(?:www\.)?musicmoz\.org/}i,
     'MusikSammler'        => qr{^https?://(?:www\.)?musik-sammler\.de/}i,
     'Musixmatch'          => qr{^https?://(?:www\.)?musixmatch\.com/}i,
     'Musopen'             => qr{^https?://(?:www\.)?musopen\.org/}i,
-    'Muziekweb'           => qr{^https?://www\.muziekweb\.eu/}i,
+    'Muziekweb'           => qr{^https?://www\.muziekweb\.nl/}i,
     'Muzikum'             => qr{^https?://(?:www\.)?muzikum\.eu/}i,
     'MVDbase'             => qr{^https?://(?:www\.)?mvdbase\.com/}i,
     'MySpace'             => qr{^https?://(?:www\.)?myspace\.com/}i,
+    'Napster'             => qr{^https?://[\w-]{2}\.napster\.com/}i,
     'NDL'                 => qr{^https?://(?:www\.)?iss\.ndl\.go\.jp/}i,
     'NDLAuthorities'      => qr{^https?://id\.ndl\.go\.jp/}i,
     'NicoNicoVideo'       => qr{^https?://(?:www\.)?nicovideo\.jp/}i,
     'OCReMix'             => qr{^https?://(?:www\.)?ocremix\.org/}i,
+    'OffizielleCharts'    => qr{^https?://(?:www\.)?offiziellecharts\.de/}i,
     'OnlineBijbel'        => qr{^https?://(?:www\.)?onlinebijbel\.nl/}i,
     'OpenLibrary'         => qr{^https?://(?:www\.)?openlibrary\.org/}i,
     'Operabase'           => qr{^https?://(?:www\.)?operabase\.com/}i,
     'Operadis'            => qr{^https?://(?:www\.)?operadis-opera-discography\.org\.uk/}i,
+    'Overture'            => qr{^https?://overture\.doremus\.org/}i,
     'Ozon'                => qr{^https?://(?:www\.)?ozon\.ru/}i,
     'Patreon'             => qr{^https?://(?:www\.)?patreon\.com/}i,
     'PayPalMe'            => qr{^https?://(?:www\.)?paypal\.me/}i,
     'PetitLyrics'         => qr{^https?://(?:www\.)?petitlyrics\.com/}i,
+    'Pinterest'           => qr{^https?://(?:www\.)?pinterest\.com/}i,
     'Piosenki'            => qr{^https?://(?:www\.)?bibliotekapiosenki\.pl/}i,
     'Pomus'               => qr{^https?://(?:www\.)?pomus\.net/}i,
     'ProgArchives'        => qr{^https?://(?:www\.)?progarchives\.com/}i,
     'PsyDB'               => qr{^https?://(?:www\.)?psydb\.net/}i,
-    'PureVolume'          => qr{^https?://(?:www\.)?purevolume\.com/}i,
+    'Qobuz'               => qr{^https?://(?:www\.)?qobuz\.com/}i,
     'QuebecInfoMusique'   => qr{^https?://(?:www\.)?qim\.com/}i,
     'Rateyourmusic'       => qr{^https?://(?:www\.)?rateyourmusic\.com/}i,
-    'ResidentAdvisor'     => qr{^https?://(?:www\.)?residentadvisor\.net/}i,
+    'Recochoku'           => qr{^https?://(?:www\.)?recochoku\.jp/}i,
+    'ResidentAdvisor'     => qr{^https?://(?:www\.)?ra\.co/}i,
     'ReverbNation'        => qr{^https?://(?:www\.)?reverbnation\.com/}i,
     'RockComAr'           => qr{^https?://(?:www\.)?rock\.com\.ar/}i,
     'RockensDanmarkskort' => qr{^https?://(?:www\.)?rockensdanmarkskort\.dk/}i,
@@ -157,6 +167,7 @@ my %URL_SPECIALIZATIONS = (
     'TheDanceGypsy'       => qr{^https?://(?:www\.)?thedancegypsy\.com/}i,
     'TheSession'          => qr{^https?://(?:www\.)?thesession\.org/}i,
     'TouhouDB'            => qr{^https?://(?:www\.)?touhoudb\.com/}i,
+    'Traxsource'          => qr{^https?://(?:www\.)?traxsource.com/}i,
     'TripleJUnearthed'    => qr{^https?://(?:www\.)?triplejunearthed\.com/}i,
     'Trove'               => qr{^https?://(?:www\.)?(?:trove\.)?nla\.gov\.au/}i,
     'Tunearch'            => qr{^https?://(?:www\.)?tunearch\.org/}i,
@@ -181,6 +192,7 @@ my %URL_SPECIALIZATIONS = (
     'Wikisource'          => qr{^https?://([\w-]{2,})\.wikisource\.org/wiki/}i,
     'Worldcat'            => qr{^https?://(?:www\.)?worldcat\.org/}i,
     'YouTube'             => qr{^https?://(?:www\.)?youtube\.com/}i,
+    'YouTubeMusic'        => qr{^https?://music\.youtube\.com/}i,
     'Yunisan'             => qr{^https?://(?:www22\.)?big\.or\.jp/}i,
 
     # License links
@@ -308,22 +320,12 @@ __PACKAGE__->meta->make_immutable;
 no Moose;
 1;
 
-=head1 COPYRIGHT
+=head1 COPYRIGHT AND LICENSE
 
 Copyright (C) 2009 Lukas Lalinsky
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program; if not, write to the Free Software
-Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+This file is part of MusicBrainz, the open internet music database,
+and is licensed under the GPL version 2, or (at your option) any
+later version: http://www.gnu.org/licenses/gpl-2.0.txt
 
 =cut

@@ -1,5 +1,5 @@
 /*
- * @flow
+ * @flow strict-local
  * Copyright (C) 2015 MetaBrainz Foundation
  *
  * This file is part of MusicBrainz, the open internet music database,
@@ -7,12 +7,19 @@
  * later version: http://www.gnu.org/licenses/gpl-2.0.txt
  */
 
-import _ from 'lodash';
-import React from 'react';
+import * as React from 'react';
 
+import {CatalystContext} from '../../context';
 import RequestLogin from '../../components/RequestLogin';
-import {withCatalystContext} from '../../context';
-import returnUri from '../../utility/returnUri';
+import returnUri, {returnToCurrentPage} from '../../utility/returnUri';
+import {
+  isAccountAdmin,
+  isAdmin,
+  isBannerEditor,
+  isLocationEditor,
+  isRelationshipEditor,
+  isWikiTranscluder,
+} from '../../static/scripts/common/utility/privileges';
 
 import Search from './Search';
 
@@ -20,9 +27,15 @@ function userLink(userName, path) {
   return `/user/${encodeURIComponent(userName)}${path}`;
 }
 
-type UserProp = {|+user: CatalystUserT|};
+type UserProp = {+user: UnsanitizedEditorT};
 
-const AccountMenu = ({user}: UserProp) => (
+const AccountMenu = ({
+  $c,
+  user,
+}: {
+  +$c: CatalystContextT,
+  +user: UnsanitizedEditorT,
+}) => (
   <li className="account" tabIndex="-1">
     <span className="menu-header">
       {user.name}
@@ -41,7 +54,17 @@ const AccountMenu = ({user}: UserProp) => (
         </a>
       </li>
       <li>
-        <a href="/logout">{l('Log Out')}</a>
+        <a
+          href={
+            '/logout' + (
+              $c.stash.current_action_requires_auth === true
+                ? ''
+                : ('?' + returnToCurrentPage($c))
+            )
+          }
+        >
+          {l('Log Out')}
+        </a>
       </li>
     </ul>
   </li>
@@ -58,7 +81,9 @@ const DataMenu = ({user}: UserProp) => {
       </span>
       <ul>
         <li>
-          <a href={userLink(userName, '/collections')}>{l('My Collections')}</a>
+          <a href={userLink(userName, '/collections')}>
+            {l('My Collections')}
+          </a>
         </li>
         <li>
           <a href={userLink(userName, '/ratings')}>{l('My Ratings')}</a>
@@ -70,13 +95,15 @@ const DataMenu = ({user}: UserProp) => {
           <a href={userLink(userName, '/edits/open')}>{l('My Open Edits')}</a>
         </li>
         <li>
-          <a href={userLink(userName, '/edits/all')}>{l('All My Edits')}</a>
+          <a href={userLink(userName, '/edits')}>{l('All My Edits')}</a>
         </li>
         <li>
           <a href="/edit/subscribed">{l('Edits for Subscribed Entities')}</a>
         </li>
         <li>
-          <a href="/edit/subscribed_editors">{l('Edits by Subscribed Editors')}</a>
+          <a href="/edit/subscribed_editors">
+            {l('Edits by Subscribed Editors')}
+          </a>
         </li>
         <li>
           <a href="/edit/notes-received">{l('Notes Left on My Edits')}</a>
@@ -93,16 +120,18 @@ const AdminMenu = ({user}: UserProp) => (
       {'\xA0\u25BE'}
     </span>
     <ul>
-      {user.is_location_editor ? (
+      {isLocationEditor(user) ? (
         <li>
           <a href="/area/create">{lp('Add Area', 'button/menu')}</a>
         </li>
       ) : null}
 
-      {user.is_relationship_editor ? (
+      {isRelationshipEditor(user) ? (
         <>
           <li>
-            <a href="/instrument/create">{lp('Add Instrument', 'button/menu')}</a>
+            <a href="/instrument/create">
+              {lp('Add Instrument', 'button/menu')}
+            </a>
           </li>
           <li>
             <a href="/genre/create">{lp('Add Genre', 'button/menu')}</a>
@@ -113,54 +142,67 @@ const AdminMenu = ({user}: UserProp) => (
         </>
       ) : null}
 
-      {user.is_wiki_transcluder ? (
+      {isWikiTranscluder(user) ? (
         <li>
           <a href="/admin/wikidoc">{l('Transclude WikiDocs')}</a>
         </li>
       ) : null}
 
-      {user.is_banner_editor ? (
+      {isBannerEditor(user) ? (
         <li>
           <a href="/admin/banner/edit">{l('Edit Banner Message')}</a>
         </li>
       ) : null}
 
-      {user.is_account_admin ? (
-        <li>
-          <a href="/admin/attributes">{l('Edit Attributes')}</a>
-        </li>
+      {isAccountAdmin(user) ? (
+        <>
+          <li>
+            <a href="/admin/attributes">{l('Edit Attributes')}</a>
+          </li>
+          <li>
+            <a href="/admin/statistics-events">
+              {l('Edit Statistics Events')}
+            </a>
+          </li>
+          <li>
+            <a href="/admin/email-search">{l('Email Search')}</a>
+          </li>
+        </>
       ) : null}
     </ul>
   </li>
 );
 
-const UserMenu = ({$c}) => (
-  <ul className="menu" tabIndex="-1">
-    {$c.user ? (
-      <>
-        <AccountMenu user={$c.user} />
-        <DataMenu user={$c.user} />
-        {$c.user.is_admin ? <AdminMenu user={$c.user} /> : null}
-      </>
-    ) : (
-      <>
-        <li>
-          <RequestLogin $c={$c} text={l('Log In')} />
-        </li>
-        <li>
-          <a href={returnUri($c, '/register')}>
-            {l('Create Account')}
-          </a>
-        </li>
-      </>
-    )}
-  </ul>
-);
+const UserMenu = () => {
+  const $c = React.useContext(CatalystContext);
+  return (
+    <ul className="menu" tabIndex="-1">
+      {$c.user ? (
+        <>
+          <AccountMenu $c={$c} user={$c.user} />
+          <DataMenu user={$c.user} />
+          {isAdmin($c.user) ? <AdminMenu user={$c.user} /> : null}
+        </>
+      ) : (
+        <>
+          <li>
+            <RequestLogin $c={$c} text={l('Log In')} />
+          </li>
+          <li>
+            <a href={returnUri($c, '/register')}>
+              {l('Create Account')}
+            </a>
+          </li>
+        </>
+      )}
+    </ul>
+  );
+};
 
-const TopMenu = ({$c}) => (
+const TopMenu = (): React.Element<'div'> => (
   <div className="top">
     <div className="links-container">
-      <UserMenu $c={$c} />
+      <UserMenu />
     </div>
     <div className="search-container">
       <Search />
@@ -168,4 +210,4 @@ const TopMenu = ({$c}) => (
   </div>
 );
 
-export default withCatalystContext(TopMenu);
+export default TopMenu;

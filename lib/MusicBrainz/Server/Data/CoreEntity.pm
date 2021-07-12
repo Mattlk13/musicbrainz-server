@@ -128,11 +128,15 @@ sub get_by_ids_sorted_by_name
     @ids = grep { defined && $_ } @ids;
     return [] unless @ids;
 
+    my $ordering_condition = $self->_type eq 'artist'
+        ? 'sort_name COLLATE musicbrainz'
+        : 'name COLLATE musicbrainz';
+
     my $key = $self->_id_column;
     my $query = "SELECT " . $self->_columns .
                 " FROM " . $self->_table .
                 " WHERE $key IN (" . placeholders(@ids) . ") " .
-                " ORDER BY musicbrainz_collate(name)";
+                " ORDER BY $ordering_condition";
 
     my @result;
     for my $row (@{ $self->sql->select_list_of_hashes($query, @ids) }) {
@@ -261,23 +265,13 @@ Loads and returns a single CoreEntity instance for the specified $gid.
 Loads and returns multiple CoreEntity instances for the specified @gids,
 the response is a GID-keyes HASH reference.
 
-=head1 COPYRIGHT
+=head1 COPYRIGHT AND LICENSE
 
 Copyright (C) 2009,2011 Lukas Lalinsky
 Copyright (C) 2010 MetaBrainz Foundation
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program; if not, write to the Free Software
-Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+This file is part of MusicBrainz, the open internet music database,
+and is licensed under the GPL version 2, or (at your option) any
+later version: http://www.gnu.org/licenses/gpl-2.0.txt
 
 =cut

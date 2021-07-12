@@ -1,34 +1,41 @@
-// This file is part of MusicBrainz, the open internet music database.
-// Copyright (C) 2011 MetaBrainz Foundation
-// Licensed under the GPL version 2, or (at your option) any later version:
-// http://www.gnu.org/licenses/gpl-2.0.txt
+/*
+ * @flow strict-local
+ * Copyright (C) 2011 MetaBrainz Foundation
+ *
+ * This file is part of MusicBrainz, the open internet music database,
+ * and is licensed under the GPL version 2, or (at your option) any
+ * later version: http://www.gnu.org/licenses/gpl-2.0.txt
+ */
 
-export default function formatTrackLength(milliseconds, placeholder='?:??') {
-    if (!milliseconds) {
-        return placeholder;
-    }
+export default function formatTrackLength(
+  milliseconds: number | null,
+  placeholder?: string = '?:??',
+): string {
+  if (milliseconds == null || milliseconds === 0) {
+    return placeholder;
+  }
 
-    if (milliseconds < 1000) {
-        return milliseconds + ' ms';
-    }
+  if (milliseconds < 1000) {
+    return milliseconds + ' ms';
+  }
 
-    var oneMinute = 60;
-    var oneHour = 60 * oneMinute;
+  var oneMinute = 60;
+  var oneHour = 60 * oneMinute;
 
-    var seconds = Math.round(milliseconds / 1000.0);
-    var hours = Math.floor(seconds / oneHour);
-    seconds = seconds % oneHour;
+  var seconds = Math.round(milliseconds / 1000.0);
+  var hours = Math.floor(seconds / oneHour);
+  seconds = seconds % oneHour;
 
-    var minutes = Math.floor(seconds / oneMinute);
-    seconds = seconds % oneMinute;
+  var minutes = Math.floor(seconds / oneMinute);
+  seconds = seconds % oneMinute;
 
-    var result = ('00' + seconds).slice(-2);
+  var result = ('00' + seconds).slice(-2);
 
-    if (hours > 0) {
-        result = hours + ':' + ('00' + minutes).slice(-2) + ':' + result;
-    } else {
-        result = minutes + ':' + result;
-    }
+  if (hours > 0) {
+    result = hours + ':' + ('00' + minutes).slice(-2) + ':' + result;
+  } else {
+    result = minutes + ':' + result;
+  }
 
-    return result;
+  return result;
 }

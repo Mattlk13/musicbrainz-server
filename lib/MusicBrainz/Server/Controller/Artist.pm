@@ -9,10 +9,16 @@ BEGIN { extends 'MusicBrainz::Server::Controller'; }
 with 'MusicBrainz::Server::Controller::Role::Load' => {
     model           => 'Artist',
     relationships   => {
-        all         => ['relationships'],
         cardinal    => ['edit'],
-        subset      => { split => ['artist'], show => ['artist', 'url'] },
-        default     => ['url']
+        subset => {
+            split => ['artist'],
+            show => ['artist', 'url'],
+            relationships => [qw( area artist event instrument label place series url )],
+        },
+        default     => ['url'],
+        paged_subset => {
+            relationships => [qw( recording release release_group work )],
+        },
     },
 };
 with 'MusicBrainz::Server::Controller::Role::LoadWithRowID';
@@ -34,7 +40,8 @@ with 'MusicBrainz::Server::Controller::Role::JSONLD' => {
                                           {from => 'recordings_jsonld', to => 'recordings'},
                                           {from => 'identities', to => 'identities'},
                                           {from => 'legal_name', to => 'legal_name'},
-                                          {from => 'other_identities', to => 'other_identities'}]},
+                                          {from => 'other_identities', to => 'other_identities'},
+                                          'top_tags']},
                   recordings => {copy_stash => [{from => 'recordings_jsonld', to => 'recordings'}]},
                   relationships => {},
                   aliases => {copy_stash => ['aliases']}}
@@ -45,8 +52,12 @@ with 'MusicBrainz::Server::Controller::Role::Collection' => {
 
 use Data::Page;
 use HTTP::Status qw( :constants );
-use MusicBrainz::Server::Data::Utils qw( is_special_artist );
+use MusicBrainz::Server::Data::Utils qw(
+    boolean_to_json
+    is_special_artist
+);
 use MusicBrainz::Server::Constants qw(
+    :direction
     $DARTIST_ID
     $EDITOR_MODBOT
     $EDIT_ARTIST_MERGE
@@ -58,6 +69,7 @@ use MusicBrainz::Server::Constants qw(
     $ARTIST_ARTIST_COLLABORATION
 );
 use MusicBrainz::Server::ControllerUtils::JSON qw( serialize_pager );
+use MusicBrainz::Server::Entity::Util::JSON qw( to_json_array to_json_object );
 use MusicBrainz::Server::Form::Artist;
 use MusicBrainz::Server::Form::Confirm;
 use MusicBrainz::Server::Translation qw( l );
@@ -151,7 +163,7 @@ after 'aliases' => sub
 
     my $artist = $c->stash->{artist};
     my $artist_credits = $c->model('ArtistCredit')->find_by_artist_id($artist->id);
-    $c->stash->{component_props}{artistCredits} = [map { $_->TO_JSON } @{$artist_credits}];
+    $c->stash->{component_props}{artistCredits} = to_json_array($artist_credits);
 };
 
 =head2 show
@@ -174,42 +186,60 @@ sub show : PathPart('') Chained('load')
     my %filter = %{ $self->process_filter($c, sub {
         return create_artist_release_groups_form($c, $artist->id);
     }) };
+    my $has_filter = %filter ? 1 : 0;
 
-    if (%filter) {
-        $c->stash( has_filter => 1 );
-    }
+    my $has_default = $c->model('ReleaseGroup')->has_by_artist($artist->id, 0);
+    my $has_extra = $c->model('ReleaseGroup')->has_by_artist($artist->id, 1);
+    my $has_va = $c->model('ReleaseGroup')->has_by_track_artist($artist->id, 0);
+    my $has_va_extra = $c->model('ReleaseGroup')->has_by_track_artist($artist->id, 1);
 
-    my $show_va = $c->req->query_params->{va};
-    my $show_all = $c->req->query_params->{all};
+    my $want_va_only = $c->req->query_params->{va};
+    my $want_all_statuses = $c->req->query_params->{all};
+    my $including_all_statuses;
+    my $showing_va_only;
+
+    my $has_release_groups = $has_default || $has_extra || $has_va || $has_va_extra;
+    my $force_release_groups = $want_va_only || $want_all_statuses || %filter;
 
     my $make_attempt = sub {
         my ($all, $va) = @_;
         my $method = $va ? 'find_by_track_artist' : 'find_by_artist';
         return $self->_load_paged($c, sub {
-            $c->model('ReleaseGroup')->$method($c->stash->{artist}->id, $all, shift, shift, filter => \%filter);
+            if (!$all && !$va) {
+                return ([], 0) unless $has_default;
+            } elsif ($all && !$va) {
+                return ([], 0) unless ($has_default || $has_extra);
+            } elsif (!$all && $va) {
+                return ([], 0) unless $has_va;
+            } elsif ($all && $va) {
+                return ([], 0) unless ($has_va || $has_va_extra);
+            }
+            return $c->model('ReleaseGroup')->$method($c->stash->{artist}->id, $all, shift, shift, filter => \%filter);
         });
     };
 
-    # Attempt from official non-va, to all non-va, to official va, to all va;
-    # filter out any attempt that contradicts a preference from a query param
-    my @attempts = grep { ($_->[0] || !$show_all) && ($_->[1] || !$show_va) } ([0,0], [1,0], [0,1], [1,1]);
-    for my $attempt (@attempts) {
-        my $all = $attempt->[0];
-        my $va = $attempt->[1];
-        $release_groups = $make_attempt->($all, $va);
-        # If filtering, only make one attempt
-        # otherwise, attempt until we find RGs or exhaust the possibilities
-        if (scalar @$release_groups || %filter) {
-            $c->stash(
-                including_all => $all,
-                including_va => $va
-            );
-            last;
-        }
-    }
+    if ($has_release_groups || $force_release_groups) {
+        # Attempt from official non-va, to all non-va, to official va, to all va;
+        # filter out any attempt that contradicts a preference from a query param
+        my @attempts = grep {
+            ($_->[0] || !$want_all_statuses) &&
+            ($_->[1] || !$want_va_only)
+        } ([0,0], [1,0], [0,1], [1,1]);
 
-    # If there is no expressed preference (va, filter) and no RGs, find recordings
-    if (!$show_va && !%filter && scalar @$release_groups == 0) {
+        for my $attempt (@attempts) {
+            my $all = $attempt->[0];
+            my $va = $attempt->[1];
+            $release_groups = $make_attempt->($all, $va);
+            $including_all_statuses = $all;
+            $showing_va_only = $va;
+            # If filtering, only make one attempt
+            # otherwise, attempt until we find RGs or exhaust the possibilities
+            if (scalar @$release_groups || %filter) {
+                last;
+            }
+        }
+    } else {
+        # If there is no expressed preference (va, filter) and no RGs, find recordings
         $recordings = $self->_load_paged($c, sub {
             $c->model('Recording')->find_standalone($artist->id, shift, shift);
         });
@@ -221,12 +251,6 @@ sub show : PathPart('') Chained('load')
         }
     }
 
-    $c->stash(
-        show_va => $show_va,
-        show_all => $show_all,
-        template => 'artist/index.tt'
-    );
-
     if ($c->user_exists) {
         $c->model('ReleaseGroup')->rating->load_user_ratings($c->user->id, @$release_groups);
     }
@@ -237,17 +261,15 @@ sub show : PathPart('') Chained('load')
     $c->stash(
         recordings => $recordings,
         recordings_jsonld => {items => $recordings},
-        release_groups => $release_groups,
         release_groups_jsonld => {items => $release_groups},
-        show_artists => scalar grep {
-            $_->artist_credit->name ne $artist->name
-        } @$release_groups,
     );
 
     my $coll = $c->get_collator();
     my @identities;
+    my $legal_name_artist_aliases;
+    my $legal_name_aliases;
     my ($legal_name) = map { $_->target }
-                       grep { $_->direction == $MusicBrainz::Server::Entity::Relationship::DIRECTION_BACKWARD }
+                       grep { $_->direction == $DIRECTION_BACKWARD }
                        grep { $_->link->type->gid eq 'dd9886f2-1dfe-4270-97db-283f6839a666' } @{ $artist->relationships };
     if (defined $legal_name) {
         $c->model('Relationship')->load_subset(['artist'], $legal_name);
@@ -262,6 +284,7 @@ sub show : PathPart('') Chained('load')
                       grep { !($_->ended) }
                       grep { ($_->type_name // "") eq 'Legal name' } @$aliases;
         $c->stash( legal_name_artist_aliases => \@aliases );
+        $legal_name_artist_aliases = \@aliases;
         push(@identities, $legal_name);
     } else {
         my $aliases = $c->model('Artist')->alias->find_by_entity_id($artist->id);
@@ -272,25 +295,60 @@ sub show : PathPart('') Chained('load')
                       grep { !($_->ended) }
                       grep { ($_->type_name // "") eq 'Legal name' } @$aliases;
         $c->stash( legal_name_aliases => \@aliases );
+        $legal_name_aliases = \@aliases;
     }
-    $legal_name //= $artist;
     my @other_identities = sort_by { $coll->getSortKey($_->name) }
                            grep { $_->id != $artist->id }
                            uniq
                            map { $_->target }
-                           grep { $_->direction == $MusicBrainz::Server::Entity::Relationship::DIRECTION_FORWARD }
-                           grep { $_->link->type->gid eq 'dd9886f2-1dfe-4270-97db-283f6839a666' } @{ $legal_name->relationships };
+                           grep { $_->direction == $DIRECTION_FORWARD }
+                           grep { $_->link->type->gid eq 'dd9886f2-1dfe-4270-97db-283f6839a666' }
+                           @{ ($legal_name // $artist)->relationships };
     push(@identities, @other_identities);
     $c->stash(other_identities => \@other_identities,
               identities => \@identities);
+
+    $c->stash(
+        current_view => 'Node',
+        component_path => 'artist/ArtistIndex',
+        component_props => {
+            ajaxFilterFormUrl => '' . $c->uri_for_action('/ajax/filter_artist_release_groups_form', { artist_id => $artist->id }),
+            artist => $artist->TO_JSON,
+            filterForm => to_json_object($c->stash->{filter_form}),
+            hasDefault => boolean_to_json($has_default),
+            hasExtra => boolean_to_json($has_extra),
+            hasFilter => boolean_to_json($has_filter),
+            hasVariousArtists => boolean_to_json($has_va),
+            hasVariousArtistsExtra => boolean_to_json($has_va_extra),
+            includingAllStatuses => boolean_to_json($including_all_statuses),
+            legalName => to_json_object($legal_name),
+            legalNameAliases => to_json_array($legal_name_aliases),
+            legalNameArtistAliases => to_json_array($legal_name_artist_aliases),
+            numberOfRevisions => $c->stash->{number_of_revisions},
+            otherIdentities => to_json_array(\@other_identities),
+            pager => serialize_pager($c->stash->{pager}),
+            recordings => to_json_array($recordings),
+            releaseGroups => to_json_array($release_groups),
+            showingVariousArtistsOnly => boolean_to_json($showing_va_only),
+            wikipediaExtract => to_json_object($c->stash->{wikipedia_extract}),
+        },
+    );
 }
 
 sub relationships : Chained('load') PathPart('relationships') {
     my ($self, $c) = @_;
 
+    my $stash = $c->stash;
+    my $pager = defined $stash->{pager}
+        ? serialize_pager($stash->{pager})
+        : undef;
     $c->stash(
         component_path => 'artist/ArtistRelationships',
-        component_props => { artist => $c->stash->{artist} },
+        component_props => {
+            artist => $stash->{artist}->TO_JSON,
+            pagedLinkTypeGroup => to_json_object($stash->{paged_link_type_group}),
+            pager => $pager,
+        },
         current_view => 'Node',
     );
 }
@@ -308,12 +366,13 @@ sub works : Chained('load')
         $c->model('Work')->find_by_artist($c->stash->{artist}->id, shift, shift);
     });
     $c->model('Work')->load_related_info(@$works);
+    $c->model('Work')->load_meta(@$works);
     $c->model('Work')->rating->load_user_ratings($c->user->id, @$works) if $c->user_exists;
 
     my %props = (
-        artist       => $c->stash->{artist},
+        artist       => $c->stash->{artist}->TO_JSON,
         pager        => serialize_pager($c->stash->{pager}),
-        works        => $works,
+        works        => to_json_array($works),
     );
 
     $c->stash(
@@ -335,22 +394,30 @@ sub recordings : Chained('load')
 
     my $artist = $c->stash->{artist};
     my $recordings;
+    my $standalone_only;
+    my $video_only;
+
+    my $has_standalone = $c->model('Recording')->has_standalone($artist->id);
+    my $has_video = $c->model('Recording')->has_video($artist->id);
 
     my %filter = %{ $self->process_filter($c, sub {
         return create_artist_recordings_form($c, $artist->id);
     }) };
+    my $has_filter = %filter ? 1 : 0;
 
     if ($c->req->query_params->{standalone}) {
         $recordings = $self->_load_paged($c, sub {
-            $c->model('Recording')->find_standalone($artist->id, shift, shift);
+            return ([], 0) unless $has_standalone;
+            return $c->model('Recording')->find_standalone($artist->id, shift, shift);
         });
-        $c->stash( standalone_only => 1 );
+        $standalone_only = 1;
     }
     elsif ($c->req->query_params->{video}) {
         $recordings = $self->_load_paged($c, sub {
-            $c->model('Recording')->find_video($artist->id, shift, shift);
+            return ([], 0) unless $has_video;
+            return $c->model('Recording')->find_video($artist->id, shift, shift);
         });
-        $c->stash( video_only => 1 );
+        $video_only = 1;
     }
     else {
         $recordings = $self->_load_paged($c, sub {
@@ -360,11 +427,10 @@ sub recordings : Chained('load')
 
     $c->model('Recording')->load_meta(@$recordings);
 
+    my $release_group_appearances = $c->model('Recording')->appears_on($recordings, 10, 1);
     if ($c->user_exists) {
         $c->model('Recording')->rating->load_user_ratings($c->user->id, @$recordings);
     }
-
-    $c->stash( template => 'artist/recordings.tt' );
 
     $c->model('ISRC')->load_for_recordings(@$recordings);
     $c->model('ArtistCredit')->load(@$recordings);
@@ -372,9 +438,21 @@ sub recordings : Chained('load')
     $c->stash(
         recordings => $recordings,
         recordings_jsonld => {items => $recordings},
-        show_artists => scalar(grep {
-            $_->artist_credit->name ne $artist->name
-        } @$recordings),
+        current_view => 'Node',
+        component_path => 'artist/ArtistRecordings',
+        component_props => {
+            ajaxFilterFormUrl => '' . $c->uri_for_action('/ajax/filter_artist_recordings_form', { artist_id => $artist->id }),
+            artist => $artist->TO_JSON,
+            filterForm => to_json_object($c->stash->{filter_form}),
+            hasFilter => boolean_to_json($has_filter),
+            hasStandalone => boolean_to_json($has_standalone),
+            hasVideo => boolean_to_json($has_video),
+            pager => serialize_pager($c->stash->{pager}),
+            recordings => to_json_array($recordings),
+            releaseGroupAppearances => $release_group_appearances,
+            standaloneOnly => boolean_to_json($standalone_only),
+            videoOnly => boolean_to_json($video_only),
+        },
     );
 }
 
@@ -392,11 +470,12 @@ sub events : Chained('load')
     });
     $c->model('Event')->load_related_info(@$events);
     $c->model('Event')->load_areas(@$events);
+    $c->model('Event')->load_meta(@$events);
     $c->model('Event')->rating->load_user_ratings($c->user->id, @$events) if $c->user_exists;
 
     my %props = (
-        artist       => $c->stash->{artist},
-        events       => $events,
+        artist       => $c->stash->{artist}->TO_JSON,
+        events       => to_json_array($events),
         pager        => serialize_pager($c->stash->{pager}),
     );
 
@@ -419,16 +498,18 @@ sub releases : Chained('load')
 
     my $artist = $c->stash->{artist};
     my $releases;
+    my $showing_va_only;
 
     my %filter = %{ $self->process_filter($c, sub {
         return create_artist_releases_form($c, $artist->id);
     }) };
+    my $has_filter = %filter ? 1 : 0;
 
     my $method = 'find_by_artist';
-    my $show_va = $c->req->query_params->{va};
-    if ($show_va) {
+    my $want_va_only = $c->req->query_params->{va} ? 1 : 0;
+    if ($want_va_only) {
         $method = 'find_by_track_artist';
-        $c->stash( show_va => 1 );
+        $showing_va_only = 1;
     }
 
     $releases = $self->_load_paged($c, sub {
@@ -436,29 +517,34 @@ sub releases : Chained('load')
         });
 
     my $pager = $c->stash->{pager};
-    if (!$show_va && $pager->total_entries == 0) {
+    if (!$want_va_only && $pager->total_entries == 0) {
         $releases = $self->_load_paged($c, sub {
                 $c->model('Release')->find_by_track_artist($c->stash->{artist}->id, shift, shift, filter => \%filter);
             });
-        $c->stash(
-            va_only => 1,
-            show_va => 1
-        );
+        $want_va_only = 1;
+        $showing_va_only = 1;
     }
-
-    $c->stash( template => 'artist/releases.tt' );
 
     $c->model('ArtistCredit')->load(@$releases);
     $c->model('Release')->load_related_info(@$releases);
+    $c->model('Release')->load_meta(@$releases);
     $c->stash(
-        releases => $releases,
-        show_artists => scalar grep {
-            $_->artist_credit->name ne $artist->name
-        } @$releases,
+        current_view => 'Node',
+        component_path => 'artist/ArtistReleases',
+        component_props => {
+            ajaxFilterFormUrl => '' . $c->uri_for_action('/ajax/filter_artist_releases_form', { artist_id => $artist->id }),
+            artist => $artist->TO_JSON,
+            filterForm => to_json_object($c->stash->{filter_form}),
+            hasFilter => boolean_to_json($has_filter),
+            pager => serialize_pager($pager),
+            releases => to_json_array($releases),
+            showingVariousArtistsOnly => boolean_to_json($showing_va_only),
+            wantVariousArtistsOnly => boolean_to_json($want_va_only),
+        },
     );
 }
 
-after [qw( show collections details tags aliases releases recordings works events relationships )] => sub {
+after [qw( show collections details tags ratings aliases subscribers releases recordings works events relationships )] => sub {
     my ($self, $c) = @_;
     $self->_stash_collections($c);
 };
@@ -545,19 +631,6 @@ with 'MusicBrainz::Server::Controller::Role::Edit' => {
     }
 };
 
-=head2 add_release
-
-Add a new release to this artist.
-
-=cut
-
-sub add_release : Chained('load')
-{
-    my ($self, $c) = @_;
-    $c->forward('/user/login');
-    $c->forward('/release_editor/add_release');
-}
-
 =head2 merge
 
 Merge 2 artists into a single artist
@@ -567,6 +640,21 @@ Merge 2 artists into a single artist
 with 'MusicBrainz::Server::Controller::Role::Merge' => {
     edit_type => $EDIT_ARTIST_MERGE,
     merge_form => 'Merge::Artist'
+};
+
+before qw( create edit ) => sub {
+    my ($self, $c) = @_;
+    my %artist_types = map {$_->id => $_} $c->model('ArtistType')->get_all();
+    $c->stash->{artist_types} = \%artist_types;
+};
+
+sub _merge_load_entities {
+    my ($self, $c, @artists) = @_;
+
+    $c->model('ArtistType')->load(@artists);
+    $c->model('Gender')->load(@artists);
+    $c->model('Area')->load(@artists);
+    $c->model('Area')->load_containment(map { $_->{area} } @artists);
 };
 
 around _validate_merge => sub {
@@ -579,7 +667,7 @@ around _validate_merge => sub {
         return 0;
     }
 
-    if (any { $_ == $DARTIST_ID } @all) {
+    if ($target == $DARTIST_ID) {
         $form->field('target')->add_error(l('You cannot merge into Deleted Artist'));
         return 0;
     }
@@ -587,30 +675,14 @@ around _validate_merge => sub {
     return 1;
 };
 
-=head2 rating
-
-Rate an artist
-
-=cut
-
-sub rating : Chained('load') Args(2)
-{
-    my ($self, $c, $entity, $new_vote) = @_;
-    #Need more validation here
-
-    $c->forward('/user/login');
-    $c->forward('/rating/do_rating', ['artist', $entity, $new_vote] );
-    $c->response->redirect($c->entity_url($self->entity, 'show'));
-}
-
-around $_ => sub {
+around edit => sub {
     my $orig = shift;
     my ($self, $c) = @_;
 
     my $artist = $c->stash->{artist};
     if ($artist->is_special_purpose) {
         my %props = (
-            artist => $artist,
+            artist => $artist->TO_JSON,
         );
         $c->stash(
             component_path => 'artist/SpecialPurpose',
@@ -623,7 +695,7 @@ around $_ => sub {
     else {
         $self->$orig($c);
     }
-} for qw( edit );
+};
 
 sub watch : Chained('load') RequireAuth {
     my ($self, $c) = @_;
@@ -634,8 +706,9 @@ sub watch : Chained('load') RequireAuth {
         editor_id => $c->user->id
     ) if $c->user_exists;
 
-    $c->response->redirect(
-        $c->req->referer || $c->uri_for_action('/artist/show', [ $artist->gid ]));
+    $c->redirect_back(
+        fallback => $c->uri_for_action('/artist/show', [ $artist->gid ]),
+    );
 }
 
 sub stop_watching : Chained('load') RequireAuth {
@@ -647,17 +720,36 @@ sub stop_watching : Chained('load') RequireAuth {
         editor_id => $c->user->id
     ) if $c->user_exists;
 
-    $c->response->redirect(
-        $c->req->referer || $c->uri_for_action('/artist/show', [ $artist->gid ]));
+    $c->redirect_back(
+        fallback => $c->uri_for_action('/artist/show', [ $artist->gid ]),
+    );
 }
 
 sub split : Chained('load') Edit {
     my ($self, $c) = @_;
     my $artist = $c->stash->{artist};
+    $self->_stash_collections($c);
 
-    if (!can_split($artist)) {
+    my $can_split = $c->model('Artist')->can_split($artist->id);
+
+    if (!$can_split) {
+        my %props = (
+            artist => $artist->TO_JSON,
+        );
+        $c->stash(
+            component_path => 'artist/CannotSplit',
+            component_props => \%props,
+            current_view => 'Node',
+        );
+        $c->detach;
+    }
+
+    my $is_empty = $c->model('Artist')->is_empty($artist->id);
+
+    if ($is_empty) {
         my %props = (
             artist => $artist,
+            isEmpty => \1
         );
         $c->stash(
             component_path => 'artist/CannotSplit',
@@ -669,8 +761,13 @@ sub split : Chained('load') Edit {
 
     my $ac = $c->model('ArtistCredit')->find_for_artist($artist);
 
+    my @collaborators = map { $_->target } grep {
+        $_->link->type->gid eq $ARTIST_ARTIST_COLLABORATION
+    } $artist->all_relationships;
+
     $c->stash(
-        in_use => $c->model('ArtistCredit')->in_use($ac)
+        in_use => $c->model('ArtistCredit')->in_use($ac),
+        collaborators => \@collaborators,
     );
 
     my $edit = $self->edit_action(
@@ -717,13 +814,6 @@ sub split : Chained('load') Edit {
     );
 }
 
-sub can_split {
-    my $artist = shift;
-    return (grep {
-        $_->link->type->gid ne $ARTIST_ARTIST_COLLABORATION
-    } $artist->all_relationships) == 0;
-}
-
 sub credit : Chained('load') PathPart('credit') CaptureArgs(1) {
     my ($self, $c, $ac_id) = @_;
     my $ac = $c->model('ArtistCredit')->get_by_id($ac_id)
@@ -765,7 +855,7 @@ sub process_filter
         my $has_filter_params = grep(/^filter\./, keys %{ $c->req->params });
         if ($has_filter_params || ($cookie && defined($cookie->value) && $cookie->value eq '1')) {
             my $filter_form = $create_form->();
-            if ($filter_form->submitted_and_valid($c->req->params)) {
+            if ($c->form_submitted_and_valid($filter_form)) {
                 for my $name ($filter_form->filter_field_names) {
                     my $value = $filter_form->field($name)->value;
                     if ($value) {
@@ -784,22 +874,16 @@ sub process_filter
     return \%filter;
 }
 
-=head1 LICENSE
+=head1 COPYRIGHT AND LICENSE
 
-This software is provided "as is", without warranty of any kind, express or
-implied, including  but not limited  to the warranties of  merchantability,
-fitness for a particular purpose and noninfringement. In no event shall the
-authors or  copyright  holders be  liable for any claim,  damages or  other
-liability, whether  in an  action of  contract, tort  or otherwise, arising
-from,  out of  or in  connection with  the software or  the  use  or  other
-dealings in the software.
+Copyright (C) 2008 MetaBrainz Foundation
+Copyright (C) 2009 Lukas Lalinsky
+Copyright (C) 2013 Jesse Weinstein
+Copyright (C) 2014 Ulrich Klauer
 
-GPL - The GNU General Public License    http://www.gnu.org/licenses/gpl.txt
-Permits anyone the right to use and modify the software without limitations
-as long as proper  credits are given  and the original  and modified source
-code are included. Requires  that the final product, software derivate from
-the original  source or any  software  utilizing a GPL  component, such  as
-this, is also licensed under the GPL license.
+This file is part of MusicBrainz, the open internet music database,
+and is licensed under the GPL version 2, or (at your option) any
+later version: http://www.gnu.org/licenses/gpl-2.0.txt
 
 =cut
 

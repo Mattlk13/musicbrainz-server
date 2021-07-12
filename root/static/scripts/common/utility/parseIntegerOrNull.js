@@ -1,5 +1,5 @@
 /*
- * @flow
+ * @flow strict
  * Copyright (C) 2017 MetaBrainz Foundation
  *
  * This file is part of MusicBrainz, the open internet music database,
@@ -9,7 +9,10 @@
 
 import parseInteger from './parseInteger';
 
-export default function parseIntegerOrNull(str: string) {
-  const integer = parseInteger(str);
+export default function parseIntegerOrNull(value: ?StrOrNum): number | null {
+  if (value == null) {
+    return null;
+  }
+  const integer = parseInteger(String(value));
   return isNaN(integer) ? null : integer;
 }

@@ -1,5 +1,5 @@
 /*
- * @flow
+ * @flow strict-local
  * Copyright (C) 2018 MetaBrainz Foundation
  *
  * This file is part of MusicBrainz, the open internet music database,
@@ -9,6 +9,11 @@
 
 import * as wrapGettext from './wrapGettext';
 
-export const l_scripts = wrapGettext.dgettext('scripts');
-export const ln_scripts = wrapGettext.dngettext('scripts');
-export const lp_scripts = wrapGettext.dpgettext('scripts');
+export const l_scripts: (string) => string =
+  wrapGettext.dgettext('scripts');
+
+export const ln_scripts: (string, string, number) => string =
+  wrapGettext.dngettext('scripts');
+
+export const lp_scripts: (string, string) => string =
+  wrapGettext.dpgettext('scripts');

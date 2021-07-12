@@ -1,5 +1,5 @@
 /*
- * @flow
+ * @flow strict-local
  * Copyright (C) 2018 MetaBrainz Foundation
  *
  * This file is part of MusicBrainz, the open internet music database,
@@ -13,12 +13,12 @@ import Tabs from '../components/Tabs';
 import Layout from '../layout';
 import TagLink from '../static/scripts/common/components/TagLink';
 
-type Props = {|
+type Props = {
   +children: React.Node,
   +page: string,
-  +tag: string,
+  +tag: TagT,
   +title?: string,
-|};
+};
 
 const tabLinks: $ReadOnlyArray<[string, () => string]> = [
   ['', N_l('Overview')],
@@ -35,23 +35,28 @@ const tabLinks: $ReadOnlyArray<[string, () => string]> = [
   ['/event', N_l('Events')],
 ];
 
-const TagLayout = ({children, page, tag, title}: Props) => (
+const TagLayout = ({
+  children,
+  page,
+  tag,
+  title,
+}: Props): React.Element<typeof Layout> => (
   <Layout
     fullWidth
     title={
-      title
-        ? hyphenateTitle(texp.l('Tag “{tag}”', {tag}), title)
-        : texp.l('Tag “{tag}”', {tag})
+      nonEmpty(title)
+        ? hyphenateTitle(texp.l('Tag “{tag}”', {tag: tag.name}), title)
+        : texp.l('Tag “{tag}”', {tag: tag.name})
     }
   >
     <div id="content">
       <h1>
-        {exp.l('Tag “{tag}”', {tag: <TagLink tag={tag} />})}
+        {exp.l('Tag “{tag}”', {tag: <TagLink tag={tag.name} />})}
       </h1>
       <Tabs>
         {tabLinks.map(link => (
           <li className={page === link[0] ? 'sel' : ''} key={link[0]}>
-            <a href={'/tag/' + encodeURIComponent(tag) + link[0]}>
+            <a href={'/tag/' + encodeURIComponent(tag.name) + link[0]}>
               {link[1]()}
             </a>
           </li>

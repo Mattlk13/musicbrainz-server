@@ -1,5 +1,5 @@
 /*
- * @flow
+ * @flow strict-local
  * Copyright (C) 2018 MetaBrainz Foundation
  *
  * This file is part of MusicBrainz, the open internet music database,
@@ -8,38 +8,56 @@
  */
 
 import * as React from 'react';
+import type {ColumnOptionsNoValue} from 'react-table';
 
 import PaginatedResults from '../../components/PaginatedResults';
-import EntityLink from '../../static/scripts/common/components/EntityLink';
-import loopParity from '../../utility/loopParity';
-import type {ReportLabelT} from '../types';
+import Table from '../../components/Table';
+import {
+  defineEntityColumn,
+} from '../../utility/tableColumns';
 
-const LabelList = ({
+type Props<D: {+label: ?LabelT, ...}> = {
+  +columnsAfter?: $ReadOnlyArray<ColumnOptionsNoValue<D>>,
+  +columnsBefore?: $ReadOnlyArray<ColumnOptionsNoValue<D>>,
+  +items: $ReadOnlyArray<D>,
+  +pager: PagerT,
+};
+
+const LabelList = <D: {+label: ?LabelT, ...}>({
+  columnsBefore,
+  columnsAfter,
   items,
   pager,
-}: {items: $ReadOnlyArray<ReportLabelT>, pager: PagerT}) => (
-  <PaginatedResults pager={pager}>
-    <table className="tbl">
-      <thead>
-        <tr>
-          <th>{l('Label')}</th>
-        </tr>
-      </thead>
-      <tbody>
-        {items.map((item, index) => (
-          <tr className={loopParity(index)} key={item.label_id}>
-            <td>
-              {item.label ? (
-                <EntityLink entity={item.label} />
-              ) : (
-                l('This label no longer exists.')
-              )}
-            </td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
-  </PaginatedResults>
-);
+}: Props<D>): React.Element<typeof PaginatedResults> => {
+  const existingLabelItems = items.reduce((result, item) => {
+    if (item.label != null) {
+      result.push(item);
+    }
+    return result;
+  }, []);
+
+  const columns = React.useMemo(
+    () => {
+      const nameColumn = defineEntityColumn<D>({
+        columnName: 'label',
+        getEntity: result => result.label ?? null,
+        title: l('Label'),
+      });
+
+      return [
+        ...(columnsBefore ? [...columnsBefore] : []),
+        nameColumn,
+        ...(columnsAfter ? [...columnsAfter] : []),
+      ];
+    },
+    [columnsAfter, columnsBefore],
+  );
+
+  return (
+    <PaginatedResults pager={pager}>
+      <Table columns={columns} data={existingLabelItems} />
+    </PaginatedResults>
+  );
+};
 
 export default LabelList;

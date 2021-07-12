@@ -19,6 +19,7 @@ my $ws_defs = Data::OptList::mkopt([
      tag => {
                          method   => 'GET',
                          required => [ qw(id entity) ],
+                         optional => [ qw(fmt) ],
      },
      tag => {
                          method   => 'POST',
@@ -43,7 +44,7 @@ sub tag_lookup : Private
     $stash->store($entity)->{user_tags} = \@tags;
 
     $c->res->content_type($c->stash->{serializer}->mime_type . '; charset=utf-8');
-    $c->res->body($c->stash->{serializer}->serialize('tag-list', $entity, $c->stash->{inc}, $stash));
+    $c->res->body($c->stash->{serializer}->serialize('user-tag-list', $entity, $c->stash->{inc}, $stash));
 }
 
 

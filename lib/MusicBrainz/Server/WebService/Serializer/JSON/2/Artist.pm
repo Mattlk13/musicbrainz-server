@@ -23,8 +23,10 @@ sub serialize
             ? $entity->area->country_code : JSON::null;
 
         $body{area} = $entity->area ? serialize_entity($entity->area) : JSON::null;
-        $body{begin_area} = $entity->begin_area ? serialize_entity($entity->begin_area) : JSON::null;
-        $body{end_area} = $entity->end_area ? serialize_entity($entity->end_area) : JSON::null;
+        $body{'begin-area'} = $entity->begin_area ? serialize_entity($entity->begin_area) : JSON::null;
+        $body{'end-area'} = $entity->end_area ? serialize_entity($entity->end_area) : JSON::null;
+        $body{begin_area} = $body{'begin-area'};
+        $body{end_area} = $body{'end-area'};
 
         $body{recordings} = list_of($entity, $inc, $stash, "recordings")
             if ($inc && $inc->recordings);
@@ -46,23 +48,13 @@ __PACKAGE__->meta->make_immutable;
 no Moose;
 1;
 
-=head1 COPYRIGHT
+=head1 COPYRIGHT AND LICENSE
 
 Copyright (C) 2011,2012 MetaBrainz Foundation
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program; if not, write to the Free Software
-Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+This file is part of MusicBrainz, the open internet music database,
+and is licensed under the GPL version 2, or (at your option) any
+later version: http://www.gnu.org/licenses/gpl-2.0.txt
 
 =cut
 

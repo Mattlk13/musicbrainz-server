@@ -1,5 +1,5 @@
 /*
- * @flow
+ * @flow strict-local
  * Copyright (C) 2018 MetaBrainz Foundation
  *
  * This file is part of MusicBrainz, the open internet music database,
@@ -9,45 +9,40 @@
 
 import * as React from 'react';
 
-import {withCatalystContext} from '../context';
-import Layout from '../layout';
-import formatUserDate from '../utility/formatUserDate';
+import {
+  relTypeColumn,
+} from '../utility/tableColumns';
 
-import RecordingRelationshipList from './components/RecordingRelationshipList';
-import FilterLink from './FilterLink';
+import RecordingList from './components/RecordingList';
+import ReportLayout from './components/ReportLayout';
 import type {ReportDataT, ReportRecordingRelationshipT} from './types';
 
 const DeprecatedRelationshipRecordings = ({
-  $c,
   canBeFiltered,
   filtered,
   generated,
   items,
   pager,
-}: ReportDataT<ReportRecordingRelationshipT>) => (
-  <Layout fullWidth title={l('Recordings with deprecated relationships')}>
-    <h1>{l('Recordings with deprecated relationships')}</h1>
-
-    <ul>
-      <li>
-        {l(`This report lists recordings which have relationships using
-            deprecated and grouping-only relationship types.`)}
-      </li>
-      <li>
-        {texp.l('Total recordings found: {count}',
-                {count: pager.total_entries})}
-      </li>
-      <li>
-        {texp.l('Generated on {date}',
-                {date: formatUserDate($c.user, generated)})}
-      </li>
-
-      {canBeFiltered ? <FilterLink filtered={filtered} /> : null}
-    </ul>
-
-    <RecordingRelationshipList items={items} pager={pager} />
-
-  </Layout>
+}: ReportDataT<ReportRecordingRelationshipT>):
+React.Element<typeof ReportLayout> => (
+  <ReportLayout
+    canBeFiltered={canBeFiltered}
+    description={l(
+      `This report lists recordings which have relationships using
+       deprecated and grouping-only relationship types.`,
+    )}
+    entityType="recording"
+    filtered={filtered}
+    generated={generated}
+    title={l('Recordings with deprecated relationships')}
+    totalEntries={pager.total_entries}
+  >
+    <RecordingList
+      columnsBefore={[relTypeColumn]}
+      items={items}
+      pager={pager}
+    />
+  </ReportLayout>
 );
 
-export default withCatalystContext(DeprecatedRelationshipRecordings);
+export default DeprecatedRelationshipRecordings;

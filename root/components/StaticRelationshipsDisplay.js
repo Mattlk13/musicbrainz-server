@@ -10,93 +10,140 @@
 import * as React from 'react';
 
 import RelationshipTargetLinks from '../components/RelationshipTargetLinks';
-import {compare} from '../static/scripts/common/i18n';
-import linkedEntities from '../static/scripts/common/linkedEntities';
-import compareRelationships from '../utility/compareRelationships';
-import {type GroupedRelationshipsT} from '../utility/groupRelationships';
+import {commaOnlyListText} from '../static/scripts/common/i18n/commaOnlyList';
+import {bracketedText} from '../static/scripts/common/utility/bracketed';
+import type {
+  RelationshipTargetTypeGroupT,
+} from '../utility/groupRelationships';
 
 const detailsTableStyle = Object.freeze({width: '100%'});
 
-function targetIsOrderable(relationship: RelationshipT) {
-  const linkType = linkedEntities.link_type[relationship.linkTypeID];
-  const backward = relationship.direction === 'backward';
-  // `backward` indicates that the relationship target is entity0
-  return (linkType.orderable_direction === 1 && !backward) ||
-          (linkType.orderable_direction === 2 && backward);
+function formatTrackRange(range) {
+  if (range[1] == null) {
+    return range[0].number;
+  }
+  return texp.l('{start_track}–{end_track}', {
+    end_track: range[1].number,
+    start_track: range[0].number,
+  });
 }
 
-type Props = {|
+function compareTrackPositions(a: TrackT, b: TrackT) {
+  return a.position - b.position;
+}
+
+function getTrackRanges(trackSet) {
+  const tracks = [...trackSet].sort(compareTrackPositions);
+
+  let range: [TrackT, TrackT | null] = [tracks[0], null];
+
+  const ranges = [range];
+
+  for (let i = 1; i < tracks.length; i++) {
+    const track = tracks[i];
+    const difference = track.position -
+      (range[1] == null ? range[0].position : range[1].position);
+    if (difference > 0) {
+      if (difference === 1) {
+        range[1] = track;
+      } else {
+        range = [track, null];
+        ranges.push(range);
+      }
+    }
+  }
+
+  return commaOnlyListText(ranges.map(formatTrackRange));
+}
+
+type PropsT = {
   +hiddenArtistCredit?: ?ArtistCreditT,
-  +relationships: GroupedRelationshipsT,
-|};
+  +relationships: $ReadOnlyArray<RelationshipTargetTypeGroupT>,
+};
 
-const StaticRelationshipsDisplay = ({
+const StaticRelationshipsDisplay = (React.memo<PropsT>(({
   hiddenArtistCredit,
-  relationships,
-}: Props) => {
+  relationships: groupedRelationships,
+}: PropsT): Array<React.Element<'table'>> => {
   const tables = [];
-  const targetTypes = Object.keys(relationships).sort();
 
-  for (let i = 0; i < targetTypes.length; i++) {
-    const targetType = targetTypes[i];
-    const phraseGroups = relationships[targetType];
-    const phraseKeys = Object.keys(phraseGroups).sort((a, b) => (
-      (phraseGroups[a].linkType.child_order -
-       phraseGroups[b].linkType.child_order) ||
-      compare(a, b)
-    ));
+  for (let i = 0; i < groupedRelationships.length; i++) {
+    const targetTypeGroup = groupedRelationships[i];
+    const relationshipPhraseGroups = targetTypeGroup.relationshipPhraseGroups;
     const targetTypeRows = [];
 
-    for (let j = 0; j < phraseKeys.length; j++) {
-      const phraseKey = phraseKeys[j];
-      const group = phraseGroups[phraseKey];
-      const groupSize = group.relationships.length;
+    for (let j = 0; j < relationshipPhraseGroups.length; j++) {
+      const phraseGroup = relationshipPhraseGroups[j];
+      const groupSize = phraseGroup.targetGroups.length;
       const phraseRows = [];
 
-      group.relationships.sort(compareRelationships);
-
       for (let k = 0; k < groupSize; k++) {
-        const relationship = group.relationships[k];
+        const targetGroup = phraseGroup.targetGroups[k];
 
         const relationshipLink = (
           <RelationshipTargetLinks
-            forGrouping
             hiddenArtistCredit={hiddenArtistCredit}
-            relationship={relationship}
+            relationship={targetGroup}
           />
         );
 
         phraseRows.push(
-          <React.Fragment key={relationship.id}>
-            {groupSize > 1 &&
-              relationship.linkOrder &&
-              targetIsOrderable(relationship) ? (
+          <React.Fragment key={targetGroup.key}>
+            {targetGroup.linkOrder ? (
+              targetGroup.isOrderable ? (
                 exp.l('{num}. {relationship}', {
-                  num: relationship.linkOrder,
+                  num: targetGroup.linkOrder,
                   relationship: relationshipLink,
                 })
-              ) : relationshipLink}
+              ) : (
+                exp.l('{relationship} (order: {num})', {
+                  num: targetGroup.linkOrder,
+                  relationship: relationshipLink,
+                })
+              )
+            ) : relationshipLink}
+            {targetGroup.tracks ? (
+              <>
+                {' '}
+                <span className="comment">
+                  {bracketedText(
+                    texp.ln(
+                      'track {tracks}',
+                      'tracks {tracks}',
+                      targetGroup.tracks.size,
+                      {tracks: getTrackRanges(targetGroup.tracks)},
+                    ),
+                  )}
+                </span>
+              </>
+            ) : null}
             <br />
           </React.Fragment>,
         );
       }
 
       targetTypeRows.push(
-        <tr key={phraseKey}>
-          <th>{addColon(group.phrase)}</th>
+        <tr key={phraseGroup.key}>
+          <th>{addColon(phraseGroup.combinedPhrase)}</th>
           <td style={{wordBreak: 'break-all'}}>{phraseRows}</td>
         </tr>,
       );
     }
 
     tables.push(
-      <table className="details" key={targetType} style={detailsTableStyle}>
-        {targetTypeRows}
+      <table
+        className="details"
+        key={targetTypeGroup.targetType}
+        style={detailsTableStyle}
+      >
+        <tbody>
+          {targetTypeRows}
+        </tbody>
       </table>,
     );
   }
 
   return tables;
-};
+}): React.AbstractComponent<PropsT>);
 
 export default StaticRelationshipsDisplay;

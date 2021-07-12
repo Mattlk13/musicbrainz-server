@@ -1,5 +1,5 @@
 /*
- * @flow
+ * @flow strict-local
  * Copyright (C) 2018 MetaBrainz Foundation
  *
  * This file is part of MusicBrainz, the open internet music database,
@@ -9,7 +9,10 @@
 
 import formatDate from './formatDate';
 
-export default function formatEndDate<+T: {...DatePeriodRoleT}>(entity: T) {
+export default function formatEndDate<+T: $ReadOnly<{
+  ...DatePeriodRoleT,
+  ...
+}>>(entity: T): null | string {
   return entity.end_date
     ? formatDate(entity.end_date)
     : entity.ended ? l('[unknown]') : null;

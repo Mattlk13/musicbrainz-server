@@ -1,5 +1,5 @@
 /*
- * @flow
+ * @flow strict-local
  * Copyright (C) 2018 MetaBrainz Foundation
  *
  * This file is part of MusicBrainz, the open internet music database,
@@ -9,6 +9,7 @@
 
 import * as React from 'react';
 
+import EntityLink from '../../static/scripts/common/components/EntityLink';
 import TagLink from '../../static/scripts/common/components/TagLink';
 import loopParity from '../../utility/loopParity';
 import type {ResultsPropsT} from '../types';
@@ -21,9 +22,14 @@ function buildResult(result, index) {
   const score = result.score;
 
   return (
-    <tr className={loopParity(index)} data-score={score} key={tag}>
+    <tr className={loopParity(index)} data-score={score} key={tag.name}>
       <td>
-        <TagLink tag={tag} />
+        <TagLink tag={tag.name} />
+      </td>
+      <td>
+        {tag.genre ? (
+          <EntityLink entity={tag.genre} />
+        ) : null}
       </td>
     </tr>
   );
@@ -35,13 +41,15 @@ const TagResults = ({
   pager,
   query,
   results,
-}: ResultsPropsT<string>) => (
+}: ResultsPropsT<TagT>):
+React.Element<typeof ResultsLayout> => (
   <ResultsLayout form={form} lastUpdated={lastUpdated}>
     <PaginatedSearchResults
       buildResult={buildResult}
       columns={
         <>
           <th>{l('Name')}</th>
+          <th>{l('Genre')}</th>
         </>
       }
       pager={pager}

@@ -1,5 +1,6 @@
 # 
 # Translators:
+# Atsushi Nakamura <email address hidden>, 2020
 # nikki2 <email address hidden>, 2012
 # john doe, 2018
 # Keshav Kini <email address hidden>, 2013
@@ -7,13 +8,14 @@
 # mai inoue, 2015
 # Nozomu KURASAWA <email address hidden>, 2013,2015
 # nikki, 2012
+# ffff23 <email address hidden>, 2021
 # Shunsuke Shimizu <email address hidden>, 2016
 # th1rtyf0ur, 2013
 msgid ""
 msgstr ""
 "Project-Id-Version: MusicBrainz\n"
-"PO-Revision-Date: 2019-04-10 17:09+0000\n"
-"Last-Translator: yvanz\n"
+"PO-Revision-Date: 2021-06-03 16:53+0000\n"
+"Last-Translator: ffff23 <email address hidden>\n"
 "Language-Team: Japanese (http://www.transifex.com/musicbrainz/musicbrainz/language/ja/)\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
@@ -96,6 +98,11 @@ msgstr "アレウト語"
 msgid "Algonquian languages"
 msgstr "アルゴンキン語族"
 
+#. frequency:1 iso_code_3:alq
+#: DB:language/name:709
+msgid "Algonquin"
+msgstr "アルゴンキン語"
+
 #. frequency:0 iso_code_3:null
 #: DB:language/name:434
 msgid "Altaic languages"
@@ -160,6 +167,11 @@ msgstr "アストゥリアス語"
 #: DB:language/name:28
 msgid "Athapascan languages"
 msgstr "アサバスカ諸語"
+
+#. frequency:1 iso_code_3:atj
+#: DB:language/name:866
+msgid "Atikamekw"
+msgstr "アティカメク語"
 
 #. frequency:0 iso_code_3:null
 #: DB:language/name:29
@@ -401,6 +413,11 @@ msgstr "中米インディアン諸語"
 msgid "Central Okinawan"
 msgstr "沖縄語"
 
+#. frequency:1 iso_code_3:esu
+#: DB:language/name:2243
+msgid "Central Yupik"
+msgstr "中央アラスカ・ユピック語"
+
 #. frequency:1 iso_code_3:chg
 #: DB:language/name:75
 msgid "Chagatai"
@@ -561,7 +578,7 @@ msgstr "チェコ語"
 msgid "Dakota"
 msgstr "ダコタ語"
 
-#. frequency:2 iso_code_3:dan
+#. frequency:1 iso_code_3:dan
 #: DB:language/name:100
 msgid "Danish"
 msgstr "デンマーク語"
@@ -831,7 +848,7 @@ msgstr "低地ドイツ語"
 msgid "German, Middle High (ca.1050-1500)"
 msgstr "中期高地ドイツ語（1050年頃 - 1500年頃）"
 
-#. frequency:0 iso_code_3:goh
+#. frequency:1 iso_code_3:goh
 #: DB:language/name:153
 msgid "German, Old High (ca.750-1050)"
 msgstr "古代高地ドイツ語（750年頃 - 1050年頃）"
@@ -956,7 +973,7 @@ msgstr "ヒリガイノン語"
 msgid "Himachali languages"
 msgstr "ヒマーチャル語"
 
-#. frequency:1 iso_code_3:hin
+#. frequency:2 iso_code_3:hin
 #: DB:language/name:171
 msgid "Hindi"
 msgstr "ヒンディー語"
@@ -1040,6 +1057,11 @@ msgstr "イングリア語"
 #: DB:language/name:191
 msgid "Ingush"
 msgstr "イングーシ語"
+
+#. frequency:1 iso_code_3:moe
+#: DB:language/name:4369
+msgid "Innu"
+msgstr "モンタニェ語"
 
 #. frequency:1 iso_code_3:ina
 #: DB:language/name:187
@@ -1625,11 +1647,6 @@ msgstr "モンゴ語"
 #: DB:language/name:282
 msgid "Mongolian"
 msgstr "モンゴル語"
-
-#. frequency:1 iso_code_3:moe
-#: DB:language/name:4369
-msgid "Montagnais"
-msgstr "モンタニェ語"
 
 #. frequency:1 iso_code_3:mos
 #: DB:language/name:283
@@ -2256,6 +2273,11 @@ msgstr "スンダ語"
 msgid "Susu"
 msgstr "スス語"
 
+#. frequency:1 iso_code_3:sva
+#: DB:language/name:6216
+msgid "Svan"
+msgstr "スヴァン語"
+
 #. frequency:1 iso_code_3:swa
 #: DB:language/name:402
 msgid "Swahili"
@@ -2464,7 +2486,7 @@ msgstr "ムブンドゥ語"
 #. frequency:1 iso_code_3:sju
 #: DB:language/name:5995
 msgid "Ume Sami"
-msgstr ""
+msgstr "ウーメ・サーミ語"
 
 #. frequency:0 iso_code_3:mis
 #: DB:language/name:273
@@ -2530,6 +2552,11 @@ msgstr "ワカシ語族"
 #: DB:language/name:457
 msgid "Walloon"
 msgstr "ワロン語"
+
+#. frequency:1 iso_code_3:wae
+#: DB:language/name:6981
+msgid "Walser"
+msgstr "ヴァリス語"
 
 #. frequency:1 iso_code_3:war
 #: DB:language/name:453

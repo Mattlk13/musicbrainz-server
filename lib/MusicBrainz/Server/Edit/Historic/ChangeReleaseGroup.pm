@@ -3,15 +3,18 @@ use strict;
 use warnings;
 
 use MusicBrainz::Server::Constants qw( $EDIT_HISTORIC_CHANGE_RELEASE_GROUP );
+use MusicBrainz::Server::Entity::Util::JSON qw( to_json_object );
 use MusicBrainz::Server::Translation qw( N_l );
 
 use MusicBrainz::Server::Edit::Historic::Base;
+
+use aliased 'MusicBrainz::Server::Entity::ReleaseGroup';
 
 sub edit_name     { N_l('Edit release') }
 sub edit_kind     { 'edit' }
 sub historic_type { 73 }
 sub edit_type     { $EDIT_HISTORIC_CHANGE_RELEASE_GROUP }
-sub edit_template { 'historic/change_release_group' }
+sub edit_template_react { 'historic/ChangeReleaseGroup' }
 
 sub _release_group_ids
 {
@@ -46,12 +49,18 @@ sub build_display_data
     return {
         releases => [
             map {
-                $loaded->{Release}{$_}
+                to_json_object($loaded->{Release}{$_})
             } @{ $self->data->{release_ids} }
         ],
         release_group => {
-            old => $loaded->{ReleaseGroup}{ $self->data->{old}{release_group_id} },
-            new => $loaded->{ReleaseGroup}{ $self->data->{new}{release_group_id} },
+            old => to_json_object(
+                $loaded->{ReleaseGroup}{ $self->data->{old}{release_group_id} } ||
+                ReleaseGroup->new( id => $self->data->{old}{release_group_id} )
+            ),
+            new => to_json_object(
+                $loaded->{ReleaseGroup}{ $self->data->{new}{release_group_id} } ||
+                ReleaseGroup->new( id => $self->data->{new}{release_group_id} )
+            ),
         }
     }
 }

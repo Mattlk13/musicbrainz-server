@@ -10,6 +10,7 @@ use MooseX::Types::Structured qw( Dict Optional );
 use MusicBrainz::Server::Data::Utils qw(
     type_to_model
     non_empty
+    boolean_to_json
 );
 use MusicBrainz::Server::Edit::Exceptions;
 use MusicBrainz::Server::Edit::Types qw( Nullable PartialDateHash );
@@ -17,6 +18,7 @@ use MusicBrainz::Server::Edit::Utils qw(
     date_closure
     merge_partial_date
 );
+use MusicBrainz::Server::Entity::Util::JSON qw( to_json_object );
 
 use aliased 'MusicBrainz::Server::Entity::PartialDate';
 
@@ -97,29 +99,30 @@ sub build_display_data
             new => $self->data->{new}{locale},
             old => $self->data->{old}{locale}
         },
-        $type => $loaded->{$model}{ $self->data->{entity}{id} }
+        $type => to_json_object(
+            $loaded->{$model}{ $self->data->{entity}{id} }
             || $self->c->model($model)->_entity_class->new(
                 name => $self->data->{entity}{name}
-            ),
+            )),
         type => {
-            new => $self->_alias_model->parent->alias_type->get_by_id($self->data->{new}{type_id}),
-            old => $self->_alias_model->parent->alias_type->get_by_id($self->data->{old}{type_id}),
+            new => to_json_object($self->_alias_model->parent->alias_type->get_by_id($self->data->{new}{type_id})),
+            old => to_json_object($self->_alias_model->parent->alias_type->get_by_id($self->data->{old}{type_id})),
         },
         begin_date => {
-            new => PartialDate->new_from_row($self->data->{new}{begin_date}),
-            old => PartialDate->new_from_row($self->data->{old}{begin_date}),
+            new => to_json_object(PartialDate->new_from_row($self->data->{new}{begin_date})),
+            old => to_json_object(PartialDate->new_from_row($self->data->{old}{begin_date})),
         },
         end_date => {
-            new => PartialDate->new_from_row($self->data->{new}{end_date}),
-            old => PartialDate->new_from_row($self->data->{old}{end_date}),
+            new => to_json_object(PartialDate->new_from_row($self->data->{new}{end_date})),
+            old => to_json_object(PartialDate->new_from_row($self->data->{old}{end_date})),
         },
         primary_for_locale => {
-            new => $self->data->{new}{primary_for_locale},
-            old => $self->data->{old}{primary_for_locale},
+            new => boolean_to_json($self->data->{new}{primary_for_locale}),
+            old => boolean_to_json($self->data->{old}{primary_for_locale}),
         },
         ended => {
-            new => $self->data->{new}{ended},
-            old => $self->data->{old}{ended}
+            new => boolean_to_json($self->data->{new}{ended}),
+            old => boolean_to_json($self->data->{old}{ended})
         }
     };
 }
@@ -186,7 +189,16 @@ sub current_instance {
     $self->_load_alias;
 }
 
-sub edit_template { "edit_alias" };
+sub edit_template_react { "EditAlias" };
+
+around TO_JSON => sub {
+    my ($orig, $self) = @_;
+
+    my $json = $self->$orig;
+    my $alias = $self->alias;
+    $json->{alias} = $alias ? $alias->TO_JSON : undef;
+    return $json;
+};
 
 __PACKAGE__->meta->make_immutable;
 no Moose;

@@ -1,5 +1,6 @@
 package MusicBrainz::Server::Report::CollaborationRelationships;
 use Moose;
+use MusicBrainz::Server::Entity::Util::JSON qw( to_json_object );
 
 with 'MusicBrainz::Server::Report::QueryReport',
      'MusicBrainz::Server::Report::FilterForEditor';
@@ -9,7 +10,7 @@ sub query {
         SELECT
             artist0.id AS id0, artist0.name AS name0, artist1.id AS id1, artist1.name AS name1,
             row_number() OVER (
-              ORDER BY musicbrainz_collate(artist1.name), artist1.id, musicbrainz_collate(artist0.name), artist0.id
+              ORDER BY artist1.name COLLATE musicbrainz, artist1.id, artist0.name COLLATE musicbrainz, artist0.id
             )
         FROM
             l_artist_artist
@@ -34,8 +35,8 @@ sub inflate_rows
     return [
         map +{
             %$_,
-            artist0 => $artists->{$_->{id0}},
-            artist1 => $artists->{$_->{id1}}
+            artist0 => to_json_object($artists->{ $_->{id0} }),
+            artist1 => to_json_object($artists->{ $_->{id1} }),
         }, @$items
     ];
 }
@@ -57,23 +58,13 @@ __PACKAGE__->meta->make_immutable;
 no Moose;
 1;
 
-=head1 COPYRIGHT
+=head1 COPYRIGHT AND LICENSE
 
 Copyright (C) 2009 MetaBrainz Foundation
 Copyright (C) 2012 MetaBrainz Foundation
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program; if not, write to the Free Software
-Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+This file is part of MusicBrainz, the open internet music database,
+and is licensed under the GPL version 2, or (at your option) any
+later version: http://www.gnu.org/licenses/gpl-2.0.txt
 
 =cut

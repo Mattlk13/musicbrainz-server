@@ -1,5 +1,5 @@
 /*
- * @flow
+ * @flow strict-local
  * Copyright (C) 2019 MetaBrainz Foundation
  *
  * This file is part of MusicBrainz, the open internet music database,
@@ -7,32 +7,35 @@
  * later version: http://www.gnu.org/licenses/gpl-2.0.txt
  */
 
-import React from 'react';
+import * as React from 'react';
 
-import {withCatalystContext} from '../context';
 import WorkList from '../components/list/WorkList';
 import PaginatedResults from '../components/PaginatedResults';
+import {returnToCurrentPage} from '../utility/returnUri';
 
 import ArtistLayout from './ArtistLayout';
 
-type Props = {|
+type Props = {
   +$c: CatalystContextT,
   +artist: ArtistT,
   +pager: PagerT,
-  +works: $ReadOnlyArray<WorkT>,
-|};
+  +works: ?$ReadOnlyArray<WorkT>,
+};
 
 const ArtistWorks = ({
   $c,
   artist,
   pager,
   works,
-}: Props) => (
+}: Props): React.Element<typeof ArtistLayout> => (
   <ArtistLayout entity={artist} page="works" title={l('Works')}>
     <h2>{l('Works')}</h2>
 
-    {works && works.length > 0 ? (
-      <form action="/work/merge_queue" method="post">
+    {works?.length ? (
+      <form
+        action={'/work/merge_queue?' + returnToCurrentPage($c)}
+        method="post"
+      >
         <PaginatedResults pager={pager}>
           <WorkList
             checkboxes="add-to-merge"
@@ -40,7 +43,7 @@ const ArtistWorks = ({
             works={works}
           />
         </PaginatedResults>
-        {$c.user_exists ? (
+        {$c.user ? (
           <div className="row">
             <span className="buttons">
               <button type="submit">
@@ -58,4 +61,4 @@ const ArtistWorks = ({
   </ArtistLayout>
 );
 
-export default withCatalystContext(ArtistWorks);
+export default ArtistWorks;

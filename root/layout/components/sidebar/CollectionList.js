@@ -1,5 +1,5 @@
 /*
- * @flow
+ * @flow strict-local
  * Copyright (C) 2018 MetaBrainz Foundation
  *
  * This file is part of MusicBrainz, the open internet music database,
@@ -7,20 +7,23 @@
  * later version: http://www.gnu.org/licenses/gpl-2.0.txt
  */
 
-import React from 'react';
-import type {Node as ReactNode} from 'react';
+import * as React from 'react';
 
-import {withCatalystContext} from '../../../context';
+import {CatalystContext} from '../../../context';
+import typeof EntityLink
+  from '../../../static/scripts/common/components/EntityLink';
 import entityHref from '../../../static/scripts/common/utility/entityHref';
+import {returnToCurrentPage} from '../../../utility/returnUri';
 
 function entityArg(entity) {
   return '?' + entity.entityType + '=' +
     encodeURIComponent(String(entity.id));
 }
 
-function collectionUrl(collection, entity, action) {
+function collectionUrl($c, collection, entity, action) {
   return entityHref(collection, 'collection_collaborator/' + action) +
-    entityArg(entity);
+    entityArg(entity) +
+    '&' + returnToCurrentPage($c);
 }
 
 function hasEntity($c, collection) {
@@ -28,26 +31,25 @@ function hasEntity($c, collection) {
   return !!(containment && containment[collection.id]);
 }
 
-type CollectionAddRemoveProps = {|
-  +$c: CatalystContextT,
+type CollectionAddRemoveProps = {
   +collections?: $ReadOnlyArray<CollectionT>,
   +entity: CoreEntityT,
   +noneText?: string,
-|};
+};
 
-type CollaborativeCollectionListProps = {|
+type CollaborativeCollectionListProps = {
   +collections?: $ReadOnlyArray<CollectionT>,
   +entity: CoreEntityT,
-|};
+};
 
-type OwnCollectionListProps = {|
+type OwnCollectionListProps = {
   +addText: string,
   +collections?: $ReadOnlyArray<CollectionT>,
   +entity: CoreEntityT,
   +noneText: string,
-|};
+};
 
-type CollectionListProps = {|
+type CollectionListProps = {
   +addCollectionText: string,
   +collaborativeCollections?: $ReadOnlyArray<CollectionT>,
   +collaborativeCollectionsHeader: string,
@@ -57,34 +59,37 @@ type CollectionListProps = {|
   +ownCollectionsHeader: string,
   +ownCollectionsNoneText: string,
   +sectionClass: string,
-  +usersLink: ReactNode,
+  +usersLink: React.Element<EntityLink>,
   +usersLinkHeader: string,
-|};
+};
 
-const CollectionAddRemove = withCatalystContext(({
-  $c,
+const CollectionAddRemove = ({
   collections,
   entity,
   noneText,
 }: CollectionAddRemoveProps) => (
-  (collections && collections.length) ? (
+  collections?.length ? (
     collections.map(collection => (
       <li key={collection.id}>
-        {hasEntity($c, collection) ? (
-          <a href={collectionUrl(collection, entity, 'remove')}>
-            {texp.l(
-              'Remove from {collection}', {collection: collection.name},
-            )}
-          </a>
-        ) : (
-          <a href={collectionUrl(collection, entity, 'add')}>
-            {texp.l('Add to {collection}', {collection: collection.name})}
-          </a>
-        )}
+        <CatalystContext.Consumer>
+          {$c => (
+            hasEntity($c, collection) ? (
+              <a href={collectionUrl($c, collection, entity, 'remove')}>
+                {texp.l(
+                  'Remove from {collection}', {collection: collection.name},
+                )}
+              </a>
+            ) : (
+              <a href={collectionUrl($c, collection, entity, 'add')}>
+                {texp.l('Add to {collection}', {collection: collection.name})}
+              </a>
+            )
+          )}
+        </CatalystContext.Consumer>
       </li>
     ))
   ) : <li>{noneText}</li>
-));
+);
 
 const CollaborativeCollectionList = ({
   collections,
@@ -130,7 +135,7 @@ const CollectionList = ({
   sectionClass,
   usersLink,
   usersLinkHeader,
-}: CollectionListProps) => (
+}: CollectionListProps): React.MixedElement => (
   <>
     <h2 className={sectionClass}>
       {header}
@@ -145,7 +150,7 @@ const CollectionList = ({
       noneText={ownCollectionsNoneText}
     />
     <li className="separator" role="separator" />
-    {collaborativeCollections && collaborativeCollections.length > 0 ? (
+    {collaborativeCollections?.length ? (
       <>
         <h3>
           {collaborativeCollectionsHeader}

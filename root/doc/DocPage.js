@@ -1,5 +1,5 @@
 /*
- * @flow
+ * @flow strict-local
  * Copyright (C) 2019 MetaBrainz Foundation
  *
  * This file is part of MusicBrainz, the open internet music database,
@@ -7,29 +7,29 @@
  * later version: http://www.gnu.org/licenses/gpl-2.0.txt
  */
 
-import React from 'react';
+import * as React from 'react';
 
 import Layout from '../layout';
-import * as DBDefs from '../static/scripts/common/DBDefs';
+import DBDefs from '../static/scripts/common/DBDefs';
 
 import DocSearchBox from './components/DocSearchBox';
 
-type DocPageT = {|
+type DocPageT = {
   +content: string,
   +hierarchy: $ReadOnlyArray<string>,
   +title: string,
   +version: number,
-|};
+};
 
-type Props = {|
+type Props = {
   +id: string,
   +page: DocPageT,
-|};
+};
 
 const DocPage = ({
   id,
   page,
-}: Props) => {
+}: Props): React.Element<typeof Layout> => {
   let doc = '';
   let lastDoc = '';
   // We check whether we have a Google Custom Search engine
@@ -52,7 +52,7 @@ const DocPage = ({
     </a>
   );
   return (
-    <Layout fullWidth no_icons title={page.title}>
+    <Layout fullWidth noIcons title={page.title}>
       <div className="wikicontent" id="content">
         {useGoogleCustomSearch ? <DocSearchBox /> : null}
 

@@ -8,19 +8,19 @@
  */
 
 import * as React from 'react';
-import moment from 'moment';
-import 'moment-strftime';
-import 'moment-timezone';
-import _ from 'lodash';
 import mutate from 'mutate-cow';
 
+import FormCsrfToken from '../../../../components/FormCsrfToken';
 import FormRow from '../../../../components/FormRow';
 import FormRowCheckbox from '../../../../components/FormRowCheckbox';
 import FormRowSelect from '../../../../components/FormRowSelect';
 import FormSubmit from '../../../../components/FormSubmit';
+import {SanitizedCatalystContext} from '../../../../context';
+import {formatUserDateObject} from '../../../../utility/formatUserDate';
 import hydrate from '../../../../utility/hydrate';
 
-type PreferencesFormT = FormT<{|
+type PreferencesFormT = FormT<{
+  +csrf_token: FieldT<string>,
   +datetime_format: FieldT<string>,
   +email_on_no_vote: FieldT<boolean>,
   +email_on_notes: FieldT<boolean>,
@@ -35,17 +35,17 @@ type PreferencesFormT = FormT<{|
   +subscribe_to_created_series: FieldT<boolean>,
   +subscriptions_email_period: FieldT<string>,
   +timezone: FieldT<string>,
-|}>;
+}>;
 
-type Props = {|
+type Props = {
   +form: PreferencesFormT,
   +timezone_options: MaybeGroupedOptionsT,
-|};
+};
 
-type State = {|
+type State = {
   form: PreferencesFormT,
   timezoneOptions: MaybeGroupedOptionsT,
-|};
+};
 
 const allowedDateTimeFormats = [
   '%Y-%m-%d %H:%M %Z',
@@ -62,12 +62,12 @@ const allowedDateTimeFormats = [
   '%m.%d.%Y %H:%M',
 ];
 
-function buildDateTimeFormatOptions(timezone) {
-  const hereAndNow = moment.tz(timezone);
+function buildDateTimeFormatOptions($c, timezone) {
+  const hereAndNow = new Date();
   return {
     grouped: false,
     options: allowedDateTimeFormats.map(a => ({
-      label: hereAndNow.strftime(a),
+      label: formatUserDateObject($c, hereAndNow, {format: a, timezone}),
       value: a,
     })),
   };
@@ -106,11 +106,22 @@ class PreferencesForm extends React.Component<Props, State> {
   handleTimezoneGuess: () => void;
 
   handleTimezoneGuess() {
-    const guess = moment.tz.guess();
-    if (_.some(this.state.timezoneOptions.options, {value: guess})) {
-      this.setState(prevState => mutate<State, _>(prevState, newState => {
-        newState.form.field.timezone.value = guess;
-      }));
+    let maybeGuess;
+    try {
+      maybeGuess = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    } catch (e) {
+      // ignored where Intl.DateTimeFormat is unsupported
+    }
+    const guess = maybeGuess;
+    if (guess) {
+      for (const option of this.state.timezoneOptions.options) {
+        if (option.value === guess) {
+          this.setState(prevState => mutate<State, _>(prevState, newState => {
+            newState.form.field.timezone.value = guess;
+          }));
+          break;
+        }
+      }
     }
   }
 
@@ -138,6 +149,8 @@ class PreferencesForm extends React.Component<Props, State> {
     const field = this.state.form.field;
     return (
       <form method="post">
+        <FormCsrfToken form={this.state.form} />
+
         <fieldset>
           <legend>{l('Regional settings')}</legend>
           <FormRowSelect
@@ -157,45 +170,69 @@ class PreferencesForm extends React.Component<Props, State> {
             onChange={this.handleTimezoneChange}
             options={this.state.timezoneOptions}
           />
-          <FormRowSelect
-            field={field.datetime_format}
-            label={l('Date/time format:')}
-            onChange={this.handleDateTimeFormatChange}
-            options={buildDateTimeFormatOptions(field.timezone.value)}
-          />
+          <SanitizedCatalystContext.Consumer>
+            {$c => (
+              <FormRowSelect
+                field={field.datetime_format}
+                label={l('Date/time format:')}
+                onChange={this.handleDateTimeFormatChange}
+                options={buildDateTimeFormatOptions(
+                  $c,
+                  field.timezone.value,
+                )}
+              />
+            )}
+          </SanitizedCatalystContext.Consumer>
         </fieldset>
         <fieldset>
           <legend>{l('Privacy')}</legend>
           <FormRowCheckbox
             field={field.public_subscriptions}
             label={l('Allow other users to see my subscriptions')}
+            uncontrolled
           />
           <FormRowCheckbox
             field={field.public_tags}
             label={l('Allow other users to see my tags')}
+            uncontrolled
           />
           <FormRowCheckbox
             field={field.public_ratings}
             label={l('Allow other users to see my ratings')}
+            uncontrolled
           />
           <FormRowCheckbox
             field={field.show_gravatar}
             label={l('Show my Gravatar')}
+            uncontrolled
           />
         </fieldset>
         <fieldset>
           <legend>{l('Email')}</legend>
           <FormRowCheckbox
             field={field.email_on_no_vote}
-            label={l('Mail me when one of my edits gets a "no" vote. (Note: the email is only sent for the first "no" vote, not each one)')}
+            label={l(
+              `Mail me when one of my edits gets a "no" vote.
+               (Note: the email is only sent for the first "no" vote,
+               not each one)`,
+            )}
+            uncontrolled
           />
           <FormRowCheckbox
             field={field.email_on_notes}
-            label={l('When I add a note to an edit, mail me all future notes for that edit.')}
+            label={l(
+              `When I add a note to an edit,
+               mail me all future notes for that edit.`,
+            )}
+            uncontrolled
           />
           <FormRowCheckbox
             field={field.email_on_vote}
-            label={l('When I vote on an edit, mail me all future notes for that edit.')}
+            label={l(
+              `When I vote on an edit,
+               mail me all future notes for that edit.`,
+            )}
+            uncontrolled
           />
           <FormRowSelect
             field={field.subscriptions_email_period}
@@ -209,14 +246,17 @@ class PreferencesForm extends React.Component<Props, State> {
           <FormRowCheckbox
             field={field.subscribe_to_created_artists}
             label={l('Automatically subscribe me to artists I create.')}
+            uncontrolled
           />
           <FormRowCheckbox
             field={field.subscribe_to_created_labels}
             label={l('Automatically subscribe me to labels I create.')}
+            uncontrolled
           />
           <FormRowCheckbox
             field={field.subscribe_to_created_series}
             label={l('Automatically subscribe me to series I create.')}
+            uncontrolled
           />
         </fieldset>
         <FormRow hasNoLabel>
@@ -228,4 +268,8 @@ class PreferencesForm extends React.Component<Props, State> {
 }
 
 export type PreferencesFormPropsT = Props;
-export default hydrate<Props>('div.preferences-form', PreferencesForm);
+
+export default (hydrate<Props>(
+  'div.preferences-form',
+  PreferencesForm,
+): React.AbstractComponent<Props, void>);

@@ -1,5 +1,5 @@
 /*
- * @flow
+ * @flow strict-local
  * Copyright (C) 2019 Anirudh Jain
  * Copyright (C) 2014 MetaBrainz Foundation
  *
@@ -9,7 +9,7 @@
  */
 
 
-import React from 'react';
+import * as React from 'react';
 
 import Layout from '../../layout';
 import {compare} from '../../static/scripts/common/i18n';
@@ -23,11 +23,14 @@ const frequencyLabels = {
 };
 
 type Props = {
-  attributes: Array<ScriptT>,
-  model: string,
+  +attributes: Array<ScriptT>,
+  +model: string,
 };
 
-const Script = ({model, attributes}: Props) => (
+const Script = ({
+  model,
+  attributes,
+}: Props): React.Element<typeof Layout> => (
   <Layout fullWidth title={model || l('Script')}>
     <h1>
       <a href="/admin/attributes">{l('Attributes')}</a>

@@ -1,5 +1,5 @@
 /*
- * @flow
+ * @flow strict-local
  * Copyright (C) 2018 MetaBrainz Foundation
  *
  * This file is part of MusicBrainz, the open internet music database,
@@ -11,9 +11,18 @@ import * as React from 'react';
 
 import ConfirmLayout from '../../components/ConfirmLayout';
 
-const RemoveApplication = () => ConfirmLayout({
-  question: l('Are you sure you want to remove this application?'),
-  title: l('Remove Application'),
-});
+type Props = {
+  +form: SecureConfirmFormT,
+};
+
+const RemoveApplication = ({
+  form,
+}: Props): React.Element<typeof ConfirmLayout> => (
+  <ConfirmLayout
+    form={form}
+    question={l('Are you sure you want to remove this application?')}
+    title={l('Remove Application')}
+  />
+);
 
 export default RemoveApplication;

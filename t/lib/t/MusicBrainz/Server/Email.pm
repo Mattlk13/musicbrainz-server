@@ -6,7 +6,10 @@ use Test::More;
 use MusicBrainz::Server::Test;
 use MusicBrainz::Server::Email;
 use DBDefs;
-use MusicBrainz::Server::Constants qw( $MINIMUM_RESPONSE_PERIOD );
+use MusicBrainz::Server::Constants qw(
+    $EDITOR_MODBOT
+    $MINIMUM_RESPONSE_PERIOD
+);
 
 with 't::Context';
 
@@ -302,6 +305,35 @@ EOS
 
     };
 
+    subtest 'localized send_edit_note' => sub {
+        $email->send_edit_note(
+            edit_id => 1234,
+            editor => $user1,
+            from_editor => MusicBrainz::Server::Entity::Editor->new(
+                email => 'support@musicbrainz.org',
+                id => $EDITOR_MODBOT,
+                name => 'ModBot',
+            ),
+            note_text => 'localize:{"message":"Hello {name}","args":{"name":"World"}}',
+        );
+
+        my $delivery = $email->transport->shift_deliveries;
+        my $e = $delivery->{email};
+        $email->transport->clear_deliveries;
+
+        compare_body(
+            $e->object->body_str,
+            "'ModBot' has added the following note to edit #1234:\n" .
+            "------------------------------------------------------------------------\n" .
+            "Hello World\n" .
+            "------------------------------------------------------------------------\n" .
+            "If you would like to reply to this note, please add your note at:\n" .
+            "$server/edit/1234\n" .
+            "Please do not respond to this email.\n\n" .
+            "-- The MusicBrainz Team\n",
+        );
+    };
+
     $email->send_edit_note(
         editor => $user2,
         from_editor => $user1,
@@ -333,23 +365,13 @@ EOS
 
 };
 
-=head1 LICENSE
+=head1 COPYRIGHT AND LICENSE
 
 Copyright (C) 2009-2012 MetaBrainz Foundation
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program; if not, write to the Free Software
-Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+This file is part of MusicBrainz, the open internet music database,
+and is licensed under the GPL version 2, or (at your option) any
+later version: http://www.gnu.org/licenses/gpl-2.0.txt
 
 =cut
 

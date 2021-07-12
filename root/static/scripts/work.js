@@ -8,44 +8,45 @@
  */
 
 import $ from 'jquery';
-import _ from 'lodash';
 import ko from 'knockout';
 import mutate from 'mutate-cow';
-import React from 'react';
-import ReactDOM from 'react-dom';
+import * as ReactDOM from 'react-dom';
 import {createStore} from 'redux';
 
 import FormRowSelectList from '../../components/FormRowSelectList';
 import subfieldErrors from '../../utility/subfieldErrors';
 
+import {groupBy} from './common/utility/arrays';
 import getScriptArgs from './common/utility/getScriptArgs';
 import {buildOptionsTree} from './edit/forms';
+import typeBubble from './edit/typeBubble';
 import {initializeBubble} from './edit/MB/Control/Bubble';
 import {createCompoundField} from './edit/utility/createField';
 import {pushCompoundField, pushField} from './edit/utility/pushField';
-import {initialize_guess_case} from './guess-case/MB/Control/GuessCase';
+import {initializeGuessCase} from './guess-case/MB/Control/GuessCase';
+import {LANGUAGE_MUL_ID, LANGUAGE_ZXX_ID} from './common/constants';
 
 const scriptArgs = getScriptArgs();
 
-type WorkAttributeField = ReadOnlyCompoundFieldT<{|
+type WorkAttributeField = ReadOnlyCompoundFieldT<{
   +type_id: ReadOnlyFieldT<?number>,
   +value: ReadOnlyFieldT<?StrOrNum>,
-|}>;
+}>;
 
-type WorkForm = FormT<{|
+type WorkForm = FormT<{
   +attributes: ReadOnlyRepeatableFieldT<WorkAttributeField>,
   +languages: ReadOnlyRepeatableFieldT<ReadOnlyFieldT<?number>>,
-|}>;
+}>;
 
-type WritableWorkAttributeField = CompoundFieldT<{|
+type WritableWorkAttributeField = CompoundFieldT<{
   +type_id: FieldT<?number>,
   +value: FieldT<?StrOrNum>,
-|}>;
+}>;
 
-type WritableWorkForm = FormT<{|
+type WritableWorkForm = FormT<{
   +attributes: RepeatableFieldT<WritableWorkAttributeField>,
   +languages: RepeatableFieldT<FieldT<?number>>,
-|}>;
+}>;
 
 /*
  * Flow does not support assigning types within destructuring assignments:
@@ -69,7 +70,8 @@ const store = createStore(function (state: WorkForm = form, action) {
 
     case 'EDIT_LANGUAGE':
       state = mutate<WorkForm, _>(state, newState => {
-        newState.field.languages.field[action.index].value = action.languageId;
+        newState.field.languages.field[action.index].value =
+          action.languageId;
       });
       break;
 
@@ -100,13 +102,15 @@ function removeLanguageFromState(form: WorkForm, i: number): WorkForm {
 class WorkAttribute {
   allowedValues: () => OptionListT;
 
-  allowedValuesByTypeID: {[number]: OptionListT};
-
   attributeValue: KnockoutObservable<string>;
 
   errors: KnockoutObservableArray<string>;
 
   parent: ViewModel;
+
+  previousTypeID: number | null;
+
+  previousValue: string | null;
 
   typeHasFocus: KnockoutObservable<boolean>;
 
@@ -119,36 +123,56 @@ class WorkAttribute {
     this.attributeValue = ko.observable(data.field.value.value);
     this.errors = ko.observableArray(subfieldErrors(data));
     this.parent = parent;
+    this.previousTypeID = null;
+    this.previousValue = null;
     this.typeHasFocus = ko.observable(false);
     this.typeID = ko.observable(data.field.type_id.value);
 
     this.allowedValues = ko.computed(() => {
       const typeID = this.typeID();
 
-      if (this.allowsFreeText()) {
+      if (this.allowsFreeText(typeID)) {
         return [];
       }
-      return this.parent.allowedValuesByTypeID[typeID];
+      return this.parent.allowedValuesByTypeID.get(String(typeID)) ?? [];
     });
+
+    this.typeID.subscribe((previousTypeID => {
+      this.previousTypeID = previousTypeID;
+    }), this, 'beforeChange');
 
     this.typeID.subscribe(newTypeID => {
       // != is used intentionally for type coercion.
-      if (this.typeID() != newTypeID) { // eslint-disable-line eqeqeq
-        this.attributeValue('');
+      if (this.previousTypeID != newTypeID) { // eslint-disable-line eqeqeq
+        // Don't blank text value if user e.g. misclicked and corrects type
+        if (!(this.allowsFreeText(this.previousTypeID) &&
+              this.allowsFreeText(newTypeID))) {
+          this.attributeValue('');
+        }
         this.resetErrors();
       }
     });
 
-    this.attributeValue.subscribe(() => this.resetErrors());
+    this.attributeValue.subscribe((previousValue => {
+      this.previousValue = previousValue;
+    }), this, 'beforeChange');
+
+    this.attributeValue.subscribe(newValue => {
+      // != is used intentionally for type coercion.
+      if (this.previousValue != newValue) { // eslint-disable-line eqeqeq
+        this.resetErrors();
+      }
+    });
   }
 
-  allowsFreeText() {
-    return !this.typeID() ||
-      this.parent.attributeTypesByID[this.typeID()].free_text;
+  allowsFreeText(typeID) {
+    return !typeID ||
+      this.parent.attributeTypesByID[typeID].free_text;
   }
 
   isGroupingType() {
-    return !this.allowsFreeText() && this.allowedValues().length === 0;
+    return !this.allowsFreeText(this.typeID()) &&
+           this.allowedValues().length === 0;
   }
 
   remove() {
@@ -163,9 +187,9 @@ class WorkAttribute {
 class ViewModel {
   attributeTypes: OptionListT;
 
-  attributeTypesByID: {[number]: WorkAttributeTypeTreeT};
+  attributeTypesByID: {[typeId: StrOrNum]: WorkAttributeTypeTreeT, ...};
 
-  allowedValuesByTypeID: {[number]: OptionListT};
+  allowedValuesByTypeID: $ReadOnlyMap<string, OptionListT>;
 
   attributes: KnockoutObservableArray<WorkAttribute>;
 
@@ -182,19 +206,24 @@ class ViewModel {
 
     this.attributeTypesByID = attributeTypes.children.reduce(byID, {});
 
-    this.allowedValuesByTypeID = _(allowedValues.children)
-      .groupBy(x => x.workAttributeTypeID)
-      .mapValues(function (children) {
-        return buildOptionsTree(
+    this.allowedValuesByTypeID = new Map(
+      Array.from(
+        groupBy(
+          allowedValues.children,
+          x => String(x.workAttributeTypeID),
+        ).entries(),
+      ).map(([typeId, children]) => [
+        typeId,
+        buildOptionsTree(
           {children},
           x => lp_attributes(x.value, 'work_attribute_type_allowed_value'),
           'id',
-        );
-      })
-      .value();
+        ),
+      ]),
+    );
 
     this.attributes = ko.observableArray(
-      _.map(attributes, data => new WorkAttribute(data, this)),
+      attributes.map(data => new WorkAttribute(data, this)),
     );
   }
 
@@ -221,9 +250,7 @@ function byID(result, parent) {
 
 {
   const attributes = form.field.attributes;
-  if (_.isEmpty(attributes.field)) {
-    const name = attributes.html_name + '.' +
-      String(attributes.field.length);
+  if (!attributes.field.length) {
     form = mutate<WritableWorkForm, _>(form, newForm => {
       pushCompoundField(newForm.field.attributes, {
         type_id: null,
@@ -242,7 +269,7 @@ ko.applyBindings(
   $('#work-attributes')[0],
 );
 
-initialize_guess_case('work', 'id-edit-work');
+initializeGuessCase('work', 'id-edit-work');
 
 function addLanguage() {
   store.dispatch({type: 'ADD_LANGUAGE'});
@@ -263,18 +290,25 @@ function removeLanguage(i) {
   });
 }
 
+const getSelectField = field => field;
+
 function renderWorkLanguages() {
   const workLanguagesNode = document.getElementById('work-languages-editor');
   if (!workLanguagesNode) {
     throw new Error('Mount point #work-languages-editor does not exist');
   }
   const form: WorkForm = store.getState();
+  const selectedLanguageIds =
+    form.field.languages.field.map(lang => String(lang.value));
   ReactDOM.render(
     <FormRowSelectList
       addId="add-language"
       addLabel={l('Add Language')}
-      getSelectField={_.identity}
-      hideAddButton={_.intersection(form.field.languages.field.map(lang => String(lang.value)), ["486", "284"]).length > 0}
+      getSelectField={getSelectField}
+      hideAddButton={
+        selectedLanguageIds.includes(String(LANGUAGE_MUL_ID)) ||
+        selectedLanguageIds.includes(String(LANGUAGE_ZXX_ID))
+      }
       label={l('Lyrics Languages')}
       onAdd={addLanguage}
       onEdit={editLanguage}
@@ -294,14 +328,4 @@ renderWorkLanguages();
 initializeBubble('#iswcs-bubble', 'input[name=edit-work\\.iswcs\\.0]');
 
 const typeIdField = 'select[name=edit-work\\.type_id]';
-initializeBubble('#type-bubble', typeIdField);
-$(typeIdField).on('change', function () {
-  if (this.value.match(/\S/g)) {
-    $('#type-bubble-default').hide();
-    $('.type-bubble-description').hide();
-    $(`#type-bubble-description-${this.value}`).show();
-  } else {
-    $('.type-bubble-description').hide();
-    $('#type-bubble-default').show();
-  }
-});
+typeBubble(typeIdField);

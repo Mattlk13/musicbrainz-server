@@ -1,5 +1,5 @@
 /*
- * @flow
+ * @flow strict-local
  * Copyright (C) 2018 MetaBrainz Foundation
  *
  * This file is part of MusicBrainz, the open internet music database,
@@ -9,10 +9,11 @@
 
 import * as React from 'react';
 
-import {withCatalystContext} from '../../context';
 import EntityLink from '../../static/scripts/common/components/EntityLink';
 import formatDate from '../../static/scripts/common/utility/formatDate';
 import formatEndDate from '../../static/scripts/common/utility/formatEndDate';
+import {isEditingEnabled}
+  from '../../static/scripts/common/utility/privileges';
 import formatLabelCode from '../../utility/formatLabelCode';
 import loopParity from '../../utility/loopParity';
 import type {ResultsPropsWithContextT} from '../types';
@@ -30,7 +31,9 @@ function buildResult(result, index) {
         <EntityLink entity={label} />
       </td>
       <td>
-        {label.typeName ? lp_attributes(label.typeName, 'label_type') : null}
+        {nonEmpty(label.typeName)
+          ? lp_attributes(label.typeName, 'label_type')
+          : null}
       </td>
       <td>
         {label.label_code ? formatLabelCode(label.label_code) : null}
@@ -51,7 +54,8 @@ const LabelResults = ({
   pager,
   query,
   results,
-}: ResultsPropsWithContextT<LabelT>) => (
+}: ResultsPropsWithContextT<LabelT>):
+React.Element<typeof ResultsLayout> => (
   <ResultsLayout form={form} lastUpdated={lastUpdated}>
     <PaginatedSearchResults
       buildResult={buildResult}
@@ -69,7 +73,7 @@ const LabelResults = ({
       query={query}
       results={results}
     />
-    {$c.user && !$c.user.is_editing_disabled ? (
+    {isEditingEnabled($c.user) ? (
       <p>
         {exp.l('Alternatively, you may {uri|add a new label}.', {
           uri: '/label/create?edit-label.name=' + encodeURIComponent(query),
@@ -79,4 +83,4 @@ const LabelResults = ({
   </ResultsLayout>
 );
 
-export default withCatalystContext(LabelResults);
+export default LabelResults;

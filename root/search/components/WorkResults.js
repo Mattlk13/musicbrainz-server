@@ -1,5 +1,5 @@
 /*
- * @flow
+ * @flow strict-local
  * Copyright (C) 2018 MetaBrainz Foundation
  *
  * This file is part of MusicBrainz, the open internet music database,
@@ -9,8 +9,10 @@
 
 import * as React from 'react';
 
-import {withCatalystContext} from '../../context';
-import WorkListEntry from '../../static/scripts/common/components/WorkListEntry';
+import WorkListEntry
+  from '../../static/scripts/common/components/WorkListEntry';
+import {isEditingEnabled}
+  from '../../static/scripts/common/utility/privileges';
 import type {ResultsPropsWithContextT} from '../types';
 
 import PaginatedSearchResults from './PaginatedSearchResults';
@@ -38,10 +40,11 @@ const WorkResults = ({
   pager,
   query,
   results,
-}: ResultsPropsWithContextT<WorkT>) => (
+}: ResultsPropsWithContextT<WorkT>):
+React.Element<typeof ResultsLayout> => (
   <ResultsLayout form={form} lastUpdated={lastUpdated}>
     <PaginatedSearchResults
-      buildResult={buildResult}
+      buildResult={(result, index) => buildResult(result, index)}
       columns={
         <>
           <th>{l('Name')}</th>
@@ -56,7 +59,7 @@ const WorkResults = ({
       query={query}
       results={results}
     />
-    {$c.user && !$c.user.is_editing_disabled ? (
+    {isEditingEnabled($c.user) ? (
       <p>
         {exp.l('Alternatively, you may {uri|add a new work}.', {
           uri: '/work/create?edit-work.name=' + encodeURIComponent(query),
@@ -66,4 +69,4 @@ const WorkResults = ({
   </ResultsLayout>
 );
 
-export default withCatalystContext(WorkResults);
+export default WorkResults;

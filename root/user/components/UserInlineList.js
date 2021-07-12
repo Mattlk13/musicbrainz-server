@@ -1,5 +1,5 @@
 /*
- * @flow
+ * @flow strict-local
  * Copyright (C) 2018 MetaBrainz Foundation
  * Copyright (C) 2018 Theodore Fabian Rudy
  *
@@ -13,11 +13,11 @@ import * as React from 'react';
 import EditorLink from '../../static/scripts/common/components/EditorLink';
 import commaOnlyList from '../../static/scripts/common/i18n/commaOnlyList';
 
-type Props = {|
+type Props = {
   +editors: $ReadOnlyArray<EditorT>,
-|};
+};
 
-const UserInlineList = ({editors}: Props) => (
+const UserInlineList = ({editors}: Props): React.Element<'p'> => (
   <p>
     {editors.length ? (
       commaOnlyList(

@@ -1,5 +1,5 @@
 /*
- * @flow
+ * @flow strict-local
  * Copyright (C) 2018 MetaBrainz Foundation
  *
  * This file is part of MusicBrainz, the open internet music database,
@@ -9,48 +9,31 @@
 
 import * as React from 'react';
 
-import {withCatalystContext} from '../context';
-import Layout from '../layout';
-import formatUserDate from '../utility/formatUserDate';
-
 import EventList from './components/EventList';
-import FilterLink from './FilterLink';
+import ReportLayout from './components/ReportLayout';
 import type {ReportDataT, ReportEventT} from './types';
 
 const EventSequenceNotInSeries = ({
-  $c,
   canBeFiltered,
   filtered,
   generated,
   items,
   pager,
-}: ReportDataT<ReportEventT>) => (
-  <Layout
-    fullWidth
+}: ReportDataT<ReportEventT>): React.Element<typeof ReportLayout> => (
+  <ReportLayout
+    canBeFiltered={canBeFiltered}
+    description={l(
+      `This report lists events where the event name indicates that it
+       may have to be part of a series or a larger event.`,
+    )}
+    entityType="event"
+    filtered={filtered}
+    generated={generated}
     title={l('Events which should be part of series or larger event')}
+    totalEntries={pager.total_entries}
   >
-    <h1>{l('Events which should be part of series or larger event')}</h1>
-
-    <ul>
-      <li>
-        {l(`This report lists events where the event name indicates that it
-            may have to be part of a series or a larger event.`)}
-      </li>
-      <li>
-        {texp.l('Total events found: {count}',
-                {count: pager.total_entries})}
-      </li>
-      <li>
-        {texp.l('Generated on {date}',
-                {date: formatUserDate($c.user, generated)})}
-      </li>
-
-      {canBeFiltered ? <FilterLink filtered={filtered} /> : null}
-    </ul>
-
     <EventList items={items} pager={pager} />
-
-  </Layout>
+  </ReportLayout>
 );
 
-export default withCatalystContext(EventSequenceNotInSeries);
+export default EventSequenceNotInSeries;

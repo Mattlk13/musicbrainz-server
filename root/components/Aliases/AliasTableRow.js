@@ -7,7 +7,7 @@
  * later version: http://www.gnu.org/licenses/gpl-2.0.txt
  */
 
-import React from 'react';
+import * as React from 'react';
 
 import isolateText from '../../static/scripts/common/utility/isolateText';
 import formatDate from '../../static/scripts/common/utility/formatDate';
@@ -23,7 +23,12 @@ type Props = {
   +row: string,
 };
 
-const AliasTableRow = ({alias, allowEditing, entity, row}: Props) => (
+const AliasTableRow = ({
+  alias,
+  allowEditing,
+  entity,
+  row,
+}: Props): React.Element<'tr'> => (
   <tr className={row}>
     <td colSpan={alias.name === alias.sort_name ? 2 : 1}>
       {alias.editsPending
@@ -49,7 +54,7 @@ const AliasTableRow = ({alias, allowEditing, entity, row}: Props) => (
         )
         : null}
     </td>
-    <td>
+    <td className="actions">
       {allowEditing
         ? (
           <>

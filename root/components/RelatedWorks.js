@@ -1,5 +1,5 @@
 /*
- * @flow
+ * @flow strict-local
  * Copyright (C) 2018 MetaBrainz Foundation
  *
  * This file is part of MusicBrainz, the open internet music database,
@@ -23,11 +23,11 @@ const targetEntityTypes = [
   'work',
 ];
 
-type Props = {|
+type Props = {
   +workIds: $ReadOnlyArray<number>,
-|};
+};
 
-const RelatedWorks = ({workIds}: Props) => {
+const RelatedWorks = ({workIds}: Props): React.MixedElement => {
   const createArgs = [
     React.Fragment,
     null,
@@ -44,7 +44,7 @@ const RelatedWorks = ({workIds}: Props) => {
       </h3>,
       <StaticRelationshipsDisplay
         relationships={
-          groupRelationships(work.relationships, targetEntityTypes)
+          groupRelationships(work.relationships, {types: targetEntityTypes})
         }
       />,
     );

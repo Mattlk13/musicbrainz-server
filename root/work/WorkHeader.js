@@ -1,5 +1,5 @@
 /*
- * @flow
+ * @flow strict-local
  * Copyright (C) 2018 MetaBrainz Foundation
  *
  * This file is part of MusicBrainz, the open internet music database,
@@ -7,21 +7,26 @@
  * later version: http://www.gnu.org/licenses/gpl-2.0.txt
  */
 
-import React from 'react';
+import * as React from 'react';
 
 import EntityHeader from '../components/EntityHeader';
 
-type Props = {|
+type Props = {
   page: string,
   work: WorkT,
-|};
+};
 
-const WorkHeader = ({work, page}: Props) => (
+const WorkHeader = ({
+  work,
+  page,
+}: Props): React.Element<typeof EntityHeader> => (
   <EntityHeader
     entity={work}
     headerClass="workheader"
     page={page}
-    subHeading={work.typeName ? lp_attributes(work.typeName, 'work_type') : l('Work')}
+    subHeading={nonEmpty(work.typeName)
+      ? lp_attributes(work.typeName, 'work_type')
+      : l('Work')}
   />
 );
 

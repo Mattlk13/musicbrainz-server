@@ -20,6 +20,8 @@ use MusicBrainz::Server::Edit::Utils qw(
     merge_value
     verify_artist_credits
 );
+use MusicBrainz::Server::Edit::Historic::Utils qw( get_historic_type );
+use MusicBrainz::Server::Entity::Util::JSON qw( to_json_object );
 use MusicBrainz::Server::Translation qw( N_l );
 
 use MooseX::Types::Moose qw( ArrayRef Maybe Str Int );
@@ -115,28 +117,35 @@ sub build_display_data
     my %map = (
         name    => 'name',
         comment => 'comment',
-        type    => [ qw( type_id ReleaseGroupType ) ],
     );
 
     my $data = changed_display_data($self->data, $loaded, %map);
 
     if (exists $self->data->{new}{artist_credit}) {
         $data->{artist_credit} = {
-            new => artist_credit_from_loaded_definition($loaded, $self->data->{new}{artist_credit}),
-            old => artist_credit_from_loaded_definition($loaded, $self->data->{old}{artist_credit})
-        }
+            new => to_json_object(artist_credit_from_loaded_definition($loaded, $self->data->{new}{artist_credit})),
+            old => to_json_object(artist_credit_from_loaded_definition($loaded, $self->data->{old}{artist_credit})),
+        };
     }
 
-    $data->{release_group} = $loaded->{ReleaseGroup}{
-        $self->data->{entity}{id}
-    } || ReleaseGroup->new( name => $self->data->{entity}{name} );
+    $data->{release_group} = to_json_object(
+        $loaded->{ReleaseGroup}{$self->data->{entity}{id}} ||
+        ReleaseGroup->new( name => $self->data->{entity}{name} )
+    );
 
     $data->{secondary_types} = {
         map {
-            $_ => join(' + ', map { $loaded->{ReleaseGroupSecondaryType}{$_}->name }
+            $_ => join(' + ', map { $loaded->{ReleaseGroupSecondaryType}{$_}->l_name }
                            @{ $self->data->{$_}{secondary_type_ids} })
         } qw( old new )
     };
+
+    if (exists $self->data->{old}{type_id} || exists $self->data->{new}{type_id}) {
+        $data->{type} = {
+            new => get_historic_type($self->data->{new}{type_id}, $loaded),
+            old => get_historic_type($self->data->{old}{type_id}, $loaded),
+        };
+    }
 
     return $data;
 }
@@ -220,6 +229,8 @@ sub _edit_hash
     $data->{comment} //= '' if exists $data->{comment};
     return $data;
 }
+
+sub edit_template_react { "EditReleaseGroup" }
 
 before accept => sub {
     my ($self) = @_;

@@ -13,7 +13,7 @@ m4_define(`apt_purge', `apt-get purge --auto-remove -y $1')
 
 m4_define(`sudo_mb', `sudo -E -H -u musicbrainz $1')
 
-m4_define(`NODEJS_DEB', `nodejs_10.10.0-1nodesource1_amd64.deb')
+m4_define(`NODEJS_DEB', `nodejs_16.1.0-deb-1nodesource1_amd64.deb')
 
 m4_define(
     `install_javascript',
@@ -23,9 +23,9 @@ copy_mb(``package.json yarn.lock ./'')
 RUN apt-key add /tmp/yarn_pubkey.txt && \
     rm /tmp/yarn_pubkey.txt && \
     echo "deb https://dl.yarnpkg.com/debian/ stable main" | tee /etc/apt/sources.list.d/yarn.list && \
-    apt_install(``git python-minimal yarn'') && \
+    apt_install(``git python3-minimal yarn'') && \
     cd /tmp && \
-    curl -sLO https://deb.nodesource.com/node_10.x/pool/main/n/nodejs/NODEJS_DEB && \
+    curl -sLO https://deb.nodesource.com/node_16.x/pool/main/n/nodejs/NODEJS_DEB && \
     dpkg -i NODEJS_DEB && \
     cd - && \
     sudo_mb(``yarn install$1'')
@@ -41,6 +41,8 @@ copy_mb(``script/compile_resources.sh script/dbdefs_to_js.pl script/start_render
 copy_mb(``webpack.client.config.js webpack.server.config.js webpack.tests.config.js ./'')
 copy_mb(``webpack/ webpack/'')
 
+ENV NODE_ENV production
+RUN sudo_mb(``carton exec -- ./script/compile_resources.sh'')
 RUN chown_mb(``/tmp/ttc'')')
 
 m4_define(
@@ -53,9 +55,11 @@ libicu-dev m4_dnl
 libperl-dev m4_dnl
 libpq-dev m4_dnl
 libssl-dev m4_dnl
-libxml2-dev')
+libxml2-dev m4_dnl
+zlib1g-dev m4_dnl
+pkg-config')
 
-# postgresql-server-dev-9.5 provides pg_config, which is needed by InitDb.pl
+# postgresql-server-dev-12 provides pg_config, which is needed by InitDb.pl
 # at run-time.
 m4_define(
     `mbs_run_deps',
@@ -64,18 +68,20 @@ bzip2 m4_dnl
 ca-certificates m4_dnl
 libdb5.3 m4_dnl
 libexpat1 m4_dnl
-libicu55 m4_dnl
+libicu66 m4_dnl
 libpq5 m4_dnl
-libssl1.0.0 m4_dnl
+libssl1.1 m4_dnl
+libxml2 m4_dnl
 perl m4_dnl
-postgresql-client-9.5 m4_dnl
-postgresql-server-dev-9.5')
+postgresql-client-12 m4_dnl
+postgresql-server-dev-12 m4_dnl
+zlib1g')
 
 m4_define(
     `test_db_run_deps',
     `m4_dnl
 carton m4_dnl
-postgresql-9.5-pgtap')
+postgresql-12-pgtap')
 
 m4_define(
     `test_db_build_deps',
@@ -83,7 +89,7 @@ m4_define(
 gcc m4_dnl
 libc6-dev m4_dnl
 make m4_dnl
-postgresql-server-dev-9.5')
+postgresql-server-dev-12')
 
 m4_define(
     `install_perl_modules',
@@ -91,7 +97,11 @@ m4_define(
 ENV PERL_CARTON_PATH /home/musicbrainz/carton-local
 ENV PERL_CPANM_OPT --notest --no-interactive
 
-RUN apt_install(`mbs_build_deps mbs_run_deps') && \
+COPY docker/pgdg_pubkey.txt /tmp/
+RUN apt-key add /tmp/pgdg_pubkey.txt && \
+    rm /tmp/pgdg_pubkey.txt && \
+    echo "deb http://apt.postgresql.org/pub/repos/apt/ $(lsb_release -cs)-pgdg main" > /etc/apt/sources.list.d/pgdg.list && \
+    apt_install(`mbs_build_deps mbs_run_deps') && \
     wget -q -O - https://cpanmin.us | perl - App::cpanminus && \
     cpanm Carton JSON::XS && \
     chown_mb(``$PERL_CARTON_PATH'') && \
@@ -123,7 +133,7 @@ m4_define(
     `install_translations',
     `m4_dnl
 copy_mb(``po/ po/'')
-RUN apt_install(``gettext language-pack-de language-pack-el language-pack-es language-pack-et language-pack-fi language-pack-fr language-pack-it language-pack-ja language-pack-nl make'') && \
+RUN apt_install(``gettext language-pack-de language-pack-el language-pack-es language-pack-et language-pack-fi language-pack-fr language-pack-it language-pack-ja language-pack-nl language-pack-sq make'') && \
     sudo_mb(``make -C po all_quiet'') && \
     sudo_mb(``make -C po deploy'')')
 
@@ -139,11 +149,10 @@ copy_mb(``script/functions.sh script/git_info script/'')')
 m4_define(
     `git_info',
     `m4_dnl
-m4_pushdef(`git_info', ``git_info'')
 ENV `GIT_BRANCH' GIT_BRANCH
-ENV `GIT_MSG' GIT_MSG
-ENV `GIT_SHA' GIT_SHA
-m4_popdef(`git_info')')
+ENV `GIT_MSG' m4_changequote(`.quote_never_ever_use_in_a_commit_message.', `.end_quote_never_ever_use_in_a_commit_message.')GIT_MSG
+m4_changequote`'m4_dnl
+ENV `GIT_SHA' GIT_SHA')
 
 m4_define(
     `install_new_xz_utils',

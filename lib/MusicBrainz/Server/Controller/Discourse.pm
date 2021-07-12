@@ -22,6 +22,8 @@ has lwp => (
         $lwp->env_proxy;
         $lwp->timeout(5);
         $lwp->agent(DBDefs->LWP_USER_AGENT);
+        $lwp->default_header('Api-Key' => DBDefs->DISCOURSE_API_KEY);
+        $lwp->default_header('Api-Username' => DBDefs->DISCOURSE_API_USERNAME);
         $lwp;
     },
 );
@@ -46,8 +48,6 @@ sub _create_uri {
 
     my $uri = URI->new(DBDefs->DISCOURSE_SERVER);
     $uri->path($path);
-    $uri->query_param_append('api_key', DBDefs->DISCOURSE_API_KEY);
-    $uri->query_param_append('api_username', DBDefs->DISCOURSE_API_USERNAME);
     $uri;
 }
 
@@ -115,11 +115,12 @@ sub log_out : Private {
 
 1;
 
-=head1 COPYRIGHT
+=head1 COPYRIGHT AND LICENSE
 
-This file is part of MusicBrainz, the open internet music database.
 Copyright (C) 2016 MetaBrainz Foundation
-Licensed under the GPL version 2, or (at your option) any later version:
-http://www.gnu.org/licenses/gpl-2.0.txt
+
+This file is part of MusicBrainz, the open internet music database,
+and is licensed under the GPL version 2, or (at your option) any
+later version: http://www.gnu.org/licenses/gpl-2.0.txt
 
 =cut

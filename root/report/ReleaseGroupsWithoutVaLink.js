@@ -1,5 +1,5 @@
 /*
- * @flow
+ * @flow strict-local
  * Copyright (C) 2018 MetaBrainz Foundation
  *
  * This file is part of MusicBrainz, the open internet music database,
@@ -9,51 +9,33 @@
 
 import * as React from 'react';
 
-import {withCatalystContext} from '../context';
-import Layout from '../layout';
-import formatUserDate from '../utility/formatUserDate';
-
 import ReleaseGroupList from './components/ReleaseGroupList';
-import FilterLink from './FilterLink';
+import ReportLayout from './components/ReportLayout';
 import type {ReportDataT, ReportReleaseGroupT} from './types';
 
 const ReleaseGroupsWithoutVaLink = ({
-  $c,
   canBeFiltered,
   filtered,
   generated,
   items,
   pager,
-}: ReportDataT<ReportReleaseGroupT>) => (
-  <Layout
-    fullWidth
-    title={l(`Release groups credited to "Various Artists"
-              but not linked to VA`)}
+}: ReportDataT<ReportReleaseGroupT>): React.Element<typeof ReportLayout> => (
+  <ReportLayout
+    canBeFiltered={canBeFiltered}
+    description={l(
+      `This report shows release groups with "Various Artists" as the
+       credited name but not linked to the Various Artists entity.`,
+    )}
+    entityType="release_group"
+    filtered={filtered}
+    generated={generated}
+    title={l(
+      'Release groups credited to "Various Artists" but not linked to VA',
+    )}
+    totalEntries={pager.total_entries}
   >
-    <h1>
-      {l('Release groups credited to "Various Artists" but not linked to VA')}
-    </h1>
-
-    <ul>
-      <li>
-        {l(`This report shows release groups with "Various Artists" as the
-            credited name but not linked to the Various Artists entity.`)}
-      </li>
-      <li>
-        {texp.l('Total release groups found: {count}',
-                {count: pager.total_entries})}
-      </li>
-      <li>
-        {texp.l('Generated on {date}',
-                {date: formatUserDate($c.user, generated)})}
-      </li>
-
-      {canBeFiltered ? <FilterLink filtered={filtered} /> : null}
-    </ul>
-
     <ReleaseGroupList items={items} pager={pager} />
-
-  </Layout>
+  </ReportLayout>
 );
 
-export default withCatalystContext(ReleaseGroupsWithoutVaLink);
+export default ReleaseGroupsWithoutVaLink;

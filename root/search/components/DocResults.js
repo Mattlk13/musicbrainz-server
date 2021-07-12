@@ -1,5 +1,5 @@
 /*
- * @flow
+ * @flow strict-local
  * Copyright (C) 2018 MetaBrainz Foundation
  *
  * This file is part of MusicBrainz, the open internet music database,
@@ -12,7 +12,7 @@ import * as React from 'react';
 import Layout from '../../layout';
 import {GOOGLE_CUSTOM_SEARCH} from '../../static/scripts/common/DBDefs';
 
-const DocResults = () => (
+const DocResults = (): React.Element<typeof Layout> => (
   <Layout fullWidth title={l('Documentation Search')}>
     <div className="wikicontent" id="content">
       <h1>{l('Documentation Search')}</h1>
@@ -21,7 +21,10 @@ const DocResults = () => (
         src={'https://cse.google.com/cse.js?cx=' + encodeURIComponent(GOOGLE_CUSTOM_SEARCH)}
         type="text/javascript"
       />
-      {React.createElement('gcse:search', {enablehistory: 'true', queryparametername: 'query'})}
+      {React.createElement(
+        'gcse:search',
+        {enablehistory: 'true', queryparametername: 'query'},
+      )}
     </div>
   </Layout>
 );

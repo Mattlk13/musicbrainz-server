@@ -22,10 +22,12 @@ my $mech = $test->mech;
 $mech->default_header("Accept" => "application/xml");
 
 MusicBrainz::Server::Test->prepare_test_database($c, '+webservice');
-MusicBrainz::Server::Test->prepare_test_database($c, <<'EOSQL');
-INSERT INTO editor (id, name, password, ha1, email, email_confirm_date) VALUES (1, 'new_editor', '{CLEARTEXT}password', 'e1dd8fee8ee728b0ddc8027d3a3db478', 'foo@example.com', now());
-INSERT INTO recording_gid_redirect (gid, new_id) VALUES ('78ad6e24-dc0a-4c20-8284-db2d44d28fb9', 4223060);
-EOSQL
+MusicBrainz::Server::Test->prepare_test_database($c, <<~'EOSQL');
+    INSERT INTO editor (id, name, password, ha1, email, email_confirm_date)
+        VALUES (1, 'new_editor', '{CLEARTEXT}password', 'e1dd8fee8ee728b0ddc8027d3a3db478', 'foo@example.com', now());
+    INSERT INTO recording_gid_redirect (gid, new_id)
+        VALUES ('78ad6e24-dc0a-4c20-8284-db2d44d28fb9', 4223060);
+    EOSQL
 
 # Check OPTIONS support
 my $req = HTTP::Request->new('OPTIONS', '/ws/2/recording?client=test-1.0');
@@ -33,9 +35,9 @@ my $req = HTTP::Request->new('OPTIONS', '/ws/2/recording?client=test-1.0');
 $mech->request($req);
 is($mech->status, HTTP_OK);
 
-my $headers = $mech->response->headers;
-is($headers->header('access-control-allow-origin'), '*');
-is($headers->header('allow'), 'GET, POST, OPTIONS');
+my $response1_headers = $mech->response->headers;
+is($response1_headers->header('access-control-allow-origin'), '*');
+is($response1_headers->header('allow'), 'GET, POST, OPTIONS');
 
 # Check CORS preflight support
 $req = HTTP::Request->new('OPTIONS', '/ws/2/recording?client=test-1.0', [
@@ -47,11 +49,11 @@ $req = HTTP::Request->new('OPTIONS', '/ws/2/recording?client=test-1.0', [
 $mech->request($req);
 is($mech->status, HTTP_OK);
 
-my $headers = $mech->response->headers;
-is($headers->header('access-control-allow-headers'), 'Authorization, Content-Type');
-is($headers->header('access-control-allow-methods'), 'GET, POST, OPTIONS');
-is($headers->header('access-control-allow-origin'), '*');
-is($headers->header('allow'), 'GET, POST, OPTIONS');
+my $response2_headers = $mech->response->headers;
+is($response2_headers->header('access-control-allow-headers'), 'Authorization, Content-Type, User-Agent');
+is($response2_headers->header('access-control-allow-methods'), 'GET, POST, OPTIONS');
+is($response2_headers->header('access-control-allow-origin'), '*');
+is($response2_headers->header('allow'), 'GET, POST, OPTIONS');
 
 my $content = '<?xml version="1.0" encoding="UTF-8"?>
 <metadata xmlns="http://musicbrainz.org/ns/mmd-2.0#">
@@ -62,6 +64,9 @@ my $content = '<?xml version="1.0" encoding="UTF-8"?>
       </isrc-list>
     </recording>
   </recording-list>
+  <edit-note>This is a testy test!
+
+This is the second paragraph of this &quot;test&quot; &amp; it is great!</edit-note>
 </metadata>';
 
 $req = xml_post('/ws/2/recording?client=test-1.0', $content);
@@ -86,8 +91,25 @@ is_deeply($edit->data->{isrcs}, [
       }
   }
 ]);
+my $en_data = MusicBrainz::Server::Data::EditNote->new(c => $c);
+$en_data->load_for_edits($edit);
+is(@{ $edit->edit_notes }, 1, 'Edit has an edit note');
+check_note($edit->edit_notes->[0],'MusicBrainz::Server::Entity::EditNote',
+       editor_id => 1,
+       edit_id => $edit->id,
+       text => 'This is a testy test!
+
+This is the second paragraph of this "test" & it is great!');
 
 };
+
+sub check_note {
+    my ($note, $class, %attrs) = @_;
+    isa_ok($note, $class);
+    is($note->$_, $attrs{$_}, "check_note: $_ is ".$attrs{$_})
+        for keys %attrs;
+    ok(defined $note->post_time, "check_note: edit has post time");
+}
 
 1;
 

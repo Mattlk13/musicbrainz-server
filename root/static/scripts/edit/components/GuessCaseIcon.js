@@ -1,5 +1,5 @@
 /*
- * @flow
+ * @flow strict
  * Copyright (C) 2019 MetaBrainz Foundation
  *
  * This file is part of MusicBrainz, the open internet music database,
@@ -9,11 +9,10 @@
 
 import * as React from 'react';
 
-import * as manifest from '../../../manifest';
 
 const style = {float: 'left', margin: '1em'};
 
-const GuessCaseIcon = () => (
+const GuessCaseIcon = (): React.Element<'img'> => (
   <img
     alt=""
     src={require('../../../images/icons/guesscase.32x32.png')}

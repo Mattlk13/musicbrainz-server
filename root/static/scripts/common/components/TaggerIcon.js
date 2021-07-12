@@ -1,5 +1,5 @@
 /*
- * @flow
+ * @flow strict
  * Copyright (C) 2018 MetaBrainz Foundation
  *
  * This file is part of MusicBrainz, the open internet music database,
@@ -7,9 +7,9 @@
  * later version: http://www.gnu.org/licenses/gpl-2.0.txt
  */
 
-import React from 'react';
+import * as React from 'react';
 
-import {withCatalystContext} from '../../../../context';
+import {CatalystContext} from '../../../../context';
 
 function buildTaggerLink(entity, tport: number): string {
   const gid = entity.gid;
@@ -23,28 +23,25 @@ function buildTaggerLink(entity, tport: number): string {
   return `http://127.0.0.1:${tport}/${path}?id=${gid}&t=${t}`;
 }
 
-type Props = {|
-  +$c: CatalystContextT,
+type Props = {
   +entity: RecordingT | ReleaseT,
-|};
-
-const TaggerIcon = ({$c, entity}: Props) => {
-  const tport = $c.session ? $c.session.tport : null;
-  if (!tport) {
-    return null;
-  }
-  return (
-    <a
-      className="tagger-icon"
-      href={buildTaggerLink(entity, tport)}
-      title={l('Open in tagger')}
-    >
-      <img
-        alt={l('Tagger')}
-        src={require('../../../images/icons/mblookup-tagger.png')}
-      />
-    </a>
-  );
 };
 
-export default withCatalystContext(TaggerIcon);
+const TaggerIcon = ({entity}: Props): React.MixedElement => (
+  <CatalystContext.Consumer>
+    {$c => $c.session?.tport == null ? null : (
+      <a
+        className="tagger-icon"
+        href={buildTaggerLink(entity, $c.session.tport)}
+        title={l('Open in tagger')}
+      >
+        <img
+          alt={l('Tagger')}
+          src={require('../../../images/icons/mblookup-tagger.png')}
+        />
+      </a>
+    )}
+  </CatalystContext.Consumer>
+);
+
+export default TaggerIcon;

@@ -22,6 +22,7 @@ use MusicBrainz::Server::EditSearch::Predicate::LabelArea;
 use MusicBrainz::Server::EditSearch::Predicate::ReleaseCountry;
 use MusicBrainz::Server::EditSearch::Predicate::RelationshipType;
 use MusicBrainz::Server::EditSearch::Predicate::EditNoteAuthor;
+use MusicBrainz::Server::EditSearch::Predicate::EditNoteContent;
 use MusicBrainz::Server::Log 'log_warning';
 use Try::Tiny;
 
@@ -44,6 +45,7 @@ my %field_map = (
     editor_flag => 'MusicBrainz::Server::EditSearch::Predicate::EditorFlag',
     applied_edits => 'MusicBrainz::Server::EditSearch::Predicate::AppliedEdits',
     edit_note_author => 'MusicBrainz::Server::EditSearch::Predicate::EditNoteAuthor',
+    edit_note_content => 'MusicBrainz::Server::EditSearch::Predicate::EditNoteContent',
 
     entities_with(['mbid', 'relatable'],
         take => sub {
@@ -67,7 +69,7 @@ has combinator => (
 );
 
 has order => (
-    isa => enum([qw( asc desc rand )]),
+    isa => enum([qw( asc desc closed_asc closed_desc vote_closing_asc vote_closing_desc latest_note rand )]),
     is => 'ro',
     required => 1,
     default => 'desc'
@@ -104,7 +106,7 @@ sub new_from_user_input {
     my ($class, $user_input, $user) = @_;
     my $input = expand_hash($user_input);
     my $ae = $input->{auto_edit_filter};
-    $ae = undef if $ae =~ /^\s*$/;
+    $ae = undef if defined $ae && $ae =~ /^\s*$/;
     return $class->new(
         exists $input->{negation}   ? (negate => $input->{negation}) : (),
         exists $input->{combinator} ? (combinator => $input->{combinator}) : (),
@@ -149,14 +151,41 @@ sub as_string {
         'autoedit = ? AND ' : '';
 
     my $order = '';
-    $order = 'ORDER BY edit.id ' . $self->order
-        unless $self->order eq 'rand';
+    my $extra_conditions = '';
+    my $extra_joins = '';
+    if ($self->order eq 'asc') {
+        $order = 'ORDER BY edit.id ASC';
+    } elsif ($self->order eq 'desc') {
+        $order = 'ORDER BY edit.id DESC';
+    } elsif ($self->order eq 'closed_asc') {
+        $order = 'ORDER BY edit.close_time ASC';
+        $extra_conditions = ' AND edit.close_time IS NOT NULL';
+    } elsif ($self->order eq 'closed_desc') {
+        $order = 'ORDER BY edit.close_time DESC';
+        $extra_conditions = ' AND edit.close_time IS NOT NULL';
+    } elsif ($self->order eq 'vote_closing_asc') {
+        $order = 'ORDER BY edit.expire_time ASC';
+        $extra_conditions = ' AND edit.close_time IS NULL';
+    } elsif ($self->order eq 'vote_closing_desc') {
+        $order = 'ORDER BY edit.expire_time DESC';
+        $extra_conditions = ' AND edit.close_time IS NULL';
+    } elsif ($self->order eq 'latest_note') {
+        $order = 'ORDER BY s.latest_note DESC';
+        $extra_conditions = ' AND s.latest_note IS NOT NULL';
+        $extra_joins = 'JOIN (
+            SELECT edit, MAX(post_time) AS latest_note
+            FROM edit_note
+            GROUP BY edit
+            ) s ON s.edit = edit.id '
+    }
 
     return 'SELECT edit.*, edit_data.data ' .
         'FROM edit JOIN edit_data ON edit.id = edit_data.edit ' .
+        $extra_joins .
         'WHERE ' . $ae_predicate . ($self->negate ? 'NOT ' : '') . '(' .
             join(" $comb ", map { '(' . $_->[0] . ')' } $self->where) .
         ")
+         $extra_conditions
          $order
          LIMIT $LIMIT_FOR_EDIT_LISTING";
 }

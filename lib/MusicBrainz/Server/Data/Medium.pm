@@ -9,7 +9,6 @@ use MusicBrainz::Server::Data::Utils qw(
     object_to_ids
     placeholders
 );
-use aliased 'MusicBrainz::Server::Entity::Work';
 
 extends 'MusicBrainz::Server::Data::Entity';
 with 'MusicBrainz::Server::Data::Role::Editable' => { table => 'medium' };
@@ -25,7 +24,7 @@ sub _columns
 {
     return 'medium.id, release, position, format, medium.name,
             medium.edits_pending, track_count,
-            COALESCE((SELECT true FROM track WHERE medium = medium.id AND position = 0), false) AS has_pregap,
+            COALESCE((SELECT TRUE FROM track WHERE medium = medium.id AND position = 0), false) AS has_pregap,
             (SELECT count(*) FROM track WHERE medium = medium.id AND position > 0 AND is_data_track = false) AS cdtoc_track_count';
 }
 
@@ -60,12 +59,41 @@ sub load
     return load_subobjects($self, 'medium', @objs);
 }
 
+sub load_track_durations {
+    my ($self, @mediums) = @_;
+
+    @mediums = grep { !$_->durations_loaded } @mediums;
+    return unless @mediums;
+
+    my %id_to_medium = object_to_ids(@mediums);
+    my @ids = keys %id_to_medium;
+    return unless @ids;
+
+    my $query =
+        'SELECT medium, pregap_length, cdtoc_track_lengths, data_track_lengths ' .
+        'FROM medium_track_durations ' .
+        'WHERE medium = any(?)';
+
+    my $duration_rows = $self->sql->select_list_of_hashes($query, [\@ids]);
+    for my $row (@$duration_rows) {
+        for my $medium (@{ $id_to_medium{ $row->{medium} } }) {
+            $medium->pregap_length($row->{pregap_length});
+            $medium->cdtoc_track_lengths($row->{cdtoc_track_lengths});
+            $medium->data_track_lengths($row->{data_track_lengths});
+            $medium->durations_loaded(1);
+        }
+    }
+}
+
 sub load_for_releases
 {
     my ($self, @releases) = @_;
+
+    @releases = grep { !$_->mediums_loaded } @releases;
+    return unless @releases;
+
     my %id_to_release = object_to_ids(@releases);
     my @ids = keys %id_to_release;
-
 
     return unless @ids; # nothing to do
     my $query = "SELECT " . $self->_columns . "
@@ -81,6 +109,9 @@ sub load_for_releases
             weaken($medium->{release}); # XXX HACK!
         }
     }
+
+    $self->load_track_durations(@mediums);
+    $_->mediums_loaded(1) for @releases;
 }
 
 sub update
@@ -167,10 +198,10 @@ sub find_for_cdstub {
                              id name track_count release position format edits_pending
                          )) . "
            FROM (
-                    SELECT id, ts_rank_cd(to_tsvector('mb_simple', name), query, 2) AS rank,
+                    SELECT id, ts_rank_cd(mb_simple_tsvector(name), query, 2) AS rank,
                            name
-                    FROM release, plainto_tsquery('mb_simple', ?) AS query
-                    WHERE to_tsvector('mb_simple', name) @@ query
+                    FROM release, plainto_tsquery('mb_simple', mb_lower(?)) AS query
+                    WHERE mb_simple_tsvector(name) @@ query
                     ORDER BY rank DESC
                     LIMIT ?
                 ) AS name
@@ -179,7 +210,7 @@ sub find_for_cdstub {
       LEFT JOIN medium_format ON medium.format = medium_format.id
           WHERE track_count_matches_cdtoc(medium, ?)
           AND (medium_format.id IS NULL OR medium_format.has_discids)
-       ORDER BY name.rank DESC, musicbrainz_collate(name.name),
+       ORDER BY name.rank DESC, name.name COLLATE musicbrainz,
                 release.artist_credit";
 
     $self->query_to_list(
@@ -226,61 +257,6 @@ sub set_lengths_to_cdtoc
     $self->c->model('Recording')->_delete_from_cache(@recording_ids);
 }
 
-sub merge
-{
-    my ($self, $new_medium_id, $old_medium_id) = @_;
-    my @recording_merges = @{
-        $self->sql->select_list_of_hashes(
-            'SELECT DISTINCT newt.recording AS new, oldt.recording AS old
-               FROM track oldt
-               JOIN track newt ON newt.position = oldt.position
-              WHERE newt.medium = ? AND oldt.medium = ?
-                AND newt.recording != oldt.recording',
-            $new_medium_id, $old_medium_id
-        )
-    };
-
-    # We need to make sure that for each old recording, there is only 1 new recording
-    # to merge into. If there is > 1, then it's not clear what we should merge into.
-    my %target_count;
-    $target_count{ $_->{old} }++ for @recording_merges;
-
-    # MBS-8614. Track recording merges, to resolve cases where a recording is
-    # a merge source on one track (after which it gets deleted), and a merge
-    # target on another track (in which case we should instead use the ID of
-    # the target from the first merge). Example where recording 3 should be
-    # merged into recording 2:
-    # 1 -> 2
-    # 3 -> 1
-    my %merge_targets;
-
-    @recording_merges = grep {
-        my ($new, $old) = @{$_}{qw( new old )};
-
-        $merge_targets{$old} = $new;
-
-        $target_count{$old} == 1
-    } @recording_merges;
-
-    for my $recording_merge (@recording_merges) {
-        my ($new, $old) = @{$recording_merge}{qw( new old )};
-
-        $new = $merge_targets{$new} // $new;
-
-        # If two recordings' positions are swapped (e.g. recording 1 is being
-        # merged into recording 2, and recording 2 is being merged into
-        # recording 1), then we don't merge them in that case, because it's
-        # probably not intentional.
-        if ($new != $old) {
-            $self->c->model('Recording')->merge($new, $old);
-            $merge_targets{$old} = $new;
-        }
-    }
-
-    $self->c->model('Track')->merge_mediums($new_medium_id, $old_medium_id);
-}
-
-
 =method reorder
 
     reorder
@@ -321,41 +297,36 @@ sub load_related_info {
     $self->c->model('Track')->load_for_mediums(@mediums);
 
     my @tracks = map { $_->all_tracks } @mediums;
-    $self->c->model('ArtistCredit')->load(@tracks);
+    $self->c->model('Track')->load_related_info($user_id, @tracks);
+}
 
-    my @recordings = $self->c->model('Recording')->load(@tracks);
-    $self->c->model('Recording')->load_meta(@recordings);
-    $self->c->model('Recording')->load_gid_redirects(@recordings);
-    $self->c->model('Recording')->rating->load_user_ratings($user_id, @recordings) if $user_id;
+sub load_related_info_paged {
+    my ($self, $user_id, $medium, $page) = @_;
 
-    $self->c->model('Relationship')->load_cardinal(@recordings);
-    $self->c->model('Relationship')->load_cardinal(grep { $_->isa(Work) } map { $_->target } map { $_->all_relationships } @recordings);
+    $self->c->model('MediumFormat')->load($medium);
+    $self->c->model('Release')->load($medium);
 
-    $self->c->model('ArtistType')->load(map { $_->target } map { @{ $_->relationships_by_type('artist') } } @recordings);
+    my ($pager, $tracks) = $self->c->model('Track')->load_for_medium_paged(
+        $medium->id,
+        $page,
+    );
 
-    $self->c->model('ISRC')->load_for_recordings(@recordings);
+    $self->c->model('Track')->load_related_info($user_id, @$tracks);
+    $medium->tracks($tracks);
+    $medium->has_loaded_tracks(1);
+    $medium->tracks_pager($pager);
 }
 
 __PACKAGE__->meta->make_immutable;
 no Moose;
 1;
 
-=head1 COPYRIGHT
+=head1 COPYRIGHT AND LICENSE
 
 Copyright (C) 2009 Lukas Lalinsky
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program; if not, write to the Free Software
-Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+This file is part of MusicBrainz, the open internet music database,
+and is licensed under the GPL version 2, or (at your option) any
+later version: http://www.gnu.org/licenses/gpl-2.0.txt
 
 =cut

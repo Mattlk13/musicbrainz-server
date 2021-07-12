@@ -4,6 +4,7 @@
 # nikki2 <email address hidden>, 2012
 # Daniel Schury <email address hidden>, 2011
 # Daniel Schury <email address hidden>, 2011
+# David Kellner <email address hidden>, 2019-2020
 # Eckhard Henkel <email address hidden>, 2018
 # Elmar Stichnoth, 2017
 # Elmar Stichnoth, 2017
@@ -14,13 +15,14 @@
 # Frank Matthiae <email address hidden>, 2015
 # Hans-Peter Braun <email address hidden>, 2017
 # happykraut, 2017
-# J L <email address hidden>, 2018
-# J L <email address hidden>, 2018
+# 871cf62ea721ffc486279ce0e5a0f34c_d3e66b3 <email address hidden>, 2018
+# 871cf62ea721ffc486279ce0e5a0f34c_d3e66b3 <email address hidden>, 2018
 # Jod isnotmyname <email address hidden>, 2017
 # happykraut, 2017
 # Leo_Verto <email address hidden>, 2017
 # Leo_Verto <email address hidden>, 2017
 # Marc Rodrigues <email address hidden>, 2019
+# Mark Spike, 2019
 # Mineo <email address hidden>, 2011
 # Wieland Hoffmann <email address hidden>, 2011
 # nikki, 2013-2014
@@ -29,7 +31,7 @@
 # Nikolai Prokoschenko <email address hidden>, 2011
 # nikki, 2013
 # Patrick <email address hidden>, 2015
-# Philipp Wolfer <email address hidden>, 2012,2018-2019
+# Philipp Wolfer <email address hidden>, 2012,2018-2021
 # Philipp Wolfer <email address hidden>, 2012
 # S.Brandt <email address hidden>, 2014-2016
 # Shepard, 2011
@@ -39,13 +41,14 @@
 # TL, 2015-2016
 # Tobias Quathamer <email address hidden>, 2007
 # Tobias Quathamer <email address hidden>, 2007
+# palim <email address hidden>, 2020
 # Ulrich Klauer <email address hidden>, 2015-2016
 # Wieland Hoffmann <email address hidden>, 2011
 msgid ""
 msgstr ""
 "Project-Id-Version: MusicBrainz\n"
-"PO-Revision-Date: 2019-08-21 06:24+0000\n"
-"Last-Translator: Philipp Wolfer <email address hidden>\n"
+"PO-Revision-Date: 2021-06-28 15:34+0000\n"
+"Last-Translator: Nicolás Tamargo <email address hidden>\n"
 "Language-Team: German (http://www.transifex.com/musicbrainz/musicbrainz/language/de/)\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
@@ -97,6 +100,11 @@ msgstr "12\"-Vinyl"
 msgctxt "medium_format"
 msgid "3.5\" Floppy Disk"
 msgstr "3,5″-Diskette"
+
+#: DB:medium_format/name:91
+msgctxt "medium_format"
+msgid "5.25\" Floppy Disk"
+msgstr "5,25″-Diskette"
 
 #: DB:medium_format/name:52
 msgctxt "medium_format"
@@ -186,6 +194,13 @@ msgid ""
 "versions supplied to radio DJs for air-play)."
 msgstr "Ein Werbegeschenk bzw. eine Veröffentlichung, die zu Promotionszwecken verteilt wird, um eine bevorstehende offizielle Veröffentlichung zu bewerben (z.B. Vorveröffentlichungsalben, Magazinen beigelegte CDs, Versionen für Radio DJs)."
 
+#: DB:artist_type/description:2
+msgctxt "artist_type"
+msgid ""
+"A grouping of multiple musicians who perform together (in some cases, some "
+"or all of the members might differ in different performances or recordings)."
+msgstr "Eine Gruppierung von mehreren Musikern, die zusammen auftreten (in manchen Fällen können sich einige oder alle Mitglieder bei verschiedenen Auftritten oder Aufnahmen unterscheiden)."
+
 #: DB:instrument_type/description:7
 msgctxt "instrument_type"
 msgid ""
@@ -237,6 +252,15 @@ msgstr "Eine Party, ein Empfang oder eine andere Art von Veranstaltung, die anl�
 msgctxt "release_packaging"
 msgid "A perfect bound book with a sleeve at the end to hold a CD"
 msgstr "Ein gebundes Buch mit einem Umschlag am Ende der eine CD beherbergt"
+
+#: DB:event_type/description:6
+msgctxt "event_type"
+msgid ""
+"A performance of one or more plays, musicals, operas, ballets or other "
+"similar works for the stage in their staged form (as opposed to a <a "
+"href=\"https://en.wikipedia.org/wiki/Concert_performance\">concert "
+"performance</a> without staging)."
+msgstr "Eine Aufführung eines oder mehrerer Theaterstücke, Musicals, Opern, Ballette oder anderer ähnlicher Werke für die Bühne in ihrer inszenierten Form (im Gegensatz zu einer <a href=\"https://en.wikipedia.org/wiki/Concert_performance\">Konzertaufführung</a> ohne Inszenierung)."
 
 #: DB:place_type/description:8
 msgctxt "place_type"
@@ -315,6 +339,16 @@ msgid ""
 "but not only, one where music is taught)"
 msgstr "Eine Schule, Universität oder vergleichbare Bildungseinrichtung (insbesondere aber nicht ausschließlich solche, in denen Musik unterrichtet wird)"
 
+#: DB:series_type/description:14
+msgctxt "series_type"
+msgid "A series of artists honoured by the same award."
+msgstr ""
+
+#: DB:series_type/description:13
+msgctxt "series_type"
+msgid "A series of artists."
+msgstr ""
+
 #: DB:series_type/description:6
 msgctxt "series_type"
 msgid "A series of events."
@@ -333,7 +367,12 @@ msgstr "Eine Reihe von Aufnahmen"
 #: DB:series_type/description:7
 msgctxt "series_type"
 msgid "A series of related concerts by an artist in different locations."
-msgstr "Eine Reihe von zusammengehörigen Konzerten des gleichen Künstlers an verschiedenen Orten"
+msgstr "Eine Reihe von zusammengehörigen Konzerten des selben Künstlers an verschiedenen Orten"
+
+#: DB:series_type/description:12
+msgctxt "series_type"
+msgid "A series of related concerts by an artist in the same location."
+msgstr "Eine Reihe von zusammengehörigen Konzerten des selben Künstlers am selben Ort."
 
 #: DB:series_type/description:1
 msgctxt "series_type"
@@ -442,15 +481,65 @@ msgctxt "work_attribute_type_allowed_value"
 msgid "A-sharp minor"
 msgstr "ais-Moll"
 
+#: DB:work_attribute_type/name:57
+msgctxt "work_attribute_type"
+msgid "AACIMH ID"
+msgstr "AACIMH-ID"
+
+#: DB:work_attribute_type/name:44
+msgctxt "work_attribute_type"
+msgid "ACAM ID"
+msgstr "ACAM-ID"
+
+#: DB:work_attribute_type/name:47
+msgctxt "work_attribute_type"
+msgid "ACDAM ID"
+msgstr "ACDAM-ID"
+
+#: DB:work_attribute_type/name:58
+msgctxt "work_attribute_type"
+msgid "AEI ID"
+msgstr "AEI-ID"
+
+#: DB:work_attribute_type/name:43
+msgctxt "work_attribute_type"
+msgid "AGADU ID"
+msgstr "AGADU-ID"
+
+#: DB:work_attribute_type/name:63
+msgctxt "work_attribute_type"
+msgid "AKKA/LAA ID"
+msgstr ""
+
 #: DB:work_attribute_type/name:23
 msgctxt "work_attribute_type"
 msgid "AKM ID"
-msgstr ""
+msgstr "AKM-ID"
+
+#: DB:work_attribute_type/name:38
+msgctxt "work_attribute_type"
+msgid "AMRA ID"
+msgstr "AMRA-ID"
+
+#: DB:work_attribute_type/name:46
+msgctxt "work_attribute_type"
+msgid "APA ID"
+msgstr "APA-ID"
+
+#: DB:work_attribute_type/name:41
+msgctxt "work_attribute_type"
+msgid "APDAYC ID"
+msgstr "APDAYC-ID"
 
 #: DB:work_attribute_type/name:13
 msgctxt "work_attribute_type"
 msgid "APRA ID"
 msgstr "APRA-ID"
+
+#: DB:work_attribute_type/name:48
+msgctxt "work_attribute_type"
+msgid "ARTISJUS ID"
+msgstr "ARTISJUS-ID"
 
 #: DB:work_attribute_type/name:6
 msgctxt "work_attribute_type"
@@ -747,10 +836,20 @@ msgctxt "collection_type"
 msgid "Artist"
 msgstr "Künstler"
 
+#: DB:series_type/name:14
+msgctxt "series_type"
+msgid "Artist award"
+msgstr ""
+
 #: DB:artist_alias_type/name:1
 msgctxt "alias_type"
 msgid "Artist name"
 msgstr "Künstlername"
+
+#: DB:series_type/name:13
+msgctxt "series_type"
+msgid "Artist series"
+msgstr ""
 
 #: DB:work_attribute_type_allowed_value/value:693
 msgctxt "work_attribute_type_allowed_value"
@@ -1233,7 +1332,7 @@ msgstr "Blu-ray"
 #: DB:medium_format/name:79
 msgctxt "medium_format"
 msgid "Blu-ray-R"
-msgstr ""
+msgstr "Blu-ray-R"
 
 #: DB:medium_format/name:35
 msgctxt "medium_format"
@@ -1263,7 +1362,7 @@ msgstr "Bootleg-Produktion"
 #: DB:release_packaging/name:19
 msgctxt "release_packaging"
 msgid "Box"
-msgstr ""
+msgstr "Box"
 
 #: DB:work_attribute_type_allowed_value/value:607
 msgctxt "work_attribute_type_allowed_value"
@@ -1273,7 +1372,7 @@ msgstr ""
 #: DB:instrument_alias_type/name:3
 msgctxt "alias_type"
 msgid "Brand name"
-msgstr ""
+msgstr "Markenname"
 
 #: DB:release_group_primary_type/name:12
 msgctxt "release_group_primary_type"
@@ -1369,7 +1468,7 @@ msgstr "Ces-Dur"
 #: DB:work_attribute_type_allowed_value/value:812
 msgctxt "work_attribute_type_allowed_value"
 msgid "C-flat minor"
-msgstr ""
+msgstr "ces-Moll"
 
 #: DB:work_attribute_type_allowed_value/value:4
 msgctxt "work_attribute_type_allowed_value"
@@ -1415,6 +1514,16 @@ msgstr "CDV"
 msgctxt "medium_format"
 msgid "CED"
 msgstr "CED"
+
+#: DB:work_attribute_type/name:45
+msgctxt "work_attribute_type"
+msgid "COMPASS ID"
+msgstr "COMPASS-ID"
+
+#: DB:work_attribute_type/name:65
+msgctxt "work_attribute_type"
+msgid "COTT ID"
+msgstr ""
 
 #: DB:work_attribute_type_allowed_value/value:63
 msgctxt "work_attribute_type_allowed_value"
@@ -1592,7 +1701,7 @@ msgctxt "area_type"
 msgid ""
 "Country is used for areas included (or previously included) in ISO 3166-1, "
 "e.g. United States."
-msgstr ""
+msgstr "Land wird für Gebiete verwendet, die in ISO 3166-1 enthalten sind (oder zuvor enthalten waren), z. B. die Vereinigten Staaten."
 
 #: DB:area_type/name:7
 msgctxt "area_type"
@@ -1606,7 +1715,7 @@ msgid ""
 "not the main administrative divisions but are also not municipalities, e.g. "
 "counties in the USA. These are not considered when displaying the parent "
 "areas for a given area."
-msgstr ""
+msgstr "Kreis wird für kleinere Verwaltungseinheiten eines Landes verwendet, die nicht die Hauptverwaltungseinheiten sind, aber auch keine Gemeinden, z. B. Countys in den USA, Landkreise in Deutschland oder Bezirke in Österreich und der Schweiz. Diese werden bei der Anzeige der übergeordneten Bereiche für einen bestimmten Bereich nicht berücksichtigt."
 
 #: DB:work_attribute_type_allowed_value/value:608
 msgctxt "work_attribute_type_allowed_value"
@@ -1682,7 +1791,7 @@ msgstr "des-Moll"
 #: DB:work_attribute_type_allowed_value/value:813
 msgctxt "work_attribute_type_allowed_value"
 msgid "D-sharp major"
-msgstr ""
+msgstr "Dis-Dur"
 
 #: DB:work_attribute_type_allowed_value/value:10
 msgctxt "work_attribute_type_allowed_value"
@@ -2167,7 +2276,6 @@ msgid "E-flat major"
 msgstr "Es-Dur"
 
 #: DB:work_attribute_type_allowed_value/value:12
-#: DB:work_attribute_type_allowed_value/value:815
 msgctxt "work_attribute_type_allowed_value"
 msgid "E-flat minor"
 msgstr "es-Moll"
@@ -2175,12 +2283,17 @@ msgstr "es-Moll"
 #: DB:work_attribute_type_allowed_value/value:814
 msgctxt "work_attribute_type_allowed_value"
 msgid "E-sharp major"
-msgstr ""
+msgstr "Eis-Dur"
 
 #: DB:work_attribute_type_allowed_value/value:15
 msgctxt "work_attribute_type_allowed_value"
 msgid "E-sharp minor"
 msgstr "eis-Moll"
+
+#: DB:work_attribute_type/name:37
+msgctxt "work_attribute_type"
+msgid "ECAD ID"
+msgstr "ECAD-ID"
 
 #: DB:release_group_primary_type/name:3
 msgctxt "release_group_primary_type"
@@ -2195,7 +2308,7 @@ msgstr "Edison Diamond Disc"
 #: DB:place_type/name:7
 msgctxt "place_type"
 msgid "Educational institution"
-msgstr ""
+msgstr "Bildungseinrichtung"
 
 #: DB:instrument_type/name:4
 msgctxt "instrument_type"
@@ -2240,7 +2353,7 @@ msgstr "Veranstaltungsname"
 #: DB:series_type/name:6
 msgctxt "series_type"
 msgid "Event series"
-msgstr ""
+msgstr "Veranstaltungsreihe"
 
 #: DB:work_attribute_type_allowed_value/value:729
 msgctxt "work_attribute_type_allowed_value"
@@ -2327,6 +2440,11 @@ msgctxt "work_attribute_type_allowed_value"
 msgid "F-flat major"
 msgstr "Fes-Dur"
 
+#: DB:work_attribute_type_allowed_value/value:815
+msgctxt "work_attribute_type_allowed_value"
+msgid "F-flat minor"
+msgstr "fes-Moll"
+
 #: DB:work_attribute_type_allowed_value/value:19
 msgctxt "work_attribute_type_allowed_value"
 msgid "F-sharp major"
@@ -2345,7 +2463,7 @@ msgstr ""
 #: DB:instrument_type/name:7
 msgctxt "instrument_type"
 msgid "Family"
-msgstr ""
+msgstr "Familie"
 
 #: DB:work_attribute_type_allowed_value/value:615
 msgctxt "work_attribute_type_allowed_value"
@@ -2437,7 +2555,7 @@ msgctxt "medium_format"
 msgid ""
 "Flat discs with grooves used in phonographs/gramophones. For shellac and "
 "vinyl records, use that specifically"
-msgstr ""
+msgstr "Flache Scheiben mit Rillen für Phonographen/Grammophone. Für Schellack- und Vinylplatten das Spezifische verwenden"
 
 #: DB:medium_format/name:51
 msgctxt "medium_format"
@@ -2462,7 +2580,7 @@ msgctxt "gender"
 msgid ""
 "For cases where gender just doesn't apply at all (like companies entered as "
 "artists)."
-msgstr ""
+msgstr "Für Fälle, in denen das Geschlecht einfach nicht anwendbar ist (wie bei Unternehmen, die als Interpreten eingetragen sind)."
 
 #: DB:work_attribute_type/name:16
 msgctxt "work_attribute_type"
@@ -2512,7 +2630,7 @@ msgstr "Ges-Dur"
 #: DB:work_attribute_type_allowed_value/value:816
 msgctxt "work_attribute_type_allowed_value"
 msgid "G-flat minor"
-msgstr ""
+msgstr "ges-Moll"
 
 #: DB:work_attribute_type_allowed_value/value:24
 msgctxt "work_attribute_type_allowed_value"
@@ -2623,6 +2741,12 @@ msgstr ""
 msgctxt "work_attribute_type_allowed_value"
 msgid "Gerdaniyekürdi"
 msgstr "Gerdaniyekürdi"
+
+#: DB:medium_format/description:90
+msgctxt "medium_format"
+msgid ""
+"German tape cartridge format, using grooved tape rather than magnetic tape."
+msgstr "Deutsches Kassettenformat, das ein Band mit Rillen statt eines magnetischen Bands verwendet."
 
 #: DB:work_attribute_type_allowed_value/value:380
 msgctxt "work_attribute_type_allowed_value"
@@ -2744,6 +2868,11 @@ msgctxt "medium_format"
 msgid "HDCD"
 msgstr "HDCD"
 
+#: DB:work_attribute_type/name:64
+msgctxt "work_attribute_type"
+msgid "HFA ID"
+msgstr ""
+
 #: DB:medium_format/name:37
 msgctxt "medium_format"
 msgid "HQCD"
@@ -2827,7 +2956,7 @@ msgstr "Hezeç"
 #: DB:medium_format/name:75
 msgctxt "medium_format"
 msgid "HiPac"
-msgstr ""
+msgstr "HiPac"
 
 #: DB:work_attribute_type_allowed_value/value:391
 msgctxt "work_attribute_type_allowed_value"
@@ -3017,12 +3146,22 @@ msgstr "Hybrid-SACD"
 #: DB:medium_format/name:63
 msgctxt "medium_format"
 msgid "Hybrid SACD (CD layer)"
-msgstr "Hybrid SACD (CD-Seite)"
+msgstr "Hybrid SACD (CD-Schicht)"
 
 #: DB:medium_format/name:64
 msgctxt "medium_format"
 msgid "Hybrid SACD (SACD layer)"
-msgstr "Hybrid SACD (SACD-Seite)"
+msgstr "Hybrid SACD (SACD-Schicht)"
+
+#: DB:medium_format/name:87
+msgctxt "medium_format"
+msgid "Hybrid SACD (SACD layer, 2 channels)"
+msgstr "Hybrid SACD (SACD-Schicht, 2-Kanal)"
+
+#: DB:medium_format/name:86
+msgctxt "medium_format"
+msgid "Hybrid SACD (SACD layer, multichannel)"
+msgstr "Hybrid SACD (SACD-Schicht, Mehrkanal)    "
 
 #: DB:work_attribute_type_allowed_value/value:418
 msgctxt "work_attribute_type_allowed_value"
@@ -3097,37 +3236,302 @@ msgstr ""
 #: DB:work_attribute_type/name:29
 msgctxt "work_attribute_type"
 msgid "ICE ID"
-msgstr ""
+msgstr "ICE-ID"
+
+#: DB:work_attribute_type/description:24
+msgctxt "work_attribute_type"
+msgid "ID for the Argentinean rights society SADAIC"
+msgstr "ID für die argentinische Verwertungsgesellschaft SADAIC"
+
+#: DB:work_attribute_type/description:13
+msgctxt "work_attribute_type"
+msgid "ID for the Australasian rights society APRA"
+msgstr "ID für die australasiatische Verwertungsgesellschaft APRA"
+
+#: DB:work_attribute_type/description:23
+msgctxt "work_attribute_type"
+msgid "ID for the Austrian rights society AKM"
+msgstr "ID für die österreichische Verwertungsgesellschaft AKM"
 
 #: DB:work_attribute_type/description:28
 msgctxt "work_attribute_type"
 msgid "ID for the Belgian rights society SABAM"
+msgstr "ID für die belgische Verwertungsgesellschaft SABAM"
+
+#: DB:work_attribute_type/description:61
+msgctxt "work_attribute_type"
+msgid "ID for the Bolivian rights society SOBODAYCOM"
 msgstr ""
+
+#: DB:work_attribute_type/description:37
+msgctxt "work_attribute_type"
+msgid "ID for the Brazilian rights society ECAD"
+msgstr "ID für die brasilianische Verwertungsgesellschaft ECAD"
+
+#: DB:work_attribute_type/description:34
+msgctxt "work_attribute_type"
+msgid "ID for the British rights society PRS for Music"
+msgstr "Id für die britische Verwertungsgesellschaft PRS for Music"
+
+#: DB:work_attribute_type/description:10
+msgctxt "work_attribute_type"
+msgid "ID for the Canadian rights society SOCAN"
+msgstr "ID für die kanadische Verwertungsgesellschaft SOCAN"
+
+#: DB:work_attribute_type/description:53
+msgctxt "work_attribute_type"
+msgid "ID for the Canadian rights society SODRAC"
+msgstr "ID für die kanadische Verwertungsgesellschaft SODRAC"
+
+#: DB:work_attribute_type/description:39
+msgctxt "work_attribute_type"
+msgid "ID for the Colombian rights society SAYCO"
+msgstr "ID für die kolumbianische Verwertungsgesellschaft SAYCO"
+
+#: DB:work_attribute_type/description:44
+msgctxt "work_attribute_type"
+msgid "ID for the Costa Rican rights society ACAM"
+msgstr "ID für die costaricanische Verwertungsgesellschaft ACAM"
+
+#: DB:work_attribute_type/description:47
+msgctxt "work_attribute_type"
+msgid "ID for the Cuban rights society ACDAM"
+msgstr "ID für die kubanische Verwertungsgesellschaft ACDAM"
+
+#: DB:work_attribute_type/description:25
+msgctxt "work_attribute_type"
+msgid "ID for the Czech rights society OSA"
+msgstr "ID für die tschechische Verwertungsgesellschaft OSA"
+
+#: DB:work_attribute_type/description:51
+msgctxt "work_attribute_type"
+msgid "ID for the Danish rights society KODA"
+msgstr "ID für die dänische Verwertungsgesellschaft KODA"
+
+#: DB:work_attribute_type/description:60
+msgctxt "work_attribute_type"
+msgid "ID for the Dominican rights society SGACEDOM"
+msgstr ""
+
+#: DB:work_attribute_type/description:26
+msgctxt "work_attribute_type"
+msgid "ID for the Dutch rights society BUMA/STEMRA"
+msgstr "ID für die niederländische Verwertungsgesellschaft BUMA/STEMRA"
+
+#: DB:work_attribute_type/description:40
+msgctxt "work_attribute_type"
+msgid "ID for the Ecuadorian rights society SAYCE"
+msgstr "ID für die ecuadorianische Verwertungsgesellschaft SAYCE"
+
+#: DB:work_attribute_type/description:66
+msgctxt "work_attribute_type"
+msgid "ID for the Finnish rights society TEOSTO"
+msgstr ""
+
+#: DB:work_attribute_type/description:21
+msgctxt "work_attribute_type"
+msgid "ID for the French rights society Sacem"
+msgstr "ID für die französische Verwertungsgesellschaft Sacem"
+
+#: DB:work_attribute_type/description:9
+msgctxt "work_attribute_type"
+msgid "ID for the German rights society GEMA"
+msgstr "ID für die deutsche Verwertungsgesellschaft GEMA"
+
+#: DB:work_attribute_type/description:58
+msgctxt "work_attribute_type"
+msgid "ID for the Guatemalan rights society AEI"
+msgstr ""
+
+#: DB:work_attribute_type/description:57
+msgctxt "work_attribute_type"
+msgid "ID for the Honduran rights society AACIMH"
+msgstr ""
+
+#: DB:work_attribute_type/description:19
+msgctxt "work_attribute_type"
+msgid "ID for the Hong Kong rights society CASH"
+msgstr "ID für die Hongkonger Verwertungsgesellschaft CASH"
+
+#: DB:work_attribute_type/description:48
+msgctxt "work_attribute_type"
+msgid "ID for the Hungarian rights society ARTISJUS"
+msgstr "ID für die ungarische Verwertungsgesellschaft ARTISJUS"
+
+#: DB:work_attribute_type/description:54
+msgctxt "work_attribute_type"
+msgid "ID for the Icelandic rights society STEF"
+msgstr "ID für die isländische Verwertungsgesellschaft STEF"
 
 #: DB:work_attribute_type/description:29
 msgctxt "work_attribute_type"
 msgid "ID for the International Copyright Enterprise"
-msgstr ""
+msgstr "ID für das International Copyright Enterprise"
+
+#: DB:work_attribute_type/description:52
+msgctxt "work_attribute_type"
+msgid "ID for the Irish rights society IMRO"
+msgstr "ID für die irische Verwertungsgesellschaft IMRO"
+
+#: DB:work_attribute_type/description:36
+msgctxt "work_attribute_type"
+msgid "ID for the Italian rights society SIAE"
+msgstr "ID für die italienische Verwertungsgesellschaft SIAE"
 
 #: DB:work_attribute_type/description:3
 msgctxt "work_attribute_type"
 msgid "ID for the Japanese rights society JASRAC"
-msgstr ""
+msgstr "ID für die japanische Verwertungsgesellschaft JASRAC"
 
 #: DB:work_attribute_type/description:33
 msgctxt "work_attribute_type"
 msgid "ID for the Japanese rights society NexTone"
+msgstr "ID für die japanische Verwertungsgesellschaft NexTone"
+
+#: DB:work_attribute_type/description:11
+msgctxt "work_attribute_type"
+msgid "ID for the Korean rights society KOMCA"
+msgstr "ID für die koreanische Verwertungsgesellschaft KOMCA"
+
+#: DB:work_attribute_type/description:63
+msgctxt "work_attribute_type"
+msgid "ID for the Latvian rights society AKKA/LAA"
 msgstr ""
+
+#: DB:work_attribute_type/description:49
+msgctxt "work_attribute_type"
+msgid "ID for the Malaysian rights society MACP"
+msgstr "ID für die malaysische Verwertungsgesellschaft MACP"
 
 #: DB:work_attribute_type/description:27
 msgctxt "work_attribute_type"
 msgid "ID for the Mexican rights society SACM"
+msgstr "ID für die mexikanische Verwertungsgesellschaft SACM"
+
+#: DB:work_attribute_type/description:59
+msgctxt "work_attribute_type"
+msgid "ID for the Nicaraguan rights society NICAUTOR"
 msgstr ""
+
+#: DB:work_attribute_type/description:67
+msgctxt "work_attribute_type"
+msgid "ID for the Norwegian rights society TONO"
+msgstr "ID für die norwegische Verwertungsgesellschaft TONO"
+
+#: DB:work_attribute_type/description:62
+msgctxt "work_attribute_type"
+msgid "ID for the Panamanian rights society SPAC"
+msgstr ""
+
+#: DB:work_attribute_type/description:46
+msgctxt "work_attribute_type"
+msgid "ID for the Paraguayan rights society APA"
+msgstr "ID für die paraguayische Verwertungsgesellschaft APA"
+
+#: DB:work_attribute_type/description:41
+msgctxt "work_attribute_type"
+msgid "ID for the Peruvian rights society APDAYC"
+msgstr "ID für die peruanische Verwertungsgesellschaft APDAYC"
 
 #: DB:work_attribute_type/description:30
 msgctxt "work_attribute_type"
 msgid "ID for the Polish rights society ZAiKS"
+msgstr "ID für die polnische Verwertungsgesellschaft ZAiKS"
+
+#: DB:work_attribute_type/description:35
+msgctxt "work_attribute_type"
+msgid "ID for the Portuguese rights society SPA"
+msgstr "ID für die portugiesische Verwertungsgesellschaft SPA"
+
+#: DB:work_attribute_type/description:56
+msgctxt "work_attribute_type"
+msgid "ID for the Salvadoran rights society SACIM"
 msgstr ""
+
+#: DB:work_attribute_type/description:45
+msgctxt "work_attribute_type"
+msgid "ID for the Singaporean rights society COMPASS"
+msgstr "ID für die singapurische Verwertungsgesellschaft COMPASS"
+
+#: DB:work_attribute_type/description:68
+msgctxt "work_attribute_type"
+msgid "ID for the South African rights society SAMRO"
+msgstr ""
+
+#: DB:work_attribute_type/description:20
+msgctxt "work_attribute_type"
+msgid "ID for the Spanish rights society SGAE"
+msgstr "ID für die spanische Verwertungsgesellschaft SGAE"
+
+#: DB:work_attribute_type/description:50
+msgctxt "work_attribute_type"
+msgid "ID for the Swedish rights society STIM"
+msgstr "ID für die schwedische Verwertungsgesellschaft STIM"
+
+#: DB:work_attribute_type/description:18
+msgctxt "work_attribute_type"
+msgid "ID for the Swiss rights society SUISA"
+msgstr "ID für die schweizerische Verwertungsgesellschaft SUISA"
+
+#: DB:work_attribute_type/description:12
+msgctxt "work_attribute_type"
+msgid "ID for the Taiwanese rights society MÜST"
+msgstr "ID für die taiwanesische Verwertungsgesellschaft MÜST"
+
+#: DB:work_attribute_type/description:65
+msgctxt "work_attribute_type"
+msgid "ID for the Trinidadian and Tobagonian rights society COTT"
+msgstr ""
+
+#: DB:work_attribute_type/description:6
+msgctxt "work_attribute_type"
+msgid "ID for the US rights society ASCAP"
+msgstr "ID für die US-Verwertungsgesellschaft ASCAP"
+
+#: DB:work_attribute_type/description:7
+msgctxt "work_attribute_type"
+msgid "ID for the US rights society BMI"
+msgstr "ID für die US-Verwertungsgesellschaft BMI"
+
+#: DB:work_attribute_type/description:8
+msgctxt "work_attribute_type"
+msgid "ID for the US rights society SESAC"
+msgstr "ID für die US-Verwertungsgesellschaft SESAC"
+
+#: DB:work_attribute_type/description:43
+msgctxt "work_attribute_type"
+msgid "ID for the Uruguayan rights society AGADU"
+msgstr "ID für die uruguayische Verwertungsgesellschaft AGADU"
+
+#: DB:work_attribute_type/description:42
+msgctxt "work_attribute_type"
+msgid "ID for the Venezuelan rights society SACVEN"
+msgstr "ID für die venezolanische Verwertungsgesellschaft SACVEN"
+
+#: DB:work_attribute_type/description:38
+msgctxt "work_attribute_type"
+msgid "ID for the international (formerly US) rights society AMRA"
+msgstr "ID für die internationale (ehemalige US-) Verwertungsgesellschaft AMRA"
+
+#: DB:work_attribute_type/description:55
+msgctxt "work_attribute_type"
+msgid "ID for the international rights society consortium LatinNet"
+msgstr ""
+
+#: DB:work_attribute_type/description:22
+msgctxt "work_attribute_type"
+msgid "ID for the private licensing company CCLI"
+msgstr "ID für das private Lizenzunternehmen CCLI"
+
+#: DB:work_attribute_type/description:64
+msgctxt "work_attribute_type"
+msgid "ID for the private licensing company HFA (Harry Fox Agency)"
+msgstr ""
+
+#: DB:work_attribute_type/name:52
+msgctxt "work_attribute_type"
+msgid "IMRO ID"
+msgstr "IMRO-ID"
 
 #: DB:work_attribute_type/name:14
 msgctxt "work_attribute_type"
@@ -3147,13 +3551,18 @@ msgstr "Imprint"
 #: DB:work_type/name:30
 msgctxt "work_type"
 msgid "Incidental music"
-msgstr ""
+msgstr "Bühnenmusik/Begleitmusik"
 
 #: DB:work_type/description:30
 msgctxt "work_type"
 msgid ""
 "Incidental music is music written as background for (usually) a theatre "
 "play."
+msgstr "Bühnenmusik/Begleitmusik ist Musik, die (meist) als Hintergrund für ein Theaterstück geschrieben wird."
+
+#: DB:area_type/name:9
+msgctxt "area_type"
+msgid "Indigenous territory / reserve"
 msgstr ""
 
 #: DB:place_type/name:5
@@ -3237,7 +3646,7 @@ msgid ""
 "Island is used for islands and atolls which don't form subdivisions of their"
 " own, e.g. Skye. These are not considered when displaying the parent areas "
 "for a given area."
-msgstr ""
+msgstr "Insel wird für Inseln und Atolle verwendet, die keine eigenen Unterteilungen bilden, z. B. Skye. Diese werden bei der Anzeige der übergeordneten Gebiete für ein bestimmtes Gebiet nicht berücksichtigt."
 
 #: DB:work_attribute_type/name:3
 msgctxt "work_attribute_type"
@@ -3263,6 +3672,13 @@ msgstr ""
 msgctxt "work_attribute_type_allowed_value"
 msgid "Janaranjani"
 msgstr "Janaranjani"
+
+#: DB:release_packaging/description:21
+msgctxt "release_packaging"
+msgid ""
+"Japanese case that holds an 8cm CD. It is rectangular but can be snapped to "
+"make it more compact (hence the name)."
+msgstr ""
 
 #: DB:work_attribute_type_allowed_value/value:929
 msgctxt "work_attribute_type_allowed_value"
@@ -3364,6 +3780,11 @@ msgstr ""
 msgctxt "work_attribute_type_allowed_value"
 msgid "Jōnpuri"
 msgstr "Jōnpuri"
+
+#: DB:work_attribute_type/name:51
+msgctxt "work_attribute_type"
+msgid "KODA ID"
+msgstr "KODA-ID"
 
 #: DB:work_attribute_type/name:11
 msgctxt "work_attribute_type"
@@ -3833,6 +4254,11 @@ msgctxt "medium_format"
 msgid "LaserDisc"
 msgstr "LaserDisc"
 
+#: DB:work_attribute_type/name:55
+msgctxt "work_attribute_type"
+msgid "LatinNet ID"
+msgstr ""
+
 #: DB:work_attribute_type_allowed_value/value:159
 msgctxt "work_attribute_type_allowed_value"
 msgid "Latāngi"
@@ -3877,6 +4303,11 @@ msgstr "Live"
 msgctxt "work_attribute_type_allowed_value"
 msgid "Longa"
 msgstr ""
+
+#: DB:work_attribute_type/name:49
+msgctxt "work_attribute_type"
+msgid "MACP ID"
+msgstr "MACP-ID"
 
 #: DB:work_attribute_type_allowed_value/value:963
 msgctxt "work_attribute_type_allowed_value"
@@ -3981,7 +4412,7 @@ msgstr "Manuell"
 #: DB:label_type/name:10
 msgctxt "label_type"
 msgid "Manufacturer"
-msgstr ""
+msgstr "Hersteller"
 
 #: DB:work_attribute_type_allowed_value/value:172
 msgctxt "work_attribute_type_allowed_value"
@@ -4092,6 +4523,16 @@ msgstr ""
 msgctxt "work_attribute_type_allowed_value"
 msgid "Mevlidişerif"
 msgstr "Mevlidişerif"
+
+#: DB:medium_format/name:83
+msgctxt "medium_format"
+msgid "Microcassette"
+msgstr "Mikrokassette"
+
+#: DB:area_type/name:8
+msgctxt "area_type"
+msgid "Military base"
+msgstr ""
 
 #: DB:medium_format/name:6
 msgctxt "medium_format"
@@ -4438,6 +4879,11 @@ msgctxt "work_attribute_type_allowed_value"
 msgid "Mōhanaṁ"
 msgstr "Mōhanaṁ"
 
+#: DB:work_attribute_type/name:59
+msgctxt "work_attribute_type"
+msgid "NICAUTOR ID"
+msgstr ""
+
 #: DB:work_attribute_type_allowed_value/value:647
 msgctxt "work_attribute_type_allowed_value"
 msgid "Naat"
@@ -4616,7 +5062,7 @@ msgstr ""
 #: DB:work_attribute_type/name:33
 msgctxt "work_attribute_type"
 msgid "NexTone ID"
-msgstr ""
+msgstr "NexTone-ID"
 
 #: DB:work_attribute_type_allowed_value/value:471
 msgctxt "work_attribute_type_allowed_value"
@@ -4716,7 +5162,7 @@ msgstr "Keine"
 #: DB:gender/name:4
 msgctxt "gender"
 msgid "Not applicable"
-msgstr ""
+msgstr "Nicht zutreffend"
 
 #: DB:work_attribute_type_allowed_value/value:491
 msgctxt "work_attribute_type_allowed_value"
@@ -4876,7 +5322,7 @@ msgstr "Ouvertüre"
 #: DB:editor_collection_type/name:2
 msgctxt "collection_type"
 msgid "Owned music"
-msgstr ""
+msgstr "Eigene Musik"
 
 #: DB:work_attribute_type_allowed_value/value:762
 msgctxt "work_attribute_type_allowed_value"
@@ -4886,6 +5332,11 @@ msgstr ""
 #: DB:work_attribute_type_allowed_value/value:652
 msgctxt "work_attribute_type_allowed_value"
 msgid "Oyunhavası"
+msgstr ""
+
+#: DB:work_attribute_type/name:34
+msgctxt "work_attribute_type"
+msgid "PRS tune code"
 msgstr ""
 
 #: DB:work_attribute_type_allowed_value/value:993
@@ -4992,7 +5443,7 @@ msgstr "Peşrev"
 #: DB:medium_format/name:73
 msgctxt "medium_format"
 msgid "Phonograph record"
-msgstr ""
+msgstr "Phonographenaufnahme"
 
 #: DB:medium_format/name:15
 msgctxt "medium_format"
@@ -5012,12 +5463,12 @@ msgstr "Örtlichkeitsname"
 #: DB:release_packaging/description:20
 msgctxt "release_packaging"
 msgid "Plastic CD tray inside a cardboard slipcover"
-msgstr ""
+msgstr "CD-Tray aus Kunststoff in einem Pappschuber"
 
 #: DB:release_packaging/name:18
 msgctxt "release_packaging"
 msgid "Plastic Sleeve"
-msgstr ""
+msgstr "Plastikhülle"
 
 #: DB:work_type/name:28
 msgctxt "work_type"
@@ -5032,7 +5483,7 @@ msgstr ""
 #: DB:medium_format/name:45
 msgctxt "medium_format"
 msgid "Playbutton"
-msgstr ""
+msgstr "Playbutton"
 
 #: DB:work_type/name:21
 msgctxt "work_type"
@@ -5057,7 +5508,7 @@ msgstr ""
 #: DB:place_type/name:8
 msgctxt "place_type"
 msgid "Pressing plant"
-msgstr ""
+msgstr "Presswerk"
 
 #: DB:label_type/name:3
 msgctxt "label_type"
@@ -5248,7 +5699,7 @@ msgstr "Ravicandrika"
 #: DB:cover_art_archive.art_type/name:14
 msgctxt "cover_art_type"
 msgid "Raw/Unedited"
-msgstr ""
+msgstr "Raw/unbearbeitet"
 
 #: DB:editor_collection_type/name:12
 msgctxt "collection_type"
@@ -5263,7 +5714,7 @@ msgstr "Name der Aufnahme"
 #: DB:series_type/name:3
 msgctxt "series_type"
 msgid "Recording series"
-msgstr ""
+msgstr "Aufnahmenreihe"
 
 #: DB:medium_format/name:10
 msgctxt "medium_format"
@@ -5303,7 +5754,7 @@ msgstr "Name der Veröffentlichungsgruppe"
 #: DB:series_type/name:1
 msgctxt "series_type"
 msgid "Release group series"
-msgstr ""
+msgstr "Veröffentlichungsgruppenreihe"
 
 #: DB:release_alias_type/name:1
 msgctxt "alias_type"
@@ -5313,7 +5764,7 @@ msgstr "Name der Veröffentlichung"
 #: DB:series_type/name:2
 msgctxt "series_type"
 msgid "Release series"
-msgstr ""
+msgstr "Veröffentlichungsreihe"
 
 #: DB:place_type/name:6
 msgctxt "place_type"
@@ -5334,6 +5785,11 @@ msgstr "Remix"
 msgctxt "work_attribute_type_allowed_value"
 msgid "Reng-i Dil"
 msgstr "Reng-i Dil"
+
+#: DB:series_type/name:12
+msgctxt "series_type"
+msgid "Residency"
+msgstr ""
 
 #: DB:work_attribute_type_allowed_value/value:517
 msgctxt "work_attribute_type_allowed_value"
@@ -5476,20 +5932,55 @@ msgctxt "medium_format"
 msgid "SACD"
 msgstr "SACD"
 
+#: DB:medium_format/name:84
+msgctxt "medium_format"
+msgid "SACD (2 channels)"
+msgstr "SACD (2-Kanal)"
+
+#: DB:medium_format/name:85
+msgctxt "medium_format"
+msgid "SACD (multichannel)"
+msgstr "SACD (Mehrkanal)"
+
 #: DB:work_attribute_type/name:21
 msgctxt "work_attribute_type"
 msgid "SACEM ID"
 msgstr "SACEM ID"
+
+#: DB:work_attribute_type/name:56
+msgctxt "work_attribute_type"
+msgid "SACIM ID"
+msgstr ""
 
 #: DB:work_attribute_type/name:27
 msgctxt "work_attribute_type"
 msgid "SACM ID"
 msgstr "SACM ID"
 
+#: DB:work_attribute_type/name:42
+msgctxt "work_attribute_type"
+msgid "SACVEN ID"
+msgstr "SACVEN-ID"
+
 #: DB:work_attribute_type/name:24
 msgctxt "work_attribute_type"
 msgid "SADAIC ID"
 msgstr "SADAIC ID"
+
+#: DB:work_attribute_type/name:68
+msgctxt "work_attribute_type"
+msgid "SAMRO ID"
+msgstr ""
+
+#: DB:work_attribute_type/name:40
+msgctxt "work_attribute_type"
+msgid "SAYCE ID"
+msgstr "SAYCE-ID"
+
+#: DB:work_attribute_type/name:39
+msgctxt "work_attribute_type"
+msgid "SAYCO ID"
+msgstr "SAYCO-ID"
 
 #: DB:medium_format/name:62
 msgctxt "medium_format"
@@ -5500,6 +5991,11 @@ msgstr "SD Karte"
 msgctxt "work_attribute_type"
 msgid "SESAC ID"
 msgstr "SESAC-ID"
+
+#: DB:work_attribute_type/name:60
+msgctxt "work_attribute_type"
+msgid "SGACEDOM ID"
+msgstr ""
 
 #: DB:work_attribute_type/name:20
 msgctxt "work_attribute_type"
@@ -5516,10 +6012,55 @@ msgctxt "medium_format"
 msgid "SHM-SACD"
 msgstr "SHM-SACD"
 
+#: DB:medium_format/name:89
+msgctxt "medium_format"
+msgid "SHM-SACD (2 channels)"
+msgstr "SHM-SACD (2-Kanal)"
+
+#: DB:medium_format/name:88
+msgctxt "medium_format"
+msgid "SHM-SACD (multichannel)"
+msgstr "SHM-SACD (Mehrkanal)"
+
+#: DB:work_attribute_type/name:36
+msgctxt "work_attribute_type"
+msgid "SIAE ID"
+msgstr "SIAE-ID"
+
+#: DB:work_attribute_type/name:61
+msgctxt "work_attribute_type"
+msgid "SOBODAYCOM ID"
+msgstr ""
+
 #: DB:work_attribute_type/name:10
 msgctxt "work_attribute_type"
 msgid "SOCAN ID"
 msgstr "SOCAN-ID"
+
+#: DB:work_attribute_type/name:53
+msgctxt "work_attribute_type"
+msgid "SODRAC ID"
+msgstr ""
+
+#: DB:work_attribute_type/name:35
+msgctxt "work_attribute_type"
+msgid "SPA ID"
+msgstr "SPA-ID"
+
+#: DB:work_attribute_type/name:62
+msgctxt "work_attribute_type"
+msgid "SPAC ID"
+msgstr ""
+
+#: DB:work_attribute_type/name:54
+msgctxt "work_attribute_type"
+msgid "STEF ID"
+msgstr ""
+
+#: DB:work_attribute_type/name:50
+msgctxt "work_attribute_type"
+msgid "STIM ID"
+msgstr "STIM-ID"
 
 #: DB:work_attribute_type/name:18
 msgctxt "work_attribute_type"
@@ -5800,6 +6341,11 @@ msgctxt "release_packaging"
 msgid "Snap Case"
 msgstr "Snap Case"
 
+#: DB:release_packaging/name:21
+msgctxt "release_packaging"
+msgid "SnapPack"
+msgstr ""
+
 #: DB:work_attribute_type_allowed_value/value:771
 msgctxt "work_attribute_type_allowed_value"
 msgid "Sofyan"
@@ -5851,6 +6397,11 @@ msgstr "Spoken Word"
 msgctxt "place_type"
 msgid "Stadium"
 msgstr "Stadion"
+
+#: DB:event_type/name:6
+msgctxt "event_type"
+msgid "Stage performance"
+msgstr "Bühnenaufführung"
 
 #: DB:cover_art_archive.art_type/name:10
 msgctxt "cover_art_type"
@@ -6090,6 +6641,16 @@ msgctxt "work_attribute_type_allowed_value"
 msgid "Sūltāl"
 msgstr ""
 
+#: DB:work_attribute_type/name:66
+msgctxt "work_attribute_type"
+msgid "TEOSTO ID"
+msgstr ""
+
+#: DB:work_attribute_type/name:67
+msgctxt "work_attribute_type"
+msgid "TONO ID"
+msgstr ""
+
 #: DB:work_attribute_type_allowed_value/value:573
 msgctxt "work_attribute_type_allowed_value"
 msgid "Tahir"
@@ -6144,6 +6705,11 @@ msgstr "Tavşanca"
 msgctxt "work_attribute_type_allowed_value"
 msgid "Tebriz"
 msgstr ""
+
+#: DB:medium_format/name:90
+msgctxt "medium_format"
+msgid "Tefifon"
+msgstr "Tefifon"
 
 #: DB:work_attribute_type_allowed_value/value:774
 msgctxt "work_attribute_type_allowed_value"
@@ -6284,13 +6850,80 @@ msgid ""
 "separate medium."
 msgstr "Die Vinyl-Seite einer VinylDisc. Die CD- oder DVD-Seite sollte als separates Medium hinzugefügt werden."
 
+#: DB:artist_type/description:6
+msgctxt "artist_type"
+msgid ""
+"This indicates a choir/chorus (an organized, usually large group of "
+"singers). Smaller vocal ensembles and groupings that do not generally call "
+"themselves choirs are better entered as “Group”."
+msgstr "Dies bezeichnet einen Chor (eine organisierte, in der Regel große Gruppe von Sängern). Kleinere Gesangsensembles und Gruppierungen, die sich im Allgemeinen nicht als Chor bezeichnen, werden besser als „Gruppe” erfasst."
+
+#: DB:artist_type/description:4
+msgctxt "artist_type"
+msgid ""
+"This indicates an individual fictional character (whether a fictional "
+"person, animal or any other kind of character)."
+msgstr "Dies kennzeichnet einen eigenständigen fiktiven Charakter (sei es eine fiktive Person, ein Tier oder irgendeine andere Art von Charakter)."
+
+#: DB:artist_type/description:1
+msgctxt "artist_type"
+msgid ""
+"This indicates an individual person, be it under its legal name (“John "
+"Lennon”), or a performance name (“Sting”)."
+msgstr "Dies kennzeichnet eine einzelne Person, sei es unter ihrem rechtlichen Namen („John Lennon”) oder einem Künstlernamen („Sting”)."
+
+#: DB:artist_type/description:5
+msgctxt "artist_type"
+msgid ""
+"This indicates an orchestra (an organized, usually large group of "
+"instrumentalists). Smaller ensembles (such as trios and quartets) and "
+"groupings that do not generally call themselves orchestras are better "
+"entered as “Group”."
+msgstr "Dies kennzeichnet ein Orchester (eine organisierte, in der Regel große Gruppe von Instrumentalisten). Kleinere Ensembles (wie Trios und Quartette) und Gruppierungen, die sich im Allgemeinen nicht als Orchester bezeichnen, werden besser als „Gruppe” erfasst."
+
 #: DB:work_type/description:23
 msgctxt "work_type"
 msgid ""
 "This represents literary works written in prose, that is, written in "
 "relatively ordinary language without metrical structure (e.g. novels, short "
 "stories, essays...)."
-msgstr ""
+msgstr "Repräsentiert literarische Werke, die in Prosa geschrieben wurden, d. h. in einer relativ gewöhnlichen Sprache ohne metrische Struktur (z. B. Romane, Kurzgeschichten, Essays, …)."
+
+#: DB:medium_format/description:84
+msgctxt "medium_format"
+msgid ""
+"This represents the 2 channel (stereo/mono) table of contents on a SACD."
+msgstr "Dies stellt das 2-Kanal-Inhaltsverzeichnis (Stereo/Mono) auf einer SACD dar."
+
+#: DB:medium_format/description:89
+msgctxt "medium_format"
+msgid ""
+"This represents the 2 channel (stereo/mono) table of contents on a SHM-SACD."
+msgstr "Dies stellt das 2-Kanal-Inhaltsverzeichnis (Stereo/Mono) auf einer SHM-SACD dar."
+
+#: DB:medium_format/description:87
+msgctxt "medium_format"
+msgid ""
+"This represents the 2 channel (stereo/mono) table of contents on a hybrid "
+"SACD's SACD layer."
+msgstr "Dies stellt das 2-Kanal-Inhaltsverzeichnis (Stereo/Mono) auf der SACD-Schicht einer Hybrid SACD dar."
+
+#: DB:medium_format/description:85
+msgctxt "medium_format"
+msgid "This represents the multichannel table of contents on a SACD."
+msgstr "Dies stellt das Mehrkanal-Inhaltsverzeichnis auf einer SACD dar."
+
+#: DB:medium_format/description:88
+msgctxt "medium_format"
+msgid "This represents the multichannel table of contents on a SHM-SACD."
+msgstr "Dies stellt das Mehrkanal-Inhaltsverzeichnis auf einer SHM-SACD dar."
+
+#: DB:medium_format/description:86
+msgctxt "medium_format"
+msgid ""
+"This represents the multichannel table of contents on a hybrid SACD's SACD "
+"layer."
+msgstr "Dies stellt das Mehrkanal-Inhaltsverzeichnis auf der SACD-Schicht einer Hybrid SACD dar."
 
 #: DB:work_attribute_type_allowed_value/value:1041
 msgctxt "work_attribute_type_allowed_value"
@@ -6432,6 +7065,21 @@ msgctxt "cover_art_type"
 msgid ""
 "Use for images that need work to be used for tagging (but can possibly "
 "already be used for reference)"
+msgstr "Für Bilder, die vor der Verwendung fürs Tagging überarbeitet werden müssen (aber möglicherweise bereits als Referenz verwendet werden können)"
+
+#: DB:area_type/description:8
+msgctxt "area_type"
+msgid ""
+"Used for any military bases that are large enough to be considered an area, "
+"not just a place."
+msgstr ""
+
+#: DB:area_type/description:9
+msgctxt "area_type"
+msgid ""
+"Used for semi-autonomous territories governed by indigenous peoples, such as"
+" Indian reserves/reservations in North America and indigenous territories in"
+" Central and South America."
 msgstr ""
 
 #: DB:work_attribute_type/name:17
@@ -6579,7 +7227,7 @@ msgstr "Vinyl"
 #: DB:medium_format/name:48
 msgctxt "medium_format"
 msgid "VinylDisc"
-msgstr "Vinyl-Platte"
+msgstr "VinylDisc"
 
 #: DB:medium_format/name:82
 msgctxt "medium_format"
@@ -6660,7 +7308,7 @@ msgstr "Werkname"
 #: DB:series_type/name:4
 msgctxt "series_type"
 msgid "Work series"
-msgstr ""
+msgstr "Werkreihe"
 
 #: DB:work_attribute_type_allowed_value/value:277
 msgctxt "work_attribute_type_allowed_value"
@@ -6711,7 +7359,7 @@ msgstr "Yürüksofyan"
 #: DB:work_attribute_type/name:30
 msgctxt "work_attribute_type"
 msgid "ZAiKS ID"
-msgstr ""
+msgstr "ZAiKS-ID"
 
 #: DB:work_attribute_type_allowed_value/value:780
 msgctxt "work_attribute_type_allowed_value"
@@ -6781,7 +7429,7 @@ msgstr ""
 #: DB:medium_format/name:77
 msgctxt "medium_format"
 msgid "Zip Disk"
-msgstr ""
+msgstr "Zip-Diskette"
 
 #: DB:work_attribute_type_allowed_value/value:599
 msgctxt "work_attribute_type_allowed_value"

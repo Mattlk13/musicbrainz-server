@@ -48,13 +48,13 @@ sub process_tables
     my %primary_keys;
     my @sequences;
     my @replication_triggers;
-    while ($create_tables_sql =~ m/CREATE TABLE\s+([a-z0-9_]+)\s+\(\s*(--.*?replicate(?: ?\(verbose\))?)?\s*(.*?)\s*\);/gsi) {
+    while ($create_tables_sql =~ m/CREATE TABLE\s+([a-z0-9_]+)\s+\(\s*(-- replicate(?: ?\(verbose\))?)?\s*(.*?)\s*\);/gsi) {
         my $name = $1;
         my $replicate = $2;
         my @lines = split /\n/, $3;
         my @fks;
         foreach my $line (@lines) {
-            if ($line =~ m/([a-z0-9_]+).*?\s*--.*?(weakly |separately )?references ([a-z0-9_]+\.)?([a-z0-9_]+)\.([a-z0-9_]+)/i) {
+            if ($line =~ m/([a-z0-9_]+).*?\s*-- (?:PK, |FK, )?(weakly |separately )?references ([a-z0-9_]+\.)?([a-z0-9_]+)\.([a-z0-9_]+)/i) {
                 next if (defined $2 && $2 eq 'weakly '); # weak reference
                 my @fk = ($1, ($3 || '') . $4, $5);
                 my $cascade = ($line =~ m/CASCADE/) ? 1 : 0;
@@ -89,14 +89,20 @@ sub process_tables
     @tables = sort(@tables);
     @replication_triggers = sort { $a->[0] cmp $b->[0] } @replication_triggers;
 
-    open OUT, ">$dir/DropTables.sql";
-    print OUT "-- Automatically generated, do not edit.\n";
-    print OUT "\\unset ON_ERROR_STOP\n\n";
-    print OUT $search_path if $search_path;
-    foreach my $table (@tables) {
-        print OUT "DROP TABLE $table;\n";
+    open my $drop_fh, ">$dir/DropTables.sql";
+    open my $trunc_fh, ">$dir/TruncateTables.sql";
+    print $_ "-- Automatically generated, do not edit.\n" for $drop_fh, $trunc_fh;
+    print $drop_fh "\\unset ON_ERROR_STOP\n\n";
+    print $trunc_fh "\\set ON_ERROR_STOP 1\n\n";
+    if ($search_path) {
+        print $_ $search_path for $drop_fh, $trunc_fh;
     }
-    close OUT;
+    foreach my $table (@tables) {
+        print $drop_fh "DROP TABLE $table;\n";
+        print $trunc_fh "TRUNCATE TABLE $table RESTART IDENTITY CASCADE;\n";
+    }
+    close $drop_fh;
+    close $trunc_fh;
 
     if (-e "$dir/CreateViews.sql") {
         open FILE, "<$dir/CreateViews.sql";
@@ -302,6 +308,7 @@ sub process_functions
 }
 
 process_functions("CreateFunctions.sql", "DropFunctions.sql");
+process_functions("CreateSlaveOnlyFunctions.sql", "DropSlaveOnlyFunctions.sql");
 
 sub process_triggers
 {
@@ -332,25 +339,16 @@ sub process_triggers
 }
 
 process_triggers("CreateTriggers.sql", "DropTriggers.sql");
+process_triggers("CreateSlaveOnlyTriggers.sql", "DropSlaveOnlyTriggers.sql");
 process_triggers("CreateReplicationTriggers.sql", "DropReplicationTriggers.sql");
 
-=head1 COPYRIGHT
+=head1 COPYRIGHT AND LICENSE
 
 Copyright (C) 2009 Lukas Lalinsky
 Copyright (C) 2012 Aurélien Mino
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program; if not, write to the Free Software
-Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+This file is part of MusicBrainz, the open internet music database,
+and is licensed under the GPL version 2, or (at your option) any
+later version: http://www.gnu.org/licenses/gpl-2.0.txt
 
 =cut

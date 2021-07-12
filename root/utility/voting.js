@@ -1,5 +1,5 @@
 /*
- * @flow
+ * @flow strict
  * Copyright (C) 2018 MetaBrainz Foundation
  *
  * This file is part of MusicBrainz, the open internet music database,
@@ -7,7 +7,15 @@
  * later version: http://www.gnu.org/licenses/gpl-2.0.txt
  */
 
-export function isInvolved(election: AutoEditorElectionT, user: ?EditorT) {
+import {
+  isAutoEditor,
+  isBot,
+} from '../static/scripts/common/utility/privileges';
+
+export function isInvolved(
+  election: AutoEditorElectionT,
+  user: ?UnsanitizedEditorT,
+): void | boolean {
   return !!user && (
     election.proposer.id === user.id ||
     election.candidate.id === user.id ||
@@ -16,21 +24,41 @@ export function isInvolved(election: AutoEditorElectionT, user: ?EditorT) {
   );
 }
 
-export function votesVisible(election: AutoEditorElectionT, user: ?EditorT) {
+export function votesVisible(
+  election: AutoEditorElectionT,
+  user: ?UnsanitizedEditorT,
+): void | boolean {
   return election.is_closed ||
     (election.is_open && isInvolved(election, user));
 }
 
-export function canVote(election: AutoEditorElectionT, user: ?EditorT) {
-  return (!!user && election.is_open && user.is_auto_editor &&
-    !user.is_bot && !isInvolved(election, user));
+export function canVote(
+  election: AutoEditorElectionT,
+  user: ?UnsanitizedEditorT,
+): boolean {
+  return (!!user && election.is_open && isAutoEditor(user) &&
+    !isBot(user) && !isInvolved(election, user));
 }
 
-export function canSecond(election: AutoEditorElectionT, user: ?EditorT) {
-  return (!!user && election.is_pending && user.is_auto_editor &&
-    !user.is_bot && !isInvolved(election, user));
+export function canSecond(
+  election: AutoEditorElectionT,
+  user: ?UnsanitizedEditorT,
+): boolean {
+  return (!!user && election.is_pending && isAutoEditor(user) &&
+    !isBot(user) && !isInvolved(election, user));
 }
 
-export function canCancel(election: AutoEditorElectionT, user: ?EditorT) {
+export function canCancel(
+  election: AutoEditorElectionT,
+  user: ?UnsanitizedEditorT,
+): boolean {
   return (!!user && !election.is_closed && election.proposer.id === user.id);
+}
+
+export function canNominate(
+  nominator: ?UnsanitizedEditorT,
+  nominee: ?UnsanitizedEditorT,
+): boolean {
+  return (!!nominator && !!nominee && isAutoEditor(nominator) &&
+    !isAutoEditor(nominee) && !nominee.deleted);
 }

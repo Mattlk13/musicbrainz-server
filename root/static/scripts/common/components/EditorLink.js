@@ -7,27 +7,38 @@
  * later version: http://www.gnu.org/licenses/gpl-2.0.txt
  */
 
-import React from 'react';
+import * as React from 'react';
 
 import entityHref from '../utility/entityHref';
 import isolateText from '../utility/isolateText';
 
-const MissingEditorLink = () => {
+const MissingEditorLink = (): React.Element<'span'> => {
   return (
-    <span className="deleted tooltip" title={l('This editor is missing from this server, and cannot be displayed correctly.')}>
+    <span
+      className="deleted tooltip"
+      title={l(
+        `This editor is missing from this server,
+         and cannot be displayed correctly.`,
+      )}
+    >
       {isolateText(l('[missing editor]'))}
     </span>
   );
 };
 
-type Props = {|
+type Props = {
   +avatarSize?: number,
   +content?: string,
-  +editor: EditorT | SanitizedEditorT | null,
+  +editor: $ReadOnly<{...EditorT, ...}> | null,
   +subPath?: string,
-|};
+};
 
-const EditorLink = ({editor, content, avatarSize, subPath}: Props) => {
+const EditorLink = ({
+  editor,
+  content,
+  avatarSize,
+  subPath,
+}: Props): React.Element<typeof MissingEditorLink | 'a'> => {
   if (!editor) {
     return <MissingEditorLink />;
   }
@@ -48,7 +59,13 @@ const EditorLink = ({editor, content, avatarSize, subPath}: Props) => {
   return (
     <a href={entityHref(editor, subPath)}>
       {gravatar ? (
-        <img alt="" className="gravatar" height={avatarSize} src={gravatar} width={avatarSize} />
+        <img
+          alt=""
+          className="gravatar"
+          height={avatarSize}
+          src={gravatar}
+          width={avatarSize}
+        />
       ) : null}
       {isolateText(content)}
     </a>

@@ -1,5 +1,5 @@
 /*
- * @flow
+ * @flow strict-local
  * Copyright (C) 2018 Shamroy Pellew
  *
  * This file is part of MusicBrainz, the open internet music database,
@@ -7,30 +7,41 @@
  * later version: http://www.gnu.org/licenses/gpl-2.0.txt
  */
 
-import React from 'react';
+import * as React from 'react';
 
-import {withCatalystContext} from '../context';
 import Layout from '../layout';
-import ArtistCreditLink from '../static/scripts/common/components/ArtistCreditLink';
+import ArtistCreditLink
+  from '../static/scripts/common/components/ArtistCreditLink';
 import CodeLink from '../static/scripts/common/components/CodeLink';
 import EntityLink from '../static/scripts/common/components/EntityLink';
-import formatTrackLength from '../static/scripts/common/utility/formatTrackLength';
+import formatTrackLength
+  from '../static/scripts/common/utility/formatTrackLength';
 import loopParity from '../utility/loopParity';
+import {returnToCurrentPage} from '../utility/returnUri';
 
-type PropsT = {|
+type PropsT = {
   +$c: CatalystContextT,
   +isrcs: $ReadOnlyArray<IsrcT>,
-  +recordings: $ReadOnlyArray<RecordingT>,
-|};
+  +recordings: $ReadOnlyArray<RecordingWithArtistCreditT>,
+};
 
-const Index = ({$c, isrcs, recordings}: PropsT) => {
-  const userExists = $c.user_exists;
+const Index = ({
+  $c,
+  isrcs,
+  recordings,
+}: PropsT): React.Element<typeof Layout> => {
+  const userExists = !!$c.user;
   const isrc = isrcs[0];
   return (
-    <Layout fullWidth title={texp.l('ISRC “{isrc}”', {isrc: isrc.isrc})}>
+    <Layout
+      fullWidth
+      title={texp.l('ISRC “{isrc}”', {isrc: isrc.isrc})}
+    >
       <h1>
-        {exp.l('ISRC “{isrc}”',
-          {isrc: <CodeLink code={isrc} key="isrc" />})}
+        {exp.l(
+          'ISRC “{isrc}”',
+          {isrc: <CodeLink code={isrc} key="isrc" />},
+        )}
       </h1>
       <h2>
         {texp.ln(
@@ -40,7 +51,10 @@ const Index = ({$c, isrcs, recordings}: PropsT) => {
           {num: recordings.length},
         )}
       </h2>
-      <form action="/recording/merge_queue" method="post">
+      <form
+        action={'/recording/merge_queue?' + returnToCurrentPage($c)}
+        method="post"
+      >
         <table className="tbl">
           <thead>
             <tr>
@@ -81,7 +95,9 @@ const Index = ({$c, isrcs, recordings}: PropsT) => {
         {userExists ? (
           <div className="row">
             <span className="buttons">
-              <button type="submit">{l('Add selected recordings for merging')}</button>
+              <button type="submit">
+                {l('Add selected recordings for merging')}
+              </button>
             </span>
           </div>
         ) : null}
@@ -90,4 +106,4 @@ const Index = ({$c, isrcs, recordings}: PropsT) => {
   );
 };
 
-export default withCatalystContext(Index);
+export default Index;

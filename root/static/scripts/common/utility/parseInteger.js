@@ -1,5 +1,5 @@
 /*
- * @flow
+ * @flow strict
  * Copyright (C) 2017 MetaBrainz Foundation
  *
  * This file is part of MusicBrainz, the open internet music database,
@@ -9,6 +9,6 @@
 
 const regexp = /^[0-9]+$/;
 
-export default function parseInteger(num: string) {
+export default function parseInteger(num: string): number {
   return regexp.test(num) ? parseInt(num, 10) : NaN;
 }

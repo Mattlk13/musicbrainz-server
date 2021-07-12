@@ -16,7 +16,7 @@ use MusicBrainz::Server::Edit::Utils qw(
     verify_artist_credits
 );
 use MusicBrainz::Server::Entity::ReleaseEvent;
-use MusicBrainz::Server::Translation qw( N_l );
+use MusicBrainz::Server::Translation qw( l N_l );
 
 extends 'MusicBrainz::Server::Edit::Generic::Create';
 with 'MusicBrainz::Server::Edit::Role::Preview';
@@ -100,15 +100,15 @@ sub build_display_data
         packaging     => defined($self->data->{packaging_id}) &&
                            $loaded->{ReleasePackaging}{ $self->data->{packaging_id} },
         status        => defined($status) &&
-                           $loaded->{ReleaseStatus}->{ $status },
+                           $loaded->{ReleaseStatus}{$status},
         script        => defined($script) &&
-                           $loaded->{Script}{ $script },
+                           $loaded->{Script}{$script},
         language      => defined($lang) &&
-                           $loaded->{Language}{ $lang },
+                           $loaded->{Language}{$lang},
         barcode       => Barcode->new($self->data->{barcode}),
         release_group => (defined($self->data->{release_group_id}) &&
                            $loaded->{ReleaseGroup}{ $self->data->{release_group_id} }) ||
-                               ReleaseGroup->new( name => '[removed]' ),
+                               ReleaseGroup->new( name => l('[removed]') ),
         release       => (defined($self->entity_id) &&
                               $loaded->{Release}{ $self->entity_id }) ||
                                   Release->new( name => $self->data->{name} ),

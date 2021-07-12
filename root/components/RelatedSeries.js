@@ -1,5 +1,5 @@
 /*
- * @flow
+ * @flow strict-local
  * Copyright (C) 2018 MetaBrainz Foundation
  *
  * This file is part of MusicBrainz, the open internet music database,
@@ -13,15 +13,14 @@ import EntityLink from '../static/scripts/common/components/EntityLink';
 import linkedEntities from '../static/scripts/common/linkedEntities';
 import groupRelationships from '../utility/groupRelationships';
 
+import {isNotSeriesPart} from './Relationships';
 import StaticRelationshipsDisplay from './StaticRelationshipsDisplay';
 
-const targetEntityTypes = ['url'];
-
-type Props = {|
+type Props = {
   +seriesIds: $ReadOnlyArray<number>,
-|};
+};
 
-const RelatedSeries = ({seriesIds}: Props) => {
+const RelatedSeries = ({seriesIds}: Props): React.MixedElement => {
   const createArgs = [
     React.Fragment,
     null,
@@ -38,7 +37,10 @@ const RelatedSeries = ({seriesIds}: Props) => {
       </h3>,
       <StaticRelationshipsDisplay
         relationships={
-          groupRelationships(series.relationships, targetEntityTypes)
+          groupRelationships(
+            series.relationships,
+            {filter: isNotSeriesPart},
+          )
         }
       />,
     );

@@ -9,6 +9,7 @@ use Test::Deep qw( cmp_bag );
 use Test::More;
 use Test::Routine;
 use Test::Routine::Util;
+use MusicBrainz::Server::Context;
 
 $ENV{MUSICBRAINZ_RUNNING_TESTS} = 1;
 
@@ -37,12 +38,12 @@ test all => sub {
         system 'sh', '-c' => "echo $sql | $psql TEST_JSON_DUMP";
     };
 
-    $exec_sql->(<<EOSQL);
-INSERT INTO replication_control (current_schema_sequence, current_replication_sequence, last_replication_date) VALUES
-    ($schema_seq, 1, now() - interval '1 hour');
-INSERT INTO artist (id, gid, name, sort_name)
-VALUES (1, '30238ead-59fa-41e2-a7ab-b7f6e6363c4b', 'Blue Guy', 'Blues Guy');
-EOSQL
+    $exec_sql->(<<~"EOSQL");
+        INSERT INTO replication_control (current_schema_sequence, current_replication_sequence, last_replication_date)
+            VALUES ($schema_seq, 1, now() - interval '1 hour');
+        INSERT INTO artist (id, gid, name, sort_name)
+            VALUES (1, '30238ead-59fa-41e2-a7ab-b7f6e6363c4b', 'Blue Guy', 'Blues Guy');
+        EOSQL
 
     my $output_dir;
     my $new_output_dir = sub {
@@ -56,14 +57,32 @@ EOSQL
             't-json-dump-packets-XXXXXXX', DIR => '/tmp', CLEANUP => 1);
     };
 
+    my $c = MusicBrainz::Server::Context->create_script_context(
+        database => 'TEST_JSON_DUMP',
+    );
+
     my $build_full_dump = sub {
         $new_output_dir->();
         system (
             File::Spec->catfile($root, 'admin/DumpJSON'),
             '--database' => 'TEST_JSON_DUMP',
-            '--no-compress',
+            '--compress',
             '--output-dir' => $output_dir,
         );
+        my $full_json_dump_replication_sequence = $c->sql->select_single_value(
+            'SELECT full_json_dump_replication_sequence ' .
+            'FROM json_dump.control',
+        );
+        for my $type (@dumped_entity_types) {
+            $type =~ s/-/_/g;
+            my $unneeded_row_count = $c->sql->select_single_value(qq{
+                SELECT count(*) FROM json_dump.${type}_json a
+                 WHERE a.replication_sequence < $full_json_dump_replication_sequence
+                   AND EXISTS (SELECT 1 FROM json_dump.${type}_json b
+                                WHERE b.id = a.id AND b.replication_sequence >= $full_json_dump_replication_sequence);
+            });
+            is($unneeded_row_count, 0);
+        }
     };
 
     my $build_incremental_dump = sub {
@@ -71,7 +90,7 @@ EOSQL
         system (
             File::Spec->catfile($root, 'admin/DumpIncrementalJSON'),
             '--database' => 'TEST_JSON_DUMP',
-            '--no-compress',
+            '--compress',
             '--output-dir' => $output_dir,
             '--replication-access-uri' => "file://$rep_dir",
         );
@@ -81,9 +100,23 @@ EOSQL
     my $test_dump = sub {
         my ($dir, $entity, $expected) = @_;
 
+        my $quoted_dir = shell_quote($dir);
+        system("cd $quoted_dir && md5sum -c MD5SUMS") == 0 or die $!;
+        system("cd $quoted_dir && sha256sum -c SHA256SUMS") == 0 or die $!;
+
+        my $entity_dir = File::Spec->catdir($dir, $entity);
+        my $quoted_entity_dir = shell_quote($entity_dir);
+
+        system 'mkdir', '-p', $quoted_entity_dir;
+        system(
+            'tar',
+            '-C', $quoted_entity_dir,
+            '-xJf', shell_quote(File::Spec->catfile($dir, "$entity.tar.xz")),
+        ) == 0 or die $!;
+
         chomp $expected;
         my $got = read_file(
-            File::Spec->catfile($dir, $entity, 'mbdump', $entity));
+            File::Spec->catfile($entity_dir, 'mbdump', $entity));
         $got = [map { $json->decode($_) } split "\n", $got];
         cmp_bag($got, $expected);
 
@@ -128,9 +161,11 @@ EOSQL
         aliases => [],
         annotation => undef,
         area => undef,
+        'begin-area' => undef,
         begin_area => undef,
         country => undef,
         disambiguation => '',
+        'end-area' => undef,
         end_area => undef,
         gender => undef,
         'gender-id' => undef,
@@ -273,7 +308,6 @@ EOF
             type => 'composer',
             'type-id' => 'd59d99ea-23d4-4a80-b066-edca32ee158f',
             work => {
-                aliases => [],
                 attributes => [],
                 disambiguation => '',
                 id => 'b6c76104-d64c-4883-b395-c74f782b751c',
@@ -295,11 +329,12 @@ EOF
     $work2{relations} = [
         {
             artist => {
-                aliases => [],
                 disambiguation => '',
                 id => '30238ead-59fa-41e2-a7ab-b7f6e6363c4b',
                 name => 'Blues Guy',
                 'sort-name' => 'Blues Guy',
+                type => undef,
+                'type-id' => undef,
             },
             'attribute-ids' => {},
             'attribute-values' => {},
@@ -356,6 +391,8 @@ EOF
                 id => '30238ead-59fa-41e2-a7ab-b7f6e6363c4b',
                 name => 'Blues Guy',
                 'sort-name' => 'Blues Guy',
+                type => undef,
+                'type-id' => undef,
                 %extra,
             },
             joinphrase => '',
@@ -558,7 +595,7 @@ EOF
         {
             aliases => [],
             annotation => undef,
-            'artist-credit' => $make_artist_credit->('', tags => [], genres => []),
+            'artist-credit' => $make_artist_credit->('', aliases => [], tags => [], genres => []),
             disambiguation => '',
             genres => [],
             id => '4293ab04-ec12-4c5e-9ffa-98ee6e833bb3',
@@ -576,19 +613,19 @@ EOF
     ]);
     $test_dumps_empty_except->($output_dir, qw( artist recording release-group work ));
 
-    $exec_sql->(<<EOSQL);
-TRUNCATE artist CASCADE;
-TRUNCATE artist_credit CASCADE;
-TRUNCATE artist_credit_name CASCADE;
-TRUNCATE medium CASCADE;
-TRUNCATE recording CASCADE;
-TRUNCATE release CASCADE;
-TRUNCATE release_group CASCADE;
-TRUNCATE track CASCADE;
-TRUNCATE work CASCADE;
-TRUNCATE json_dump.control;
-TRUNCATE json_dump.tmp_checked_entities;
-EOSQL
+    $exec_sql->(<<~'EOSQL');
+        TRUNCATE artist CASCADE;
+        TRUNCATE artist_credit CASCADE;
+        TRUNCATE artist_credit_name CASCADE;
+        TRUNCATE medium CASCADE;
+        TRUNCATE recording CASCADE;
+        TRUNCATE release CASCADE;
+        TRUNCATE release_group CASCADE;
+        TRUNCATE track CASCADE;
+        TRUNCATE work CASCADE;
+        TRUNCATE json_dump.control;
+        TRUNCATE json_dump.tmp_checked_entities;
+        EOSQL
 };
 
 run_me;

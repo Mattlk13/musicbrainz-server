@@ -1,13 +1,13 @@
 # 
 # Translators:
 # Maurits Meulenbelt <email address hidden>, 2012
-# Maurits Meulenbelt <email address hidden>, 2013-2019
+# Maurits Meulenbelt <email address hidden>, 2013-2021
 # Nathan Follens, 2017
 # Nikolai Prokoschenko <email address hidden>, 2011
 msgid ""
 msgstr ""
 "Project-Id-Version: MusicBrainz\n"
-"PO-Revision-Date: 2019-04-10 20:01+0000\n"
+"PO-Revision-Date: 2021-06-16 10:03+0000\n"
 "Last-Translator: Maurits Meulenbelt <email address hidden>\n"
 "Language-Team: Dutch (http://www.transifex.com/musicbrainz/musicbrainz/language/nl/)\n"
 "MIME-Version: 1.0\n"
@@ -91,6 +91,11 @@ msgstr "Aleut"
 msgid "Algonquian languages"
 msgstr "Algonquiaanse talen"
 
+#. frequency:1 iso_code_3:alq
+#: DB:language/name:709
+msgid "Algonquin"
+msgstr "Algonkisch"
+
 #. frequency:0 iso_code_3:null
 #: DB:language/name:434
 msgid "Altaic languages"
@@ -155,6 +160,11 @@ msgstr "Asturisch"
 #: DB:language/name:28
 msgid "Athapascan languages"
 msgstr "Athabaskaanse talen"
+
+#. frequency:1 iso_code_3:atj
+#: DB:language/name:866
+msgid "Atikamekw"
+msgstr "Atikamekw"
 
 #. frequency:0 iso_code_3:null
 #: DB:language/name:29
@@ -396,6 +406,11 @@ msgstr "Meso-Amerikaanse talen"
 msgid "Central Okinawan"
 msgstr "Centraal-Okinawaans"
 
+#. frequency:1 iso_code_3:esu
+#: DB:language/name:2243
+msgid "Central Yupik"
+msgstr "Centraal-Alaskaans Joepik"
+
 #. frequency:1 iso_code_3:chg
 #: DB:language/name:75
 msgid "Chagatai"
@@ -556,7 +571,7 @@ msgstr "Tsjechisch"
 msgid "Dakota"
 msgstr "Dakota"
 
-#. frequency:2 iso_code_3:dan
+#. frequency:1 iso_code_3:dan
 #: DB:language/name:100
 msgid "Danish"
 msgstr "Deens"
@@ -826,7 +841,7 @@ msgstr "Nederduits"
 msgid "German, Middle High (ca.1050-1500)"
 msgstr "Middelhoogduits (ca. 1050 – 1500)"
 
-#. frequency:0 iso_code_3:goh
+#. frequency:1 iso_code_3:goh
 #: DB:language/name:153
 msgid "German, Old High (ca.750-1050)"
 msgstr "Oudhoogduits (ca. 750 – 1050)"
@@ -951,7 +966,7 @@ msgstr "Hiligainoons"
 msgid "Himachali languages"
 msgstr "Himachali talen"
 
-#. frequency:1 iso_code_3:hin
+#. frequency:2 iso_code_3:hin
 #: DB:language/name:171
 msgid "Hindi"
 msgstr "Hindi"
@@ -1035,6 +1050,11 @@ msgstr "Ingrisch"
 #: DB:language/name:191
 msgid "Ingush"
 msgstr "Ingoesjetisch"
+
+#. frequency:1 iso_code_3:moe
+#: DB:language/name:4369
+msgid "Innu"
+msgstr "Innu"
 
 #. frequency:1 iso_code_3:ina
 #: DB:language/name:187
@@ -1620,11 +1640,6 @@ msgstr "Mongo"
 #: DB:language/name:282
 msgid "Mongolian"
 msgstr "Mongools"
-
-#. frequency:1 iso_code_3:moe
-#: DB:language/name:4369
-msgid "Montagnais"
-msgstr "Montagnais (Innu)"
 
 #. frequency:1 iso_code_3:mos
 #: DB:language/name:283
@@ -2251,6 +2266,11 @@ msgstr "Soendanees"
 msgid "Susu"
 msgstr "Susu"
 
+#. frequency:1 iso_code_3:sva
+#: DB:language/name:6216
+msgid "Svan"
+msgstr "Svanetisch"
+
 #. frequency:1 iso_code_3:swa
 #: DB:language/name:402
 msgid "Swahili"
@@ -2525,6 +2545,11 @@ msgstr "Wakasjaanse talen"
 #: DB:language/name:457
 msgid "Walloon"
 msgstr "Waals"
+
+#. frequency:1 iso_code_3:wae
+#: DB:language/name:6981
+msgid "Walser"
+msgstr "Walserduits"
 
 #. frequency:1 iso_code_3:war
 #: DB:language/name:453

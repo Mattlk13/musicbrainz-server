@@ -1,5 +1,5 @@
 /*
- * @flow
+ * @flow strict-local
  * Copyright (C) 2018 MetaBrainz Foundation
  *
  * This file is part of MusicBrainz, the open internet music database,
@@ -7,30 +7,26 @@
  * later version: http://www.gnu.org/licenses/gpl-2.0.txt
  */
 
-import React from 'react';
+import * as React from 'react';
 
 import chooseLayoutComponent from '../utility/chooseLayoutComponent';
-import {withCatalystContext} from '../context';
 import {MainTagEditor} from '../static/scripts/common/components/TagEditor';
 
-
-type Props = {|
+type Props = {
   +$c: CatalystContextT,
   +allTags: $ReadOnlyArray<AggregatedTagT>,
   +entity: CoreEntityT,
-  +lastUpdated: string,
   +moreTags: boolean,
   +userTags: $ReadOnlyArray<UserTagT>,
-|};
+};
 
 const Tags = ({
   $c,
   allTags,
   entity,
-  lastUpdated,
   moreTags,
   userTags,
-}: Props) => {
+}: Props): React.MixedElement => {
   const entityType = entity.entityType;
   const LayoutComponent = chooseLayoutComponent(entityType);
 
@@ -40,6 +36,7 @@ const Tags = ({
         $c={$c}
         aggregatedTags={allTags}
         entity={entity}
+        genreMap={$c.stash.genre_map}
         more={moreTags}
         userTags={userTags}
       />
@@ -47,4 +44,4 @@ const Tags = ({
   );
 };
 
-export default withCatalystContext(Tags);
+export default Tags;

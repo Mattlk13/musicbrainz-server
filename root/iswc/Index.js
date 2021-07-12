@@ -1,5 +1,5 @@
 /*
- * @flow
+ * @flow strict-local
  * Copyright (C) 2018 MetaBrainz Foundation
  *
  * This file is part of MusicBrainz, the open internet music database,
@@ -9,22 +9,25 @@
 
 import * as React from 'react';
 
-import {withCatalystContext} from '../context';
 import Layout from '../layout';
 import CodeLink from '../static/scripts/common/components/CodeLink';
 import WorkListEntry from '../static/scripts/common/components/WorkListEntry';
+import {returnToCurrentPage} from '../utility/returnUri';
 
-type Props = {|
+type Props = {
   +$c: CatalystContextT,
   +iswcs: $ReadOnlyArray<IswcT>,
   +works: $ReadOnlyArray<WorkT>,
-|};
+};
 
-const Index = ({$c, iswcs, works}: Props) => {
-  const userExists = $c.user_exists;
+const Index = ({$c, iswcs, works}: Props): React.Element<typeof Layout> => {
+  const userExists = !!$c.user;
   const iswc = iswcs[0];
   return (
-    <Layout fullWidth title={texp.l('ISWC “{iswc}”', {iswc: iswc.iswc})}>
+    <Layout
+      fullWidth
+      title={texp.l('ISWC “{iswc}”', {iswc: iswc.iswc})}
+    >
       <h1>
         {exp.l('ISWC “{iswc}”',
                {iswc: <CodeLink code={iswc} key="iswc" />})}
@@ -37,7 +40,10 @@ const Index = ({$c, iswcs, works}: Props) => {
           {num: works.length},
         )}
       </h2>
-      <form action="/work/merge_queue" method="post">
+      <form
+        action={'/work/merge_queue?' + returnToCurrentPage($c)}
+        method="post"
+      >
         <table className="tbl">
           <thead>
             <tr>
@@ -78,4 +84,4 @@ const Index = ({$c, iswcs, works}: Props) => {
   );
 };
 
-export default withCatalystContext(Index);
+export default Index;

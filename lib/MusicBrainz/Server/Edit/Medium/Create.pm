@@ -17,6 +17,7 @@ use MusicBrainz::Server::Edit::Types qw(
 );
 use MusicBrainz::Server::Edit::Utils qw( verify_artist_credits );
 use MusicBrainz::Server::Entity::Medium;
+use MusicBrainz::Server::Entity::Util::JSON qw( to_json_array to_json_object );
 use MusicBrainz::Server::Translation qw( N_l );
 
 extends 'MusicBrainz::Server::Edit::Generic::Create';
@@ -35,6 +36,7 @@ sub edit_name { N_l('Add medium') }
 sub _create_model { 'Medium' }
 sub medium_id { shift->entity_id }
 sub release_id { shift->data->{release}->{id} }
+sub edit_template_react { 'AddMedium' }
 
 has '+data' => (
     isa => Dict[
@@ -86,10 +88,12 @@ sub initialize {
     my ($self, %opts) = @_;
 
     my $tracklist = delete $opts{tracklist};
-    $tracklist = tracks_to_hash($tracklist);
-    check_track_hash($tracklist);
-    die 'Tracklist specifies track IDs'
-        if grep { defined $_ } map { $_->{id} } @$tracklist;
+    if (@$tracklist) {
+        $tracklist = tracks_to_hash($tracklist);
+        check_track_hash($tracklist);
+        die 'Tracklist specifies track IDs'
+            if grep { defined $_ } map { $_->{id} } @$tracklist;
+    }
     $opts{tracklist} = $tracklist;
 
     my $release = delete $opts{release};
@@ -134,15 +138,20 @@ sub build_display_data
 
     my $data = {
         name         => $self->data->{name},
-        format       => $format ? $loaded->{MediumFormat}->{ $format } : '',
+        format       => $format ? to_json_object($loaded->{MediumFormat}{$format}) : undef,
         position     => $self->data->{position},
-        tracks       => display_tracklist($loaded, $self->data->{tracklist}),
-        release      => $medium ? $medium->release : undef,
+        tracks       => to_json_array(display_tracklist($loaded, $self->data->{tracklist})),
+        release      => $medium ? to_json_object($medium->release) : undef,
     };
 
     if (!$self->preview) {
-        $data->{release} = $loaded->{Release}->{ $self->data->{release}{id} }
-            || Release->new( name => $self->data->{release}{name} );
+        $data->{release} = to_json_object(
+            $loaded->{Release}{ $self->data->{release}{id} } ||
+            Release->new(
+                id => $self->data->{release}{id},
+                name => $self->data->{release}{name}
+            )
+        );
     }
 
     return $data;

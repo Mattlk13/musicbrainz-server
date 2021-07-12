@@ -1,5 +1,5 @@
 /*
- * @flow
+ * @flow strict-local
  * Copyright (C) 2018 MetaBrainz Foundation
  *
  * This file is part of MusicBrainz, the open internet music database,
@@ -9,61 +9,77 @@
 
 import * as React from 'react';
 
+import {CatalystContext} from '../../context';
 import PaginatedResults from '../../components/PaginatedResults';
-import EntityLink from '../../static/scripts/common/components/EntityLink';
-import loopParity from '../../utility/loopParity';
+import Table from '../../components/Table';
+import {
+  defineEntityColumn,
+  defineTextColumn,
+} from '../../utility/tableColumns';
 import type {ReportInstrumentT} from '../types';
 import formatUserDate from '../../utility/formatUserDate';
-import {withCatalystContext} from '../../context';
+
+type Props = {
+  +items: $ReadOnlyArray<ReportInstrumentT>,
+  +pager: PagerT,
+};
 
 const InstrumentList = ({
-  $c,
   items,
   pager,
-}: {
-  $c: CatalystContextT,
-  items: $ReadOnlyArray<ReportInstrumentT>,
-  pager: PagerT,
-}) => (
-  <PaginatedResults pager={pager}>
-    <table className="tbl">
-      <thead>
-        <tr>
-          <th>{l('Instrument')}</th>
-          <th>{l('Type')}</th>
-          <th>{l('Last updated')}</th>
-        </tr>
-      </thead>
-      <tbody>
-        {items.map((item, index) => (
-          <tr className={loopParity(index)} key={item.instrument_id}>
-            {item.instrument ? (
-              <>
-                <td>
-                  <EntityLink entity={item.instrument} />
-                </td>
-                <td>
-                  {item.instrument.typeName
-                    ? lp_attributes(item.instrument.typeName, 'instrument_type')
-                    : l('Unclassified instrument')}
-                </td>
-                <td>
-                  {item.instrument.last_updated
-                    ? formatUserDate($c.user, item.instrument.last_updated)
-                    : null
-                  }
-                </td>
-              </>
-            ) : (
-              <td colSpan="3">
-                {l('This instrument no longer exists.')}
-              </td>
-            )}
-          </tr>
-        ))}
-      </tbody>
-    </table>
-  </PaginatedResults>
-);
+}: Props): React.Element<typeof PaginatedResults> => {
+  const $c = React.useContext(CatalystContext);
+  const existingInstrumentItems = items.reduce((result, item) => {
+    if (item.instrument != null) {
+      result.push(item);
+    }
+    return result;
+  }, []);
 
-export default withCatalystContext(InstrumentList);
+  const columns = React.useMemo(
+    () => {
+      const nameColumn = defineEntityColumn<ReportInstrumentT>({
+        columnName: 'instrument',
+        getEntity: result => result.instrument ?? null,
+        title: l('Instrument'),
+      });
+      const typeColumn = defineTextColumn<ReportInstrumentT>({
+        columnName: 'type',
+        getText: result => {
+          const typeName = result.instrument?.typeName;
+          return (nonEmpty(typeName)
+            ? lp_attributes(typeName, 'instrument_type')
+            : l('Unclassified instrument')
+          );
+        },
+        title: l('Type'),
+      });
+      const editedColumn = defineTextColumn<ReportInstrumentT>({
+        columnName: 'last-updated',
+        getText: result => {
+          const lastUpdated = result.instrument?.last_updated;
+          return (nonEmpty(lastUpdated)
+            ? formatUserDate($c, lastUpdated)
+            : ''
+          );
+        },
+        title: l('Last updated'),
+      });
+
+      return [
+        nameColumn,
+        typeColumn,
+        editedColumn,
+      ];
+    },
+    [$c],
+  );
+
+  return (
+    <PaginatedResults pager={pager}>
+      <Table columns={columns} data={existingInstrumentItems} />
+    </PaginatedResults>
+  );
+};
+
+export default InstrumentList;

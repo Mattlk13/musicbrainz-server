@@ -8,6 +8,7 @@ use MooseX::Types::Structured qw( Dict );
 use MusicBrainz::Server::Constants qw( $EDIT_RELEASEGROUP_SET_COVER_ART );
 use MusicBrainz::Server::Edit::Exceptions;
 use MusicBrainz::Server::Edit::Utils qw( changed_display_data );
+use MusicBrainz::Server::Entity::Util::JSON qw( to_json_object );
 use MusicBrainz::Server::Translation qw( N_l );
 
 use aliased 'MusicBrainz::Server::Entity::ReleaseGroup';
@@ -21,6 +22,7 @@ sub edit_name { N_l('Set cover art') }
 sub edit_kind { 'other' }
 sub edit_type { $EDIT_RELEASEGROUP_SET_COVER_ART }
 sub release_group_ids { shift->data->{entity}->{id} }
+sub edit_template_react { 'SetCoverArt' }
 
 sub alter_edit_pending {
     my $self = shift;
@@ -109,6 +111,7 @@ sub build_display_data {
     my $artwork = $self->c->model('Artwork')->find_front_cover_by_release(
         @releases);
     $self->c->model('CoverArtType')->load_for(@$artwork);
+    $self->c->model('Release')->load_release_events(@releases);
 
     my %artwork_by_release_id;
     for my $image (@$artwork)
@@ -116,38 +119,32 @@ sub build_display_data {
         $artwork_by_release_id{$image->release_id} = $image;
     }
 
-    $data{release_group} = $loaded->{ReleaseGroup}->{ $self->data->{entity}{id} } ||
-        ReleaseGroup->new( name => $self->data->{entity}{name} );
+    $data{release_group} = to_json_object(
+        $loaded->{ReleaseGroup}{ $self->data->{entity}{id} } ||
+        ReleaseGroup->new( name => $self->data->{entity}{name} )
+    );
 
-    my $old_id = $self->data->{old}->{release_id};
-    my $new_id = $self->data->{new}->{release_id};
+    my $old_id = $self->data->{old}{release_id};
+    my $new_id = $self->data->{new}{release_id};
 
     $data{artwork} = { };
-    $data{artwork}->{old} = $artwork_by_release_id{$old_id} if $old_id;
-    $data{artwork}->{new} = $artwork_by_release_id{$new_id} if $new_id;
+    $data{artwork}{old} = to_json_object($artwork_by_release_id{$old_id}) if $old_id;
+    $data{artwork}{new} = to_json_object($artwork_by_release_id{$new_id}) if $new_id;
+
+    $data{isOldArtworkAutomatic} = !$old_id;
 
     return \%data;
 }
 
 1;
 
-=head1 COPYRIGHT
+=head1 COPYRIGHT AND LICENSE
 
 Copyright (C) 2012 MetaBrainz Foundation
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program; if not, write to the Free Software
-Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+This file is part of MusicBrainz, the open internet music database,
+and is licensed under the GPL version 2, or (at your option) any
+later version: http://www.gnu.org/licenses/gpl-2.0.txt
 
 =cut
 

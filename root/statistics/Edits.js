@@ -1,5 +1,5 @@
 /*
- * @flow
+ * @flow strict-local
  * Copyright (C) 2018 MetaBrainz Foundation
  *
  * This file is part of MusicBrainz, the open internet music database,
@@ -7,28 +7,32 @@
  * later version: http://www.gnu.org/licenses/gpl-2.0.txt
  */
 
-import React from 'react';
+import * as React from 'react';
 
 import {l as lMbServer} from '../static/scripts/common/i18n';
 import {l_statistics as l} from '../static/scripts/common/i18n/statistics';
-import {withCatalystContext} from '../context';
 
-import {formatCount, formatPercentage} from './utilities';
+import {formatCount, formatPercentage, TimelineLink} from './utilities';
 import StatisticsLayout from './StatisticsLayout';
 
-type EditCategoryT = {|
+type EditCategoryT = {
   +edit_name: string,
   +edit_type: string,
-|};
+};
 
-type EditsStatsT = {|
+type EditsStatsT = {
   +$c: CatalystContextT,
   +dateCollected: string,
-  +stats: {[string]: number},
-  +statsByCategory: {[string]: $ReadOnlyArray<EditCategoryT>},
-|};
+  +stats: {[statName: string]: number},
+  +statsByCategory: {[editCategory: string]: $ReadOnlyArray<EditCategoryT>},
+};
 
-const Edits = ({$c, dateCollected, stats, statsByCategory}: EditsStatsT) => (
+const Edits = ({
+  $c,
+  dateCollected,
+  stats,
+  statsByCategory,
+}: EditsStatsT): React.Element<typeof StatisticsLayout> => (
   <StatisticsLayout fullWidth page="edits" title={l('Edits')}>
     <p>
       {texp.l('Last updated: {date}', {date: dateCollected})}
@@ -43,7 +47,12 @@ const Edits = ({$c, dateCollected, stats, statsByCategory}: EditsStatsT) => (
         <tbody>
           <tr>
             <th colSpan="2">{addColon(l('Edits'))}</th>
-            <td>{formatCount($c, stats['count.edit'])}</td>
+            <td>
+              {formatCount($c, stats['count.edit'])}
+              {' '}
+              <TimelineLink statName="count.edit" />
+            </td>
+
             <td />
           </tr>
           {Object.keys(statsByCategory)
@@ -64,11 +73,16 @@ const Edits = ({$c, dateCollected, stats, statsByCategory}: EditsStatsT) => (
                           $c,
                           stats['count.edit.type.' + type.edit_type],
                         )}
+                        {' '}
+                        <TimelineLink
+                          statName={'count.edit.type.' + type.edit_type}
+                        />
                       </td>
                       <td>
                         {formatPercentage(
                           $c,
-                          stats['count.edit.type.' + type.edit_type] / stats['count.edit'],
+                          stats['count.edit.type.' + type.edit_type] /
+                            stats['count.edit'],
                           2,
                         )}
                       </td>
@@ -83,4 +97,4 @@ const Edits = ({$c, dateCollected, stats, statsByCategory}: EditsStatsT) => (
   </StatisticsLayout>
 );
 
-export default withCatalystContext(Edits);
+export default Edits;

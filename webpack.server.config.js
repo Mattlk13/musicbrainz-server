@@ -10,18 +10,23 @@ const path = require('path');
 const webpack = require('webpack');
 const nodeExternals = require('webpack-node-externals');
 
-const DBDefs = require('./root/static/scripts/common/DBDefs');
-const {dirs, PUBLIC_PATH} = require('./webpack/constants');
+const {
+  dirs,
+  WEBPACK_MODE,
+} = require('./webpack/constants');
 const moduleConfig = require('./webpack/moduleConfig');
+const definePluginConfig = require('./webpack/definePluginConfig');
 const providePluginConfig = require('./webpack/providePluginConfig');
 
 /*
-* Components must use the same context, gettext, and linkedEntities
-* instances created in the server process, so those must be externals.
-*/
+ * Components must use the same context, gettext, and linkedEntities
+ * instances created in the server process, so those must be externals.
+ */
 const externals = [
   'root/context',
   'root/server/gettext',
+  'root/static/scripts/common/DBDefs',
+  'root/static/scripts/common/DBDefs-client-values',
   'root/static/scripts/common/linkedEntities',
 ];
 
@@ -33,23 +38,37 @@ module.exports = {
   },
 
   externals: [
-    nodeExternals({modulesFromFile: true}),
+    nodeExternals({
+      /*
+       * jquery and @popperjs are resolved to root/static/scripts/empty.js
+       * on the server. See NormalModuleReplacementPlugin below.
+       */
+      whitelist: [/(jquery|@popperjs)/],
+      modulesFromFile: true,
+    }),
 
     function (context, request, callback) {
       const resolvedRequest = path.resolve(context, request);
-      const requestFromCheckout = path.relative(dirs.CHECKOUT, resolvedRequest);
+      const requestFromCheckout = path.relative(
+        dirs.CHECKOUT,
+        resolvedRequest,
+      );
       if (externals.includes(requestFromCheckout)) {
         /*
          * Output a path relative to the build dir, since that's where
          * the server-components bundle will be.
          */
-        return callback(null, 'commonjs ' + path.relative(dirs.BUILD, resolvedRequest));
+        callback(
+          null,
+          'commonjs ' + path.relative(dirs.BUILD, resolvedRequest),
+        );
+        return;
       }
       callback();
-    }
+    },
   ],
 
-  mode: DBDefs.DEVELOPMENT_SERVER ? 'development' : 'production',
+  mode: WEBPACK_MODE,
 
   module: moduleConfig,
 
@@ -62,11 +81,14 @@ module.exports = {
     filename: '[name].js',
     libraryTarget: 'commonjs2',
     path: dirs.BUILD,
-    publicPath: PUBLIC_PATH,
   },
 
   plugins: [
-    new webpack.IgnorePlugin({resourceRegExp: /jquery/}),
+    new webpack.NormalModuleReplacementPlugin(
+      /(jquery|@popperjs)/,
+      path.resolve(dirs.SCRIPTS, 'empty.js'),
+    ),
+    new webpack.DefinePlugin(definePluginConfig),
     new webpack.ProvidePlugin(providePluginConfig),
   ],
 

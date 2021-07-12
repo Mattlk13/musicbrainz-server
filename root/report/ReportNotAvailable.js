@@ -1,5 +1,5 @@
 /*
- * @flow
+ * @flow strict-local
  * Copyright (C) 2018 MetaBrainz Foundation
  *
  * This file is part of MusicBrainz, the open internet music database,
@@ -11,7 +11,7 @@ import * as React from 'react';
 
 import Layout from '../layout';
 
-const ReportNotAvailable = () => (
+const ReportNotAvailable = (): React.Element<typeof Layout> => (
   <Layout fullWidth title={l('Error')}>
     <div id="content">
       <h1>{l('Error')}</h1>

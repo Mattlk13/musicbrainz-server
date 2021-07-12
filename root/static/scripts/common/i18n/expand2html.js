@@ -1,5 +1,5 @@
 /*
- * @flow
+ * @flow strict-local
  * Copyright (C) 2018 MetaBrainz Foundation
  *
  * This file is part of MusicBrainz, the open internet music database,
@@ -9,13 +9,14 @@
 
 import * as ReactDOMServer from 'react-dom/server';
 
+import type {VarArgsObject} from './expand2';
 import expand2react from './expand2react';
 
 export default function expand2html(
   source: string,
-  args?: ?{+[string]: Expand2ReactInput},
-) {
+  args?: ?VarArgsObject<Expand2ReactInput>,
+): string {
   return ReactDOMServer.renderToStaticMarkup(
-    expand2react(source, args)
+    expand2react(source, args),
   );
 }

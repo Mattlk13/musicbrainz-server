@@ -28,6 +28,7 @@ with 'MusicBrainz::Server::Data::Role::Alias' => { type => 'place' };
 with 'MusicBrainz::Server::Data::Role::CoreEntityCache';
 with 'MusicBrainz::Server::Data::Role::DeleteAndLog' => { type => 'place' };
 with 'MusicBrainz::Server::Data::Role::Editable' => { table => 'place' };
+with 'MusicBrainz::Server::Data::Role::Rating' => { type => 'place' };
 with 'MusicBrainz::Server::Data::Role::Tag' => { type => 'place' };
 with 'MusicBrainz::Server::Data::Role::LinksToEdit' => { table => 'place' };
 with 'MusicBrainz::Server::Data::Role::Merge';
@@ -54,7 +55,6 @@ sub _column_mapping
         id => 'id',
         gid => 'gid',
         name => 'name',
-        unaccented_name => 'unaccented_name',
         type_id => 'type',
         address => 'address',
         area_id => 'area',
@@ -100,6 +100,7 @@ sub delete
     $self->c->model('Relationship')->delete_entities('place', @place_ids);
     $self->annotation->delete(@place_ids);
     $self->alias->delete_entities(@place_ids);
+    $self->rating->delete(@place_ids);
     $self->tags->delete(@place_ids);
     $self->remove_gid_redirects(@place_ids);
     $self->delete_returning_gids(@place_ids);
@@ -112,6 +113,7 @@ sub _merge_impl
 
     $self->alias->merge($new_id, @old_ids);
     $self->tags->merge($new_id, @old_ids);
+    $self->rating->merge($new_id, @old_ids);
     $self->annotation->merge($new_id, @old_ids);
     $self->c->model('Edit')->merge_entities('place', $new_id, @old_ids);
     $self->c->model('Collection')->merge_entities('place', $new_id, @old_ids);
@@ -149,24 +151,34 @@ sub _hash_to_row
     return $row;
 }
 
+sub load_meta
+{
+    my $self = shift;
+    MusicBrainz::Server::Data::Utils::load_meta($self->c, "place_meta", sub {
+        my ($obj, $row) = @_;
+        $obj->rating($row->{rating}) if defined $row->{rating};
+        $obj->rating_count($row->{rating_count}) if defined $row->{rating_count};
+    }, @_);
+}
+
 sub is_empty {
     my ($self, $place_id) = @_;
 
     my $used_in_relationship = used_in_relationship($self->c, place => 'place_row.id');
-    return $self->sql->select_single_value(<<EOSQL, $place_id, $STATUS_OPEN);
+    return $self->sql->select_single_value(<<~"EOSQL", $place_id, $STATUS_OPEN);
         SELECT TRUE
         FROM place place_row
         WHERE id = ?
         AND edits_pending = 0
         AND NOT (
-          EXISTS (
-            SELECT TRUE
-            FROM edit_place JOIN edit ON edit_place.edit = edit.id
-            WHERE status = ? AND place = place_row.id
-          ) OR
-          $used_in_relationship
+            EXISTS (
+                SELECT TRUE
+                FROM edit_place JOIN edit ON edit_place.edit = edit.id
+                WHERE status = ? AND place = place_row.id
+            ) OR
+            $used_in_relationship
         )
-EOSQL
+        EOSQL
 }
 
 sub find_by_area {
@@ -181,7 +193,7 @@ sub find_by_area {
                     SELECT 1 FROM ($containment_query) ac
                      WHERE ac.descendant = area AND ac.parent = \$1
                  )
-                 ORDER BY musicbrainz_collate(place.name), place.id";
+                 ORDER BY place.name COLLATE musicbrainz, place.id";
     $self->query_to_list_limited(
         $query, [$area_id, @containment_query_args], $limit, $offset, undef,
         dollar_placeholders => 1,
@@ -192,13 +204,22 @@ sub _order_by {
     my ($self, $order) = @_;
     my $order_by = order_by($order, "name", {
         "name" => sub {
-            return "musicbrainz_collate(name)"
+            return "name COLLATE musicbrainz"
+        },
+        "area" => sub {
+            return "area, name COLLATE musicbrainz"
         },
         "address" => sub {
-            return "musicbrainz_collate(address), musicbrainz_collate(name)"
+            return "address COLLATE musicbrainz, name COLLATE musicbrainz"
+        },
+        "begin_date" => sub {
+            return "begin_date_year, begin_date_month, begin_date_day, name COLLATE musicbrainz"
+        },
+        "end_date" => sub {
+            return "end_date_year, end_date_month, end_date_day, name COLLATE musicbrainz"
         },
         "type" => sub {
-            return "type, musicbrainz_collate(name)"
+            return "type, name COLLATE musicbrainz"
         }
     });
 

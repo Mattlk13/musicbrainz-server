@@ -1,5 +1,5 @@
 /*
- * @flow
+ * @flow strict-local
  * Copyright (C) 2018 MetaBrainz Foundation
  *
  * This file is part of MusicBrainz, the open internet music database,
@@ -11,9 +11,20 @@ import * as React from 'react';
 
 import ConfirmLayout from '../../components/ConfirmLayout';
 
-const RevokeApplicationAccess = () => ConfirmLayout({
-  question: l('Are you sure you want to revoke this application\'s access?'),
-  title: l('Revoke Application Access'),
-});
+type Props = {
+  +form: SecureConfirmFormT,
+};
+
+const RevokeApplicationAccess = ({
+  form,
+}: Props): React.Element<typeof ConfirmLayout> => (
+  <ConfirmLayout
+    form={form}
+    question={l(
+      `Are you sure you want to revoke this application's access?`,
+    )}
+    title={l('Revoke Application Access')}
+  />
+);
 
 export default RevokeApplicationAccess;

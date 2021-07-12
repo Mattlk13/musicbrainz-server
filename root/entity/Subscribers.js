@@ -1,5 +1,5 @@
 /*
- * @flow
+ * @flow strict-local
  * Copyright (C) 2019 MetaBrainz Foundation
  *
  * This file is part of MusicBrainz, the open internet music database,
@@ -7,19 +7,19 @@
  * later version: http://www.gnu.org/licenses/gpl-2.0.txt
  */
 
-import React from 'react';
+import * as React from 'react';
 
 import EditorLink from '../static/scripts/common/components/EditorLink';
 import chooseLayoutComponent from '../utility/chooseLayoutComponent';
-import {withCatalystContext} from '../context';
+import {returnToCurrentPage} from '../utility/returnUri';
 
-type Props = {|
+type Props = {
   +$c: CatalystContextT,
   +entity: CoreEntityT | CollectionT | EditorT,
   +privateEditors: number,
   +publicEditors: $ReadOnlyArray<EditorT>,
   +subscribed: boolean,
-|};
+};
 
 const Subscribers = ({
   $c,
@@ -27,15 +27,19 @@ const Subscribers = ({
   privateEditors,
   publicEditors,
   subscribed,
-}: Props) => {
+}: Props): React.MixedElement => {
   const entityType = entity.entityType;
   const LayoutComponent = chooseLayoutComponent(entityType);
-  const subLink = `/account/subscriptions/${entityType}/add?id=${entity.id}`;
+  const returnTo = '&' + returnToCurrentPage($c);
+  const subLink =
+    `/account/subscriptions/${entityType}/add?id=${entity.id}` +
+    returnTo;
   const unsubLink =
-    `/account/subscriptions/${entityType}/remove?id=${entity.id}`;
-  const viewingOwnProfile = $c.user &&
+    `/account/subscriptions/${entityType}/remove?id=${entity.id}` +
+    returnTo;
+  const viewingOwnProfile = Boolean($c.user &&
                             entityType === 'editor' &&
-                            $c.user.id === entity.id;
+                            $c.user.id === entity.id);
 
   return (
     <LayoutComponent
@@ -152,4 +156,4 @@ const Subscribers = ({
   );
 };
 
-export default withCatalystContext(Subscribers);
+export default Subscribers;

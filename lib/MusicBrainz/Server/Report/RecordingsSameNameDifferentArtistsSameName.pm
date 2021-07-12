@@ -4,11 +4,15 @@ use Moose;
 with 'MusicBrainz::Server::Report::RecordingReport',
      'MusicBrainz::Server::Report::FilterForEditor::RecordingID';
 
+# MBS-10843: This report has been disabled since the upgrade to PG 12,
+# because its query can no longer execute in under 5 minutes in
+# production.
+
 sub query {
     "
     SELECT
         recording_id,
-        row_number() OVER (ORDER BY musicbrainz_collate(rname), artist_id)
+        row_number() OVER (ORDER BY rname COLLATE musicbrainz, artist_id)
     FROM (
         SELECT
             DISTINCT r1.id AS recording_id, r1.name AS rname, a1.id as artist_id
@@ -30,7 +34,7 @@ __PACKAGE__->meta->make_immutable;
 no Moose;
 1;
 
-=head1 COPYRIGHT
+=head1 COPYRIGHT AND LICENSE
 
 Copyright (C) 2017 MetaBrainz Foundation
 

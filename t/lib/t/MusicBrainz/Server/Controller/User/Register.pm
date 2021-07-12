@@ -51,7 +51,7 @@ test 'Registering and verifying an email address' => sub {
     $mech->get_ok($verify_link, 'verify account');
     $mech->content_like(qr/Thank you, your email address has now been verified/);
 
-    $mech->get('/user/new_editor');
+    $mech->get('/user/email_editor');
     $mech->content_like(qr{\(verified at (.*)\)});
     $mech->content =~ qr{\(verified at (.*)\)};
     my $original_verification = $1;
@@ -104,6 +104,27 @@ test 'Trying to register with an existing name' => sub {
     });
     like($mech->uri, qr{/register}, 'stays on registration page');
     $mech->content_contains('already taken', 'form has error message');
+};
+
+test 'Opening a new registration form does not invalidate CSRF token on previous form' => sub {
+    my $test = shift;
+    my $mech = $test->mech;
+    my $c    = $test->c;
+
+    MusicBrainz::Server::Test->prepare_test_database($c, '+editor');
+
+    $mech->get_ok('/register', 'fetch registration page');
+    $mech->get_ok('/register', 'fetch registration page again');
+    $mech->back; # go back to the first form
+
+    $mech->submit_form(with_fields => {
+        'register.username' => 'baby',
+        'register.password' => 'goo goo ga ga',
+        'register.email' => 'baby@example.com',
+        'register.confirm_password' => 'goo goo ga ga',
+    });
+
+    like($mech->uri, qr{/user/baby}, 'original form is submitted');
 };
 
 1;

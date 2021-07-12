@@ -97,7 +97,7 @@ my %stats = (
                    AND open_time >= now() - '1 week'::INTERVAL
                    AND cast(privs AS bit(2)) & B'10' = B'00'
                  GROUP BY edit.editor, editor.name
-                 ORDER BY count(edit.id) DESC, musicbrainz_collate(editor.name)
+                 ORDER BY count(edit.id) DESC, editor.name COLLATE musicbrainz
                  LIMIT 25",
                 $STATUS_OPEN, $STATUS_APPLIED
             );
@@ -123,7 +123,7 @@ my %stats = (
                   WHERE status = ?
                     AND cast(editor.privs AS bit(2)) & B'10' = B'00'
                   GROUP BY edit.editor, editor.name
-                  ORDER BY COUNT(edit.id) DESC, musicbrainz_collate(editor.name)
+                  ORDER BY COUNT(edit.id) DESC, editor.name COLLATE musicbrainz
                   LIMIT 25",
                 $STATUS_APPLIED,
             );
@@ -150,7 +150,7 @@ my %stats = (
                    AND vote_time >= now() - '1 week'::INTERVAL
                    AND cast(privs AS bit(10)) & 2::bit(10) = 0::bit(10)
                  GROUP BY vote.editor, editor.name
-                 ORDER BY count(vote.id) DESC, musicbrainz_collate(editor.name)
+                 ORDER BY count(vote.id) DESC, editor.name COLLATE musicbrainz
                  LIMIT 25"
             );
 
@@ -175,7 +175,7 @@ my %stats = (
                  WHERE NOT superseded AND vote != -1
                    AND cast(privs AS bit(10)) & 2::bit(10) = 0::bit(10)
                  GROUP BY editor, editor.name
-                 ORDER BY count(vote.id) DESC, musicbrainz_collate(editor.name)
+                 ORDER BY count(vote.id) DESC, editor.name COLLATE musicbrainz
                  LIMIT 25"
             );
 
@@ -195,7 +195,7 @@ my %stats = (
         SQL => "SELECT " .
             join(' + ',
                  (map { "(SELECT COUNT(gid) FROM $_)" } entities_with('mbid', take => sub { my $type = shift; return shift->{table} // $type })),
-                 (map { "(SELECT COUNT(gid) FROM ${_}_gid_redirect)" } entities_with(['mbid', 'multiple'])))
+                 (map { "(SELECT COUNT(gid) FROM ${_}_gid_redirect)" } entities_with(['mbid', 'multiple'], take => sub { my $type = shift; return shift->{table} // $type })))
     },
     "count.release" => {
         DESC => "Count of all releases",
@@ -774,8 +774,14 @@ my %stats = (
         DESC => "Count of all recordings",
         SQL => "SELECT COUNT(*) FROM recording",
     },
+    "count.recording.standalone" => {
+        DESC => "Count of all standalone recordings",
+        SQL => "SELECT COUNT(*) FROM recording WHERE NOT EXISTS (
+                    SELECT 1 FROM track WHERE track.recording = recording.id
+                )",
+    },
     "count.video" => {
-        DESC => "Count of all video recording",
+        DESC => "Count of all video recordings",
         SQL => "SELECT COUNT(*) FROM recording WHERE video",
     },
     "count.work" => {
@@ -929,7 +935,11 @@ my %stats = (
                     ON l.area = ac.descendant
                     AND ac.parent IN (SELECT area FROM country_area)
                 FULL OUTER JOIN iso_3166_1 iso
-                    ON iso.area = COALESCE(ac.parent, l.area)
+                    ON iso.area = COALESCE(
+                        (SELECT area FROM country_area WHERE area = ac.descendant),
+                        ac.parent,
+                        l.area
+                    )
                 GROUP BY iso.code
             }, @containment_query_args);
 
@@ -1137,7 +1147,7 @@ my %stats = (
             my $data = $sql->select_list_of_lists(
                 "SELECT type.id, COUNT(rg.id) AS count
                  FROM release_group_primary_type type
-                 LEFT JOIN release_group rg on rg.type = type.id
+                 LEFT JOIN release_group rg ON rg.type = type.id
                  GROUP BY type.id",
             );
 
@@ -1160,7 +1170,7 @@ my %stats = (
                  FROM release_group_secondary_type type
                  LEFT JOIN release_group_secondary_type_join type_join
                      ON type.id = type_join.secondary_type
-                 JOIN release_group rg on rg.id = type_join.release_group
+                 JOIN release_group rg ON rg.id = type_join.release_group
                  GROUP BY type.id",
             );
 
@@ -1369,7 +1379,11 @@ my %stats = (
                     ON a.area = ac.descendant
                     AND ac.parent IN (SELECT area FROM country_area)
                 FULL OUTER JOIN iso_3166_1 iso
-                    ON iso.area = COALESCE(ac.parent, a.area)
+                    ON iso.area = COALESCE(
+                        (SELECT area FROM country_area WHERE area = ac.descendant),
+                        ac.parent,
+                        a.area
+                    )
                 GROUP BY iso.code
             }, @containment_query_args);
 
@@ -1631,6 +1645,26 @@ my %stats = (
         PREREQ => [qw[ count.rating.label ]],
         PREREQ_ONLY => 1,
     },
+    "count.rating.place" => {
+        DESC => "Count of place ratings",
+        CALC => sub {
+            my ($self, $sql) = @_;
+
+            my $data = $sql->select_single_row_array(
+                "SELECT COUNT(*), SUM(rating_count) FROM place_meta WHERE rating_count > 0",
+            );
+
+            +{
+                "count.rating.place"        => $data->[0]   || 0,
+                "count.rating.raw.place"    => $data->[1]   || 0,
+            };
+        },
+    },
+    "count.rating.raw.place" => {
+        DESC => "Count of all place raw ratings",
+        PREREQ => [qw[ count.rating.place ]],
+        PREREQ_ONLY => 1,
+    },
     "count.rating.work" => {
         DESC => "Count of work ratings",
         CALC => sub {
@@ -1807,11 +1841,11 @@ my %stats = (
             my $data = $sql->select_list_of_lists(
                 "SELECT c, COUNT(*) AS freq
                 FROM (
-                    SELECT r.id, count(distinct release.id) as c
+                    SELECT r.id, count(distinct release.id) AS c
                         FROM recording r
                         LEFT JOIN track t ON t.recording = r.id
                         LEFT JOIN medium m ON t.medium = m.id
-                        LEFT JOIN release on m.release = release.id
+                        LEFT JOIN release ON m.release = release.id
                     GROUP BY r.id
                 ) AS t
                 GROUP BY c

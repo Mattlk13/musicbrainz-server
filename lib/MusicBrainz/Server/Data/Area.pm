@@ -24,6 +24,7 @@ use MusicBrainz::Server::Data::Utils qw(
     placeholders
     object_to_ids
 );
+use MusicBrainz::Server::Data::Utils::Cleanup qw( used_in_relationship );
 
 extends 'MusicBrainz::Server::Data::CoreEntity';
 with 'MusicBrainz::Server::Data::Role::Annotation' => { type => 'area' };
@@ -134,23 +135,53 @@ sub update
     return 1;
 }
 
+sub is_release_country_area {
+    my ($self, $area_id) = @_;
+
+    my $is_used = $self->sql->select_single_value('SELECT 1 FROM country_area WHERE area = ?', $area_id);
+    return 1 if $is_used;
+
+    return 0;
+}
+
 sub can_delete
 {
     my ($self, $area_id) = @_;
 
-    # Check no releases use the area
-    my $refcount = $self->sql->select_single_column_array('select 1 from release_country WHERE country = ?', $area_id);
-    return 0 if @$refcount != 0;
+    # Check the area is not one of the release countries
+    return 0 if $self->is_release_country_area($area_id);
 
-    # Check no artists use the area
-    $refcount = $self->sql->select_single_column_array('select 1 from artist WHERE begin_area = ? OR end_area = ? OR area = ?', $area_id, $area_id, $area_id);
-    return 0 if @$refcount != 0;
+    my $used_in_relationship = used_in_relationship($self->c, area => 'area_row.id');
+    return 1 if $self->sql->select_single_value(<<~"EOSQL", $area_id, $STATUS_OPEN);
+        SELECT TRUE
+        FROM area area_row
+        WHERE id = ?
+        AND edits_pending = 0
+        AND NOT (
+            EXISTS (
+                SELECT TRUE FROM edit_area
+                JOIN edit ON edit_area.edit = edit.id
+                WHERE edit.status = ? AND edit_area.area = area_row.id
+            ) OR
+            EXISTS (
+                SELECT TRUE FROM artist
+                WHERE area = area_row.id
+                OR begin_area = area_row.id
+                OR end_area = area_row.id
+            ) OR
+            EXISTS (
+                SELECT TRUE FROM label
+                WHERE area = area_row.id
+            ) OR
+            EXISTS (
+                SELECT TRUE FROM place
+                WHERE area = area_row.id
+            ) OR
+            $used_in_relationship
+        )
+        EOSQL
 
-    # Check no labels use the area
-    $refcount = $self->sql->select_single_column_array('select 1 from label WHERE area = ?', $area_id);
-    return 0 if @$refcount != 0;
-
-    return 1;
+    return 0;
 }
 
 sub delete
@@ -189,7 +220,7 @@ sub _merge_impl
          SELECT DISTINCT ?::int
          FROM country_area
          WHERE area = any(?) AND NOT EXISTS (
-           SELECT TRUE from country_area WHERE area = ?
+           SELECT TRUE FROM country_area WHERE area = ?
          )',
          $new_id, \@old_ids, $new_id
     );
@@ -267,6 +298,31 @@ sub _hash_to_row
     return $row;
 }
 
+=method load_ids
+
+Load internal IDs for area objects that only have GIDs.
+
+=cut
+
+sub load_ids
+{
+    my ($self, @areas) = @_;
+
+    my @gids = map { $_->gid } @areas;
+    return () unless @gids;
+
+    my $query = "
+        SELECT gid, id FROM area
+        WHERE gid IN (" . placeholders(@gids) . ")
+    ";
+    my %map = map { $_->[0] => $_->[1] }
+        @{ $self->sql->select_list_of_lists($query, @gids) };
+
+    for my $area (@areas) {
+        $area->id($map{$area->gid}) if exists $map{$area->gid};
+    }
+}
+
 sub get_by_iso_3166_1 {
     shift->_get_by_iso('iso_3166_1', @_);
 }
@@ -304,10 +360,10 @@ sub _order_by {
 
     my $order_by = order_by($order, "name", {
         "name" => sub {
-            return "musicbrainz_collate(name)"
+            return "name COLLATE musicbrainz"
         },
         "type" => sub {
-            return "type, musicbrainz_collate(name)"
+            return "type, name COLLATE musicbrainz"
         }
     });
 
@@ -318,22 +374,12 @@ __PACKAGE__->meta->make_immutable;
 no Moose;
 1;
 
-=head1 COPYRIGHT
+=head1 COPYRIGHT AND LICENSE
 
 Copyright (C) 2013 MetaBrainz Foundation
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program; if not, write to the Free Software
-Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+This file is part of MusicBrainz, the open internet music database,
+and is licensed under the GPL version 2, or (at your option) any
+later version: http://www.gnu.org/licenses/gpl-2.0.txt
 
 =cut

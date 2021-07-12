@@ -7,20 +7,19 @@
  * later version: http://www.gnu.org/licenses/gpl-2.0.txt
  */
 
-import _ from 'lodash';
-import React from 'react';
-import keyBy from 'terable/keyBy';
+import he from 'he';
+import * as React from 'react';
 
 import hydrate, {minimalEntity} from '../../../../utility/hydrate';
 import loopParity from '../../../../utility/loopParity';
-import {GENRE_TAGS} from '../constants';
 import {unwrapNl} from '../i18n';
-import bracketed from '../utility/bracketed';
+import {keyBy, sortByNumber} from '../utility/arrays';
+import bracketed, {bracketedText} from '../utility/bracketed';
+import {compareStrings} from '../utility/compare';
+import debounce from '../utility/debounce';
 import isBlank from '../utility/isBlank';
 
 import TagLink from './TagLink';
-
-const GENRE_TAGS_ARRAY = Array.from(GENRE_TAGS.values());
 
 const VOTE_ACTIONS = {
   '-1': 'downvote',
@@ -35,8 +34,20 @@ const VOTE_ACTIONS = {
  */
 const VOTE_DELAY = 1000;
 
-function sortedTags(tags) {
-  return _.sortBy(tags, t => -t.count, t => t.tag);
+const cmpTags = (a, b) => (
+  (b.count - a.count) || compareStrings(a.tag.name, b.tag.name)
+);
+
+function formatGenreLabel(genre) {
+  let output = he.encode(genre.name);
+  if (genre.comment) {
+    output += (
+      '<span class="small"> ' +
+      he.encode(bracketedText(genre.comment)) +
+      '</span>'
+    );
+  }
+  return output;
 }
 
 function getTagsPath(entity) {
@@ -46,10 +57,6 @@ function getTagsPath(entity) {
 
 function isAlwaysVisible(tag) {
   return tag.vote > 0 || (tag.vote === 0 && tag.count > 0);
-}
-
-function isGenre(tag) {
-  return GENRE_TAGS.has(tag.tag);
 }
 
 function splitTags(tags) {
@@ -71,6 +78,7 @@ type VoteButtonProps = {
   text: string,
   title: string | () => string,
   vote: VoteT,
+  ...
 };
 
 class VoteButton extends React.Component<VoteButtonProps> {
@@ -84,24 +92,27 @@ class VoteButton extends React.Component<VoteButtonProps> {
       vote,
     } = this.props;
     const isActive = vote === currentVote;
+    const className = 'tag-vote tag-' + VOTE_ACTIONS[vote];
+    const buttonTitle = isActive
+      ? unwrapNl(activeTitle)
+      : (currentVote === 0 ? unwrapNl(title) : l('Withdraw vote'));
 
-    const buttonProps = {
-      className: 'tag-vote tag-' + VOTE_ACTIONS[vote],
-      disabled: isActive,
-      title: isActive
-        ? unwrapNl(activeTitle)
-        : (currentVote === 0 ? unwrapNl(title) : l('Withdraw vote')),
-      type: 'button',
-    };
-
-    if (!isActive) {
-      (buttonProps: any).onClick = _.partial(
-        callback,
-        currentVote === 0 ? vote : 0,
-      );
-    }
-
-    return <button {...buttonProps}>{text}</button>;
+    return (
+      <button
+        className={className}
+        disabled={isActive}
+        onClick={isActive
+          ? null
+          : ((...args) => callback(
+            currentVote === 0 ? vote : 0,
+            ...args,
+          ))}
+        title={buttonTitle}
+        type="button"
+      >
+        {text}
+      </button>
+    );
   }
 }
 
@@ -128,6 +139,7 @@ type VoteButtonsProps = {
   callback: (VoteT) => void,
   count: number,
   currentVote: VoteT,
+  ...
 };
 
 class VoteButtons extends React.Component<VoteButtonsProps> {
@@ -143,7 +155,7 @@ class VoteButtons extends React.Component<VoteButtonsProps> {
 
     return (
       <span className={'tag-vote-buttons' + className}>
-        {this.props.$c.user_exists ? (
+        {this.props.$c.user?.has_confirmed_email_address ? (
           <>
             <UpvoteButton {...this.props} />
             <DownvoteButton {...this.props} />
@@ -161,7 +173,7 @@ type TagRowProps = {
   count: number,
   currentVote: VoteT,
   index: number,
-  tag: string,
+  tag: TagT,
 };
 
 class TagRow extends React.Component<TagRowProps> {
@@ -169,21 +181,22 @@ class TagRow extends React.Component<TagRowProps> {
     const {tag, index} = this.props;
 
     return (
-      <li className={loopParity(index)} key={tag}>
-        <TagLink tag={tag} />
+      <li className={loopParity(index)} key={tag.name}>
+        <TagLink tag={tag.name} />
         <VoteButtons {...this.props} />
       </li>
     );
   }
 }
 
-type TagEditorProps = {|
+type TagEditorProps = {
   +$c: CatalystContextT,
   +aggregatedTags: $ReadOnlyArray<AggregatedTagT>,
-  +entity: MinimalCoreEntityT,
+  +entity: CoreEntityT | MinimalCoreEntityT,
+  +genreMap: ?{+[genreName: string]: GenreT, ...},
   +more: boolean,
   +userTags: $ReadOnlyArray<UserTagT>,
-|};
+};
 
 type TagEditorState = {
   positiveTagsOnly: boolean,
@@ -191,12 +204,12 @@ type TagEditorState = {
 };
 
 type TagUpdateT =
-  | {| +count: number, +deleted?: false, +tag: string, +vote: 1 | -1 |}
-  | {| +deleted: true, +tag: string, +vote: 0 |};
+  | { +count: number, +deleted?: false, +tag: string, +vote: 1 | -1 }
+  | { +deleted: true, +tag: string, +vote: 0 };
 
 type PendingVoteT = {
   fail: () => void,
-  tag: string,
+  tag: TagT,
   vote: VoteT,
 };
 
@@ -207,7 +220,17 @@ class TagEditor extends React.Component<TagEditorProps, TagEditorState> {
 
   debouncePendingVotes: () => void;
 
-  pendingVotes: {[string]: PendingVoteT};
+  flushPendingVotes: (asap?: boolean) => void;
+
+  genreMap: {+[genreName: string]: GenreT, ...};
+
+  genreOptions: $ReadOnlyArray<{+label: string, +value: string}>;
+
+  handleSubmit: (SyntheticEvent<HTMLFormElement>) => void;
+
+  onBeforeUnload: () => void;
+
+  pendingVotes: Map<string, PendingVoteT>;
 
   setTagsInput: (TagsInputT) => void;
 
@@ -219,16 +242,23 @@ class TagEditor extends React.Component<TagEditorProps, TagEditorState> {
       tags: createInitialTagState(props.aggregatedTags, props.userTags),
     };
 
-    _.bindAll(
-      this,
-      'flushPendingVotes',
-      'onBeforeUnload',
-      'addTags',
-      'setTagsInput',
-    );
+    this.flushPendingVotes = this.flushPendingVotes.bind(this);
+    this.onBeforeUnload = this.onBeforeUnload.bind(this);
+    this.handleSubmit = this.handleSubmit.bind(this);
+    this.setTagsInput = this.setTagsInput.bind(this);
 
-    this.pendingVotes = {};
-    this.debouncePendingVotes = _.debounce(
+    this.genreMap = props.genreMap ?? {};
+    this.genreOptions =
+      ((Object.values(this.genreMap): any): $ReadOnlyArray<GenreT>)
+        .map(genre => {
+          return {
+            label: formatGenreLabel(genre),
+            value: genre.name,
+          };
+        });
+
+    this.pendingVotes = new Map();
+    this.debouncePendingVotes = debounce(
       this.flushPendingVotes, VOTE_DELAY,
     );
   }
@@ -236,13 +266,14 @@ class TagEditor extends React.Component<TagEditorProps, TagEditorState> {
   flushPendingVotes(asap?: boolean) {
     const actions = {};
 
-    _.each(this.pendingVotes, item => {
-      const action = `${getTagsPath(this.props.entity)}/${VOTE_ACTIONS[item.vote]}`;
+    for (const item of this.pendingVotes.values()) {
+      const action =
+        `${getTagsPath(this.props.entity)}/${VOTE_ACTIONS[item.vote]}`;
 
       (actions[action] = actions[action] || []).push(item);
-    });
+    }
 
-    this.pendingVotes = {};
+    this.pendingVotes.clear();
 
     let doRequest;
     if (asap) {
@@ -252,13 +283,14 @@ class TagEditor extends React.Component<TagEditorProps, TagEditorState> {
       doRequest = require('../utility/request').default;
     }
 
-    _.each(actions, (items, action) => {
-      const url = action + '?tags=' + encodeURIComponent(_(items).map('tag').join(','));
+    for (const [action, items] of Object.entries(actions)) {
+      const url = action + '?tags=' +
+        encodeURIComponent((items: any).map(x => x.tag.name).join(','));
 
       doRequest({url: url})
         .done(data => this.updateTags(data.updates))
-        .fail(() => items.forEach(x => x.fail()));
-    });
+        .fail(() => (items: any).forEach(x => x.fail()));
+    }
   }
 
   onBeforeUnload() {
@@ -284,7 +316,7 @@ class TagEditor extends React.Component<TagEditorProps, TagEditorState> {
       };
 
       if (!this.state.positiveTagsOnly || isAlwaysVisible(t)) {
-        const genre = isGenre(t);
+        const isGenre = hasOwnProp(this.genreMap, t.tag.name);
 
         const tagRow = (
           <TagRow
@@ -292,13 +324,13 @@ class TagEditor extends React.Component<TagEditorProps, TagEditorState> {
             callback={callback}
             count={t.count}
             currentVote={t.vote}
-            index={genre ? accum.genres.length : accum.tags.length}
-            key={t.tag}
+            index={isGenre ? accum.genres.length : accum.tags.length}
+            key={t.tag.name}
             tag={t.tag}
           />
         );
 
-        if (genre) {
+        if (isGenre) {
           accum.genres.push(tagRow);
         } else {
           accum.tags.push(tagRow);
@@ -324,7 +356,7 @@ class TagEditor extends React.Component<TagEditorProps, TagEditorState> {
     return current.count + ((current.vote === -vote ? 2 : 1) * vote);
   }
 
-  addTags(event: SyntheticEvent<HTMLFormElement>) {
+  handleSubmit(event: SyntheticEvent<HTMLFormElement>) {
     event.preventDefault();
 
     const input = this.tagsInput;
@@ -336,7 +368,7 @@ class TagEditor extends React.Component<TagEditorProps, TagEditorState> {
 
     this.updateTags(
       splitTags(tags).map(name => {
-        const index = _.findIndex(this.state.tags, t => t.tag === name);
+        const index = this.state.tags.findIndex(t => t.tag.name === name);
         if (index >= 0) {
           return {count: this.getNewCount(index, 1), tag: name, vote: 1};
         }
@@ -364,14 +396,20 @@ class TagEditor extends React.Component<TagEditorProps, TagEditorState> {
     const newTags = this.state.tags.slice(0);
 
     updatedUserTags.forEach(t => {
-      const index = _.findIndex(newTags, ct => ct.tag === t.tag);
+      const index = newTags.findIndex(ct => ct.tag.name === t.tag);
+      const genre = this.genreMap[t.tag];
 
       if (t.deleted) {
         newTags.splice(index, 1);
       } else {
         const tag = {
           count: t.count,
-          tag: t.tag,
+          tag: {
+            entityType: 'tag',
+            genre: genre,
+            id: null,
+            name: t.tag,
+          },
           vote: t.vote,
         };
 
@@ -383,20 +421,21 @@ class TagEditor extends React.Component<TagEditorProps, TagEditorState> {
       }
     });
 
-    this.setState({tags: sortedTags(newTags)});
+    this.setState({tags: newTags.sort(cmpTags)});
   }
 
-  addPendingVote(tag: string, vote: VoteT, index: number) {
-    this.pendingVotes[tag] = {
+  addPendingVote(tag: TagT, vote: VoteT, index: number) {
+    this.pendingVotes.set(tag.name, {
       fail: () => this.updateVote(index, vote),
       tag: tag,
       vote: vote,
-    };
+    });
     this.debouncePendingVotes();
   }
 
   setTagsInput(input: TagsInputT) {
     const $ = require('jquery');
+    const self = this;
 
     if (!input) {
       $(this.tagsInput).autocomplete('destroy');
@@ -422,21 +461,29 @@ class TagEditor extends React.Component<TagEditorProps, TagEditorState> {
       source: function (request, response) {
         const terms = splitTags(request.term);
         const last = terms.pop();
+
         if (isBlank(last)) {
           response([]);
           return;
         }
-        response(
-          _.sortBy(
-            ($.ui.autocomplete.filter(
-              _.without(GENRE_TAGS_ARRAY, ...terms),
+
+        const previousTerms = new Set(terms);
+        const filteredTerms: $ReadOnlyArray<string> =
+          sortByNumber(
+            $.ui.autocomplete.filter(
+              self.genreOptions.filter(x => !previousTerms.has(x.value)),
               last,
-            ): $ReadOnlyArray<string>),
-            [x => x.startsWith(last) ? 0 : 1, _.identity],
-          ),
-        );
+            ).sort(),
+            x => x.value.startsWith(last) ? 0 : 1,
+          );
+
+        response(filteredTerms);
       },
-    });
+    }).data('ui-autocomplete')._renderItem = function (ul, item) {
+      return $('<li></li>')
+        .append('<a>' + item.label + '</a>')
+        .appendTo(ul);
+    };
 
     /*
      * MBS-9862: jQuery UI disables the browser's builtin autocomplete
@@ -447,173 +494,200 @@ class TagEditor extends React.Component<TagEditorProps, TagEditorState> {
   }
 }
 
-export const MainTagEditor = hydrate<TagEditorProps>('div.all-tags', class extends TagEditor {
-  hideNegativeTags(event: SyntheticEvent<HTMLAnchorElement>) {
-    event.preventDefault();
-    this.setState({positiveTagsOnly: true});
-  }
+export const MainTagEditor = (hydrate<TagEditorProps>(
+  'div.all-tags',
+  class extends TagEditor {
+    hideNegativeTags(event: SyntheticEvent<HTMLAnchorElement>) {
+      event.preventDefault();
+      this.setState({positiveTagsOnly: true});
+    }
 
-  showAllTags(event: SyntheticEvent<HTMLAnchorElement>) {
-    event.preventDefault();
-    this.setState({positiveTagsOnly: false});
-  }
+    showAllTags(event: SyntheticEvent<HTMLAnchorElement>) {
+      event.preventDefault();
+      this.setState({positiveTagsOnly: false});
+    }
 
-  render() {
-    const {tags, positiveTagsOnly} = this.state;
-    const tagRows = this.createTagRows();
+    render() {
+      const {tags, positiveTagsOnly} = this.state;
+      const tagRows = this.createTagRows();
 
-    return (
-      <div>
-        {tags.length ? (
-          <>
-            <h2>{l('Genres')}</h2>
+      return (
+        <div>
+          {tags.length ? (
+            <>
+              <h2>{l('Genres')}</h2>
 
-            {tagRows.genres.length ? (
-              <ul className="genre-list">
-                {tagRows.genres}
-              </ul>
-            ) : (
-              <p>{l('There are no genres to show.')}</p>
-            )}
+              {tagRows.genres.length ? (
+                <ul className="genre-list">
+                  {tagRows.genres}
+                </ul>
+              ) : (
+                <p>{l('There are no genres to show.')}</p>
+              )}
 
-            <h2>{l('Other tags')}</h2>
+              <h2>{l('Other tags')}</h2>
 
-            {tagRows.tags.length ? (
-              <ul className="tag-list">
-                {tagRows.tags}
-              </ul>
-            ) : (
-              <p>{l('There are no other tags to show.')}</p>
-            )}
-          </>
-        ) : (
-          <p>{l('Nobody has tagged this yet.')}</p>
-        )}
+              {tagRows.tags.length ? (
+                <ul className="tag-list">
+                  {tagRows.tags}
+                </ul>
+              ) : (
+                <p>{l('There are no other tags to show.')}</p>
+              )}
+            </>
+          ) : (
+            <p>{l('Nobody has tagged this yet.')}</p>
+          )}
 
-        {(positiveTagsOnly && !tags.every(isAlwaysVisible)) ? (
-          <>
-            {this.props.$c.user_exists ? (
+          {(positiveTagsOnly && !tags.every(isAlwaysVisible)) ? (
+            <>
+              {this.props.$c.user?.has_confirmed_email_address ? (
+                <p>
+                  {l(
+                    `Tags with a score of zero or below,
+                     and tags that you’ve downvoted are hidden.`,
+                  )}
+                </p>
+              ) : (
+                <p>
+                  {l('Tags with a score of zero or below are hidden.')}
+                </p>
+              )}
               <p>
-                {l('Tags with a score of zero or below, and tags that you’ve downvoted are hidden.')}
+                <a href="#" onClick={(event) => this.showAllTags(event)}>
+                  {l('Show all tags.')}
+                </a>
               </p>
-            ) : (
+            </>
+          ) : null}
+
+          {positiveTagsOnly === false ? (
+            <>
               <p>
-                {l('Tags with a score of zero or below are hidden.') + ' '}
+                {l('All tags are being shown.')}
               </p>
-            )}
+              {this.props.$c.user?.has_confirmed_email_address ? (
+                <p>
+                  <a
+                    href="#"
+                    onClick={(event) => this.hideNegativeTags(event)}
+                  >
+                    {l(
+                      `Hide tags with a score of zero or below,
+                       and tags that you’ve downvoted.`,
+                    )}
+                  </a>
+                </p>
+              ) : (
+                <p>
+                  <a
+                    href="#"
+                    onClick={(event) => this.hideNegativeTags(event)}
+                  >
+                    {l('Hide tags with a score of zero or below.')}
+                  </a>
+                </p>
+              )}
+            </>
+          ) : null}
+
+          {this.props.$c.user?.has_confirmed_email_address ? (
+            <>
+              <h2>{l('Add Tags')}</h2>
+              <p>
+                {exp.l(
+                  `You can add your own {tagdocs|tags} below.
+                   Use commas to separate multiple tags.`,
+                  {tagdocs: '/doc/Folksonomy_Tagging'},
+                )}
+              </p>
+              <form id="tag-form" onSubmit={this.handleSubmit}>
+                <p>
+                  <textarea cols="50" ref={this.setTagsInput} rows="5" />
+                </p>
+                <button className="styled-button" type="submit">
+                  {l('Submit tags')}
+                </button>
+              </form>
+            </>
+          ) : null}
+        </div>
+      );
+    }
+  },
+  minimalEntity,
+): React.AbstractComponent<TagEditorProps, void>);
+
+export const SidebarTagEditor = (hydrate<TagEditorProps>(
+  'div.sidebar-tags',
+  class extends TagEditor {
+    render() {
+      const tagRows = this.createTagRows();
+      return (
+        <>
+          <h2>{l('Genres')}</h2>
+
+          {tagRows.genres.length ? (
+            <ul className="genre-list">
+              {tagRows.genres}
+            </ul>
+          ) : (
+            <p>{lp('(none)', 'genre')}</p>
+          )}
+
+          <h2>{l('Other tags')}</h2>
+
+          {tagRows.tags.length ? (
+            <ul className="tag-list">
+              {tagRows.tags}
+            </ul>
+          ) : (
+            <p>{lp('(none)', 'tag')}</p>
+          )}
+
+          {this.props.more ? (
             <p>
-              <a href="#" onClick={this.showAllTags.bind(this)}>{l('Show all tags.')}</a>
+              {bracketed(
+                <a href={getTagsPath(this.props.entity)} key="see-all">
+                  {l('see all tags')}
+                </a>,
+              )}
             </p>
-          </>
-        ) : null}
+          ) : null}
 
-        {positiveTagsOnly === false ? (
-          <>
-            <p>
-              {l('All tags are being shown.')}
-            </p>
-            {this.props.$c.user_exists ? (
-              <p>
-                <a href="#" onClick={this.hideNegativeTags.bind(this)}>{l('Hide tags with a score of zero or below, and tags that you’ve downvoted.')}</a>
-              </p>
-            ) : (
-              <p>
-                <a href="#" onClick={this.hideNegativeTags.bind(this)}>{l('Hide tags with a score of zero or below.')}</a>
-              </p>
-            )}
-          </>
-        ) : null}
-
-        {this.props.$c.user_exists ? (
-          <>
-            <h2>{l('Add Tags')}</h2>
-            <p>
-              {exp.l('You can add your own {tagdocs|tags} below. Use commas to separate multiple tags.',
-                     {tagdocs: '/doc/Folksonomy_Tagging'})}
-            </p>
-            <form id="tag-form" onSubmit={this.addTags}>
-              <p>
-                <textarea cols="50" ref={this.setTagsInput} rows="5" />
-              </p>
+          <form id="tag-form" onSubmit={this.handleSubmit}>
+            <div style={{display: 'flex'}}>
+              <input
+                className="tag-input"
+                name="tags"
+                ref={this.setTagsInput}
+                style={{flexGrow: 2}}
+                type="text"
+              />
               <button className="styled-button" type="submit">
-                {l('Submit tags')}
+                {lp('Tag', 'verb')}
               </button>
-            </form>
-          </>
-        ) : null}
-      </div>
-    );
-  }
-}, minimalEntity);
-
-export const SidebarTagEditor = hydrate<TagEditorProps>('div.sidebar-tags', class extends TagEditor {
-  render() {
-    const tagRows = this.createTagRows();
-    return (
-      <>
-        <h2>{l('Genres')}</h2>
-
-        {tagRows.genres.length ? (
-          <ul className="genre-list">
-            {tagRows.genres}
-          </ul>
-        ) : (
-          <p>{lp('(none)', 'genre')}</p>
-        )}
-
-        <h2>{l('Other tags')}</h2>
-
-        {tagRows.tags.length ? (
-          <ul className="tag-list">
-            {tagRows.tags}
-          </ul>
-        ) : (
-          <p>{lp('(none)', 'tag')}</p>
-        )}
-
-        {this.props.more ? (
-          <p>
-            {bracketed(
-              <a href={getTagsPath(this.props.entity)} key="see-all">
-                {l('see all tags')}
-              </a>,
-            )}
-          </p>
-        ) : null}
-
-        <form id="tag-form" onSubmit={this.addTags}>
-          <div style={{display: 'flex'}}>
-            <input
-              className="tag-input"
-              name="tags"
-              ref={this.setTagsInput}
-              style={{flexGrow: 2}}
-              type="text"
-            />
-            <button className="styled-button" type="submit">
-              {lp('Tag', 'verb')}
-            </button>
-          </div>
-        </form>
-      </>
-    );
-  }
-}, minimalEntity);
-
-const keyByTag = keyBy(t => t.tag);
+            </div>
+          </form>
+        </>
+      );
+    }
+  },
+  minimalEntity,
+): React.AbstractComponent<TagEditorProps, void>);
 
 function createInitialTagState(
   aggregatedTags: $ReadOnlyArray<AggregatedTagT>,
   userTags: $ReadOnlyArray<UserTagT>,
 ) {
-  const userTagsByName = keyByTag(userTags);
+  const userTagsByName = keyBy(userTags, t => t.tag.name);
 
   const used = new Set();
 
   const combined = aggregatedTags.map(function (t) {
-    const userTag = userTagsByName.get(t.tag);
+    const userTag = userTagsByName.get(t.tag.name);
 
-    used.add(t.tag);
+    used.add(t.tag.name);
 
     return {
       count: t.count,
@@ -623,11 +697,11 @@ function createInitialTagState(
   });
 
   // Always show upvoted user tags (affects sidebar)
-  for (const t of userTagsByName.values()) {
-    if (t.vote > 0 && !used.has(t.tag)) {
-      combined.push(t);
+  for (const [tagName, tag] of userTagsByName) {
+    if (tag.vote > 0 && !used.has(tagName)) {
+      combined.push(tag);
     }
   }
 
-  return sortedTags(combined);
+  return combined.sort(cmpTags);
 }

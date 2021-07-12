@@ -3,6 +3,7 @@ use Moose;
 
 use MusicBrainz::Server::Constants qw( $EDIT_SERIES_CREATE );
 use MusicBrainz::Server::Edit::Types qw( Nullable );
+use MusicBrainz::Server::Entity::Util::JSON qw( to_json_object );
 use MusicBrainz::Server::Translation qw ( N_l );
 use MooseX::Types::Moose qw( Str Int );
 use MooseX::Types::Structured qw( Dict );
@@ -46,36 +47,42 @@ sub foreign_keys {
 sub build_display_data {
     my ($self, $loaded) = @_;
 
+    my $data = $self->data;
+    my $name = $data->{name};
+    my $comment = $data->{comment};
+    my $type_id = $data->{type_id};
+    my $ordering_type_id = $data->{ordering_type_id};
+
     return {
-        name                => $self->data->{name},
-        comment             => $self->data->{comment},
-        series              => $loaded->{Series}->{$self->entity_id},
-        type                => $loaded->{SeriesType}->{$self->{data}->{type_id}},
-        ordering_type       => $loaded->{SeriesOrderingType}->{$self->data->{ordering_type_id}},
+        name                => $name,
+        comment             => $comment,
+        series              => to_json_object((defined($self->entity_id) &&
+                                $loaded->{Series}{$self->entity_id}) ||
+                                Series->new(
+                                    name => $name,
+                                    comment => $comment,
+                                    type_id => $type_id,
+                                    ordering_type_id => $ordering_type_id,
+                                ),
+                            ),
+        type                => to_json_object($loaded->{SeriesType}{$type_id}),
+        ordering_type       => to_json_object($loaded->{SeriesOrderingType}{$ordering_type_id}),
     };
 }
+
+sub edit_template_react { "AddSeries" }
 
 __PACKAGE__->meta->make_immutable;
 no Moose;
 
 1;
 
-=head1 LICENSE
+=head1 COPYRIGHT AND LICENSE
 
 Copyright (C) 2014 MetaBrainz Foundation
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program; if not, write to the Free Software
-Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+This file is part of MusicBrainz, the open internet music database,
+and is licensed under the GPL version 2, or (at your option) any
+later version: http://www.gnu.org/licenses/gpl-2.0.txt
 
 =cut

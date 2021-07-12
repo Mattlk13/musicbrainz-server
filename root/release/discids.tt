@@ -30,6 +30,12 @@
                     <td>[% medium_cdtoc.cdtoc.length | format_length %]</td>
                     [% IF c.user_exists %]
                     <td>
+                      [%- IF !medium_cdtoc.is_perfect_match %]
+                        <a href="[% c.uri_for_action('/cdtoc/set_durations',
+                                        [ medium_cdtoc.cdtoc.discid ], { medium => medium.id }) %]">
+                          [% l('Set track durations') %]
+                        </a> |
+                      [%- END %]
                       <a href="[% c.uri_for_action('cdtoc/remove',
                                                    { cdtoc_id  => medium_cdtoc.cdtoc.id,
                                                      medium_id => medium.id }) %]">
@@ -46,7 +52,11 @@
             </tbody>
         </table>
     [% ELSE %]
+      [% IF release.may_have_discids %]
         <p>[% l('There are no disc IDs attached to this release; to find out more about how to add one, see {doc|How to Add Disc IDs}.', { doc => doc_link('How_to_Add_Disc_IDs') }) %]</p>
+      [% ELSE %]
+        <p>[% l('This release has no mediums that can have disc IDs.') %]</p>
+      [% END %]
     [% END %]
 
 [%- END -%]

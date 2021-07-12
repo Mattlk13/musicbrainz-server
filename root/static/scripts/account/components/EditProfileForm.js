@@ -11,6 +11,7 @@ import mutate from 'mutate-cow';
 import * as React from 'react';
 
 import FieldErrors from '../../../../components/FieldErrors';
+import FormCsrfToken from '../../../../components/FormCsrfToken';
 import FormLabel from '../../../../components/FormLabel';
 import FormRow from '../../../../components/FormRow';
 import FormRowEmailLong from '../../../../components/FormRowEmailLong';
@@ -21,6 +22,7 @@ import FormRowURLLong from '../../../../components/FormRowURLLong';
 import FormSubmit from '../../../../components/FormSubmit';
 import SelectField from '../../../../components/SelectField';
 import DBDefs from '../../common/DBDefs-client';
+import {FLUENCY_NAMES} from '../../common/constants';
 import Autocomplete from '../../common/components/Autocomplete';
 import Warning from '../../common/components/Warning';
 import {N_lp_attributes} from '../../common/i18n/attributes';
@@ -34,34 +36,33 @@ type AreaClassT = {
   name: string,
 };
 
-type FluencyT = 'basic' | 'intermediate' | 'advanced' | 'native';
-
-type UserLanguageFieldT = CompoundFieldT<{|
+type UserLanguageFieldT = CompoundFieldT<{
   +fluency: FieldT<FluencyT | null>,
   +language_id: FieldT<number | null>,
-|}>;
+}>;
 
-type EditProfileFormT = FormT<{|
+type EditProfileFormT = FormT<{
   +area: AreaFieldT,
   +area_id: FieldT<number | null>,
   +biography: FieldT<string>,
   +birth_date: PartialDateFieldT,
+  +csrf_token: FieldT<string>,
   +email: FieldT<string>,
   +gender_id: FieldT<number>,
   +languages: RepeatableFieldT<UserLanguageFieldT>,
   +username: FieldT<string>,
   +website: FieldT<string>,
-|}>;
+}>;
 
-type Props = {|
+type Props = {
   +form: EditProfileFormT,
   +language_options: MaybeGroupedOptionsT,
-|};
+};
 
-type State = {|
+type State = {
   form: EditProfileFormT,
   +languageOptions: MaybeGroupedOptionsT,
-|};
+};
 
 const genderOptions = {
   grouped: false,
@@ -75,10 +76,10 @@ const genderOptions = {
 const fluencyOptions = {
   grouped: false,
   options: [
-    {label: N_l('Basic'), value: 'basic'},
-    {label: N_l('Intermediate'), value: 'intermediate'},
-    {label: N_l('Advanced'), value: 'advanced'},
-    {label: N_l('Native'), value: 'native'},
+    {label: FLUENCY_NAMES.basic, value: 'basic'},
+    {label: FLUENCY_NAMES.intermediate, value: 'intermediate'},
+    {label: FLUENCY_NAMES.advanced, value: 'advanced'},
+    {label: FLUENCY_NAMES.native, value: 'native'},
   ],
 };
 
@@ -139,8 +140,15 @@ class EditProfileForm extends React.Component<Props, State> {
     e: SyntheticEvent<HTMLSelectElement>,
     languageIndex: number,
   ) {
-    // $FlowFixMe ~ string incompatible with FluencyT's string literals
-    const selectedFluency: FluencyT = e.currentTarget.value;
+    const selectedValue = e.currentTarget.value;
+    let selectedFluency: FluencyT | null = null;
+    switch (selectedValue) {
+      case 'basic':
+      case 'intermediate':
+      case 'advanced':
+      case 'native':
+        selectedFluency = selectedValue;
+    }
     this.setState(prevState => mutate<State, _>(prevState, newState => {
       const compound = newState.form.field.languages.field[languageIndex];
       compound.field.fluency.value = selectedFluency;
@@ -167,10 +175,13 @@ class EditProfileForm extends React.Component<Props, State> {
   }
 
   render() {
-    const field = this.state.form.field;
+    const form = this.state.form;
+    const field = form.field;
     const areaField = field.area.field;
     return (
       <form id="edit-profile-form" method="post">
+        <FormCsrfToken form={form} />
+
         <input
           hidden
           id={'id-' + field.username.html_name}
@@ -180,21 +191,29 @@ class EditProfileForm extends React.Component<Props, State> {
         />
         {DBDefs.DB_STAGING_TESTING_FEATURES ? (
           <Warning
-            message={l('This is a development server. Your email address is not private or secure. Proceed with caution!')}
+            message={l(
+              `This is a development server. Your email address is not private
+               or secure. Proceed with caution!`,
+            )}
           />
         ) : null}
 
         <FormRowEmailLong
           field={field.email}
           label={addColonText(l('Email'))}
+          uncontrolled
         />
         <FormRow hasNoLabel>
-          {l('If you change your email address, you will be required to verify it.')}
+          {l(
+            `If you change your email address,
+             you will be required to verify it.`,
+          )}
         </FormRow>
 
         <FormRowURLLong
           field={field.website}
           label={addColonText(l('Website'))}
+          uncontrolled
         />
 
         <FormRowSelect
@@ -232,15 +251,22 @@ class EditProfileForm extends React.Component<Props, State> {
           <FieldErrors field={areaField.name} />
         </FormRow>
         <FormRow hasNoLabel>
-          {l('You can pick the level you prefer here: your country, region or city. Be as specific as you want to!')}
+          {l(
+            `You can pick the level you prefer here: your country,
+             region or city. Be as specific as you want to!`,
+          )}
         </FormRow>
 
         <FormRowPartialDate
           field={field.birth_date}
           label={l('Birth date:')}
+          uncontrolled
         />
         <FormRow hasNoLabel>
-          {l('We will use your birth date to display your age in years on your profile page.')}
+          {l(
+            `We will use your birth date to display your age
+             in years on your profile page.`,
+          )}
         </FormRow>
 
         <FormRowTextArea
@@ -299,4 +325,8 @@ class EditProfileForm extends React.Component<Props, State> {
 }
 
 export type EditProfileFormPropsT = Props;
-export default hydrate<Props>('div.edit-profile-form', EditProfileForm);
+
+export default (
+  hydrate<Props>('div.edit-profile-form', EditProfileForm):
+  React.AbstractComponent<Props, void>
+);

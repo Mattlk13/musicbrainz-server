@@ -1,5 +1,5 @@
 /*
- * @flow
+ * @flow strict-local
  * Copyright (C) 2018 MetaBrainz Foundation
  *
  * This file is part of MusicBrainz, the open internet music database,
@@ -15,24 +15,28 @@ import {
   EDIT_VOTE_ABSTAIN,
   EDIT_VOTE_NO,
   EDIT_VOTE_YES,
-  EDIT_VOTE_APPROVE,
 } from '../../constants';
-import {withCatalystContext} from '../../context';
-import * as DBDefs from '../../static/scripts/common/DBDefs';
+import DBDefs from '../../static/scripts/common/DBDefs';
 import {
   editorMayVote,
   getLatestVoteForEditor,
 } from '../../utility/edit';
 
-type VoteCheckboxProps = {|
+type VoteCheckboxProps = {
   +edit: EditT,
-  +user: CatalystUserT,
-  +name: string,
   +label: string,
+  +name: string,
+  +user: UnsanitizedEditorT,
   +value: number,
-|};
+};
 
-const VoteCheckbox = ({edit, user, label, name, ...props}: VoteCheckboxProps) => {
+const VoteCheckbox = ({
+  edit,
+  user,
+  label,
+  name,
+  ...props
+}: VoteCheckboxProps) => {
   const latestVote = user
     ? getLatestVoteForEditor(edit, user)
     : null;
@@ -41,20 +45,31 @@ const VoteCheckbox = ({edit, user, label, name, ...props}: VoteCheckboxProps) =>
     (!latestVote && props.value === EDIT_VOTE_NONE);
   return (
     <label htmlFor={`id-${name}-${label}`}>
-      <input defaultChecked={checked} id={`id-${name}-${label}`} name={name} type="radio" {...props} />
+      <input
+        defaultChecked={checked}
+        id={`id-${name}-${label}`}
+        name={name}
+        type="radio"
+        {...props}
+      />
       {label}
     </label>
   );
 };
 
-type VoteProps = {|
+type VoteProps = {
   +$c: CatalystContextT,
   +edit: EditT,
   +index?: number,
   +summary?: boolean,
-|};
+};
 
-const Vote = ({$c, edit, index = 0, summary = false}: VoteProps) => {
+const Vote = ({
+  $c,
+  edit,
+  index = 0,
+  summary = false,
+}: VoteProps): React.Element<'div'> | null => {
   const user = $c.user;
   if (DBDefs.DB_READ_ONLY || !user || !editorMayVote(edit, user)) {
     return null;
@@ -67,20 +82,36 @@ const Vote = ({$c, edit, index = 0, summary = false}: VoteProps) => {
   return (
     <div className="voteopts">
       <div className="vote">
-        <VoteCheckbox label={lp('Yes', 'vote')} value={EDIT_VOTE_YES} {...props} />
+        <VoteCheckbox
+          label={lp('Yes', 'vote')}
+          value={EDIT_VOTE_YES}
+          {...props}
+        />
       </div>
       <div className="vote">
-        <VoteCheckbox label={lp('No', 'vote')} value={EDIT_VOTE_NO} {...props} />
+        <VoteCheckbox
+          label={lp('No', 'vote')}
+          value={EDIT_VOTE_NO}
+          {...props}
+        />
       </div>
       <div className="vote">
-        <VoteCheckbox label={lp('Abstain', 'vote')} value={EDIT_VOTE_ABSTAIN} {...props} />
+        <VoteCheckbox
+          label={lp('Abstain', 'vote')}
+          value={EDIT_VOTE_ABSTAIN}
+          {...props}
+        />
       </div>
       <div className="vote">
-        <VoteCheckbox label={l('None')} value={EDIT_VOTE_NONE} {...props} />
+        <VoteCheckbox
+          label={l('None')}
+          value={EDIT_VOTE_NONE}
+          {...props}
+        />
       </div>
       {summary ? null : <FormSubmit label={l('Submit vote and note')} />}
     </div>
   );
 };
 
-export default withCatalystContext(Vote);
+export default Vote;

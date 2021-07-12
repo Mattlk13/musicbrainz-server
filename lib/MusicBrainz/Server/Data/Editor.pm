@@ -25,6 +25,9 @@ use MusicBrainz::Server::Data::Utils qw(
 );
 use MusicBrainz::Server::Constants qw( :edit_status :privileges );
 use MusicBrainz::Server::Constants qw( $PASSPHRASE_BCRYPT_COST );
+use MusicBrainz::Server::Constants qw( :create_entity $EDIT_HISTORIC_ADD_RELEASE );
+use MusicBrainz::Server::Constants qw( $EDIT_RELEASE_ADD_COVER_ART );
+use MusicBrainz::Server::Constants qw( :vote );
 
 extends 'MusicBrainz::Server::Data::Entity';
 with 'MusicBrainz::Server::Data::Role::Subscription' => {
@@ -102,28 +105,30 @@ sub summarize_ratings
 
 sub _get_tags_for_type
 {
-    my ($self, $id, $type) = @_;
+    my ($self, $id, $type, $show_downvoted) = @_;
+
+    my $is_upvote = $show_downvoted ? 0 : 1;
 
     my $query = "SELECT tag, count(tag)
         FROM ${type}_tag_raw
-        WHERE editor = ? AND is_upvote
+        WHERE editor = ? AND is_upvote = ?
         GROUP BY tag";
 
-    my $results = $self->c->sql->select_list_of_hashes($query, $id);
+    my $results = $self->c->sql->select_list_of_hashes($query, $id, $is_upvote);
 
     return { map { $_->{tag} => $_ } @$results };
 }
 
 sub get_tags
 {
-    my ($self, $user) = @_;
+    my ($self, $user, $show_downvoted) = @_;
 
 
     my $tags = {};
     my $max = 0;
     foreach my $entity (entities_with('tags'))
     {
-        my $data = $self->_get_tags_for_type($user->id, $entity);
+        my $data = $self->_get_tags_for_type($user->id, $entity, $show_downvoted);
 
         foreach (keys %$data)
         {
@@ -165,6 +170,28 @@ sub find_by_email
 {
     my ($self, $email) = @_;
     return $self->_get_by_keys('email', $email);
+}
+
+sub find_by_ip {
+    my ($self, $ip) = @_;
+
+    my $query = 'SELECT ' . $self->_columns .
+        ' FROM ' . $self->_table . ' WHERE id = any(?)' .
+        ' ORDER BY member_since LIMIT 100';
+
+    my @ids = $self->store->set_members("ipusers:$ip");
+    $self->query_to_list($query, [\@ids]);
+}
+
+sub search_by_email {
+    my ($self, $email_regexp) = @_;
+
+    my $query = 'SELECT ' . $self->_columns .
+        ' FROM ' . $self->_table .
+        q" WHERE (regexp_replace(regexp_replace(email, '[@+].*', ''), '\.', '', 'g') || regexp_replace(email, '.*@', '@')) ~ ?" .
+        ' ORDER BY member_since DESC LIMIT 100';
+
+    $self->query_to_list($query, [$email_regexp]);
 }
 
 sub find_by_area {
@@ -304,17 +331,18 @@ sub update_profile
 sub update_privileges {
     my ($self, $editor, $values) = @_;
 
-    my $privs =   ($values->{auto_editor}      // 0) * $AUTO_EDITOR_FLAG
-                + ($values->{bot}              // 0) * $BOT_FLAG
-                + ($values->{untrusted}        // 0) * $UNTRUSTED_FLAG
-                + ($values->{link_editor}      // 0) * $RELATIONSHIP_EDITOR_FLAG
-                + ($values->{location_editor}  // 0) * $LOCATION_EDITOR_FLAG
-                + ($values->{no_nag}           // 0) * $DONT_NAG_FLAG
-                + ($values->{wiki_transcluder} // 0) * $WIKI_TRANSCLUSION_FLAG
-                + ($values->{banner_editor}    // 0) * $BANNER_EDITOR_FLAG
-                + ($values->{mbid_submitter}   // 0) * $MBID_SUBMITTER_FLAG
-                + ($values->{account_admin}    // 0) * $ACCOUNT_ADMIN_FLAG
-                + ($values->{editing_disabled} // 0) * $EDITING_DISABLED_FLAG;
+    my $privs =   ($values->{auto_editor}           // 0) * $AUTO_EDITOR_FLAG
+                + ($values->{bot}                   // 0) * $BOT_FLAG
+                + ($values->{untrusted}             // 0) * $UNTRUSTED_FLAG
+                + ($values->{link_editor}           // 0) * $RELATIONSHIP_EDITOR_FLAG
+                + ($values->{location_editor}       // 0) * $LOCATION_EDITOR_FLAG
+                + ($values->{no_nag}                // 0) * $DONT_NAG_FLAG
+                + ($values->{wiki_transcluder}      // 0) * $WIKI_TRANSCLUSION_FLAG
+                + ($values->{banner_editor}         // 0) * $BANNER_EDITOR_FLAG
+                + ($values->{mbid_submitter}        // 0) * $MBID_SUBMITTER_FLAG
+                + ($values->{account_admin}         // 0) * $ACCOUNT_ADMIN_FLAG
+                + ($values->{editing_disabled}      // 0) * $EDITING_DISABLED_FLAG
+                + ($values->{adding_notes_disabled} // 0) * $ADDING_NOTES_DISABLED_FLAG;
 
     Sql::run_in_transaction(sub {
         $self->sql->do('UPDATE editor SET privs = ? WHERE id = ?', $privs, $editor->id);
@@ -381,14 +409,6 @@ sub save_preferences
     }, $self->sql);
 }
 
-# Must be run in a transaction to actually do anything. Acquires a row-level lock for a given editor ID.
-sub lock_row
-{
-    my ($self, $editor_id) = @_;
-    my $query = "SELECT 1 FROM " . $self->_table . " WHERE id = ? FOR UPDATE";
-    $self->sql->do($query, $editor_id);
-}
-
 sub donation_check
 {
     my ($self, $obj) = @_;
@@ -401,10 +421,11 @@ sub donation_check
     my $days = 0.0;
     if ($nag) {
         my $response = $self->c->lwp->get(
-            'https://metabrainz.org/donations/nag-check/' . uri_escape_utf8($obj->name)
+            'https://metabrainz.org/donations/nag-check?editor=' . uri_escape_utf8($obj->name)
         );
 
         if ($response->is_success && $response->content =~ /\s*([-01]+),([-0-9.]+)\s*/) {
+            # Possible values for nag will be -1, 0, 1 (only 0 means do not nag)
             $nag = $1;
             $days = $2;
         } else {
@@ -422,12 +443,20 @@ sub load_for_collection {
     return unless $id; # nothing to do
 
     $self->load($collection);
-    my $query = "SELECT " . $self->_columns . "
+    my $query = "SELECT " . $self->_columns . ", ep.value AS show_gravatar
                  FROM " . $self->_table . "
                  JOIN editor_collection_collaborator ecc ON editor.id = ecc.editor
+                 LEFT JOIN editor_preference ep ON ep.editor = editor.id AND ep.name = 'show_gravatar'
                  WHERE ecc.collection = $id
                  ORDER BY editor.name, editor.id";
-    my @collaborators = $self->query_to_list($query);
+    my @collaborators = $self->query_to_list($query, undef, sub {
+        my ($model, $row) = @_;
+
+        my $collaborator = $model->_new_from_row($row);
+        $collaborator->preferences->show_gravatar($row->{show_gravatar})
+            if defined $row->{show_gravatar};
+        $collaborator;
+    });
 
     $collection->collaborators(\@collaborators);
 }
@@ -463,6 +492,7 @@ sub editors_with_subscriptions {
 sub delete {
     my ($self, $editor_id, $allow_reuse) = @_;
     die "Invalid editor_id: $editor_id" unless $editor_id > 0;
+    my $editor = $self->c->model('Editor')->get_by_id($editor_id);
 
     $self->sql->begin;
     $self->sql->do(
@@ -509,13 +539,37 @@ sub delete {
     # We want to cancel the latest edits first, to make sure
     # no conflicts happen that make some cancelling fail and all
     # entities that should be autoremoved do get removed
-    my $ids = $self->sql->select_single_column_array(
+    my $own_edit_ids = $self->sql->select_single_column_array(
             'SELECT id FROM edit WHERE editor = ? AND status = ? ORDER BY open_time DESC',
             $editor_id, $STATUS_OPEN);
-    my $edits = $self->c->model('Edit')->get_by_ids(@$ids);
+    my $own_edits = $self->c->model('Edit')->get_by_ids(@$own_edit_ids);
 
-    for my $id (@$ids) {
-        $self->c->model('Edit')->cancel($edits->{$id});
+    for my $edit_id (@$own_edit_ids) {
+        $self->c->model('Edit')->cancel($own_edits->{$edit_id});
+    }
+
+    # Override any Yes/No votes on open edits with Abstain
+    # to avoid pre-deletion vandalism
+    my $voted_open_edit_ids = $self->sql->select_single_column_array(
+            'SELECT edit.id
+             FROM edit
+             JOIN vote
+               ON edit.id = vote.edit
+             WHERE edit.status = ?
+               AND vote.editor = ?
+               AND vote.vote IN (?, ?)
+               AND vote.superseded = FALSE
+            ORDER BY open_time DESC',
+            $STATUS_OPEN, $editor_id, $VOTE_YES, $VOTE_NO);
+
+    for my $edit_id (@$voted_open_edit_ids) {
+        $self->c->model('Vote')->enter_votes(
+            $editor,
+            {
+                vote    => $VOTE_ABSTAIN,
+                edit_id => $edit_id
+            }
+        );
     }
 
     # Delete completely if they're not actually referred to by anything
@@ -581,6 +635,63 @@ sub various_edit_counts {
         my ($category, $count) = @$row;
         $result{$category . '_count'} = $count;
     }
+    return \%result;
+}
+
+sub added_entities_counts {
+    my ($self, $editor_id) = @_;
+
+    my $cache_key = "editor:$editor_id:added_entities_counts";
+    my $cached_result = $self->c->cache->get($cache_key);
+    return $cached_result if defined $cached_result;
+
+    my %result = map { $_ => 0 }
+        qw( artist release area cover_art event instrument label place recording
+        releasegroup series work other );
+
+    my $query =
+        q{SELECT
+              CASE
+                WHEN type = ? THEN 'artist'
+                WHEN type IN (?, ?) THEN 'release'
+                WHEN type = ? THEN 'area'
+                WHEN type = ? THEN 'cover_art'
+                WHEN type = ? THEN 'event'
+                WHEN type = ? THEN 'instrument'
+                WHEN type = ? THEN 'label'
+                WHEN type = ? THEN 'place'
+                WHEN type = ? THEN 'recording'
+                WHEN type = ? THEN 'releasegroup'
+                WHEN type = ? THEN 'series'
+                WHEN type = ? THEN 'work'
+                ELSE 'other'
+              END AS type,
+              COUNT(*) AS count
+            FROM edit
+           WHERE edit.status = ?
+             AND editor = ?
+           GROUP BY type};
+    my @params = ($EDIT_ARTIST_CREATE, $EDIT_RELEASE_CREATE,
+        $EDIT_HISTORIC_ADD_RELEASE, $EDIT_AREA_CREATE, $EDIT_RELEASE_ADD_COVER_ART,
+        $EDIT_EVENT_CREATE, $EDIT_INSTRUMENT_CREATE, $EDIT_LABEL_CREATE,
+        $EDIT_PLACE_CREATE, $EDIT_RECORDING_CREATE, $EDIT_RELEASEGROUP_CREATE,
+        $EDIT_SERIES_CREATE, $EDIT_WORK_CREATE, $STATUS_APPLIED);
+    my $rows = $self->sql->select_list_of_lists($query, @params, $editor_id);
+
+    for my $row (@$rows) {
+        my ($type, $count) = @$row;
+        # We just ignore any edits that are not one of the desired types
+        if ($type ne 'other') {
+            if (defined $result{$type}) {
+                $result{$type} += $count;
+            } else {
+                $result{$type} = $count;
+            }
+        }
+    }
+
+    $self->c->cache->set($cache_key, \%result, 60 * 60 * 24);
+
     return \%result;
 }
 
@@ -658,6 +769,14 @@ sub allocate_remember_me_token {
     }
 }
 
+sub is_email_used_elsewhere {
+    my ($self, $email, $user_id) = @_;
+
+    return 1 if $self->sql->select_single_value(
+        'SELECT 1 FROM editor WHERE lower(email) = lower(?) AND id != ?', $email, $user_id);
+    return 0;
+}
+
 sub is_name_used {
     my ($self, $name) = @_;
 
@@ -666,6 +785,13 @@ sub is_name_used {
     return 1 if $self->sql->select_single_value(
         'SELECT 1 FROM old_editor_name WHERE lower(name) = lower(?)', $name);
     return 0;
+}
+
+sub are_names_equivalent {
+    my ($self, $name1, $name2) = @_;
+
+    return $self->sql->select_single_value(
+        'SELECT lower(?) = lower(?)', $name1, $name2);
 }
 
 no Moose;

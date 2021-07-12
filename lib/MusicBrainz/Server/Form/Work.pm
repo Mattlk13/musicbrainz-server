@@ -10,6 +10,9 @@ extends 'MusicBrainz::Server::Form';
 with 'MusicBrainz::Server::Form::Role::Edit';
 with 'MusicBrainz::Server::Form::Role::Relationships';
 
+# MBS-11428: When making changes to this module, please make sure to
+# keep MusicBrainz::Server::Controller::WS::js::Edit in sync with it
+
 has '+name' => ( default => 'edit-work' );
 
 has_field 'type_id' => (
@@ -68,6 +71,45 @@ sub is_empty_attribute {
     return !$field->field('type_id')->value && !$field->field('value')->value;
 }
 
+sub validate_languages {
+    my $self = shift;
+
+    my @languages = $self->field('languages')->fields;
+
+    my $is_valid = 1;
+
+    # If we have only one language, then it can be whatever
+    # If we have two or more, we check it's not mul (248) nor zxx (486)
+    # because combining those with anything else doesn't make sense,
+    # and we check the same language hasn't been selected multiple times
+    if (scalar @languages > 1) {
+        my %used_languages;
+        for my $language_field (@languages) {
+            my $language_id = $language_field->value;
+
+            if ($language_id == 284) {
+                $language_field->push_errors(
+                    l('You cannot select “[Multiple languages]” and specific languages at the same time.')
+                );
+                $is_valid = 0;
+            } elsif ($language_id == 486) {
+                $language_field->push_errors(
+                    l('You cannot select “[No lyrics]” and a lyrics language at the same time.')
+                );
+                $is_valid = 0;
+            } elsif ($used_languages{$language_id}) {
+                $language_field->add_error(
+                    l('You cannot select the same language more than once.')
+                );
+                $is_valid = 0;
+            }
+            $used_languages{$language_id} = 1;
+        }
+    }
+
+    return $is_valid;
+}
+
 after 'validate' => sub {
     my ($self) = @_;
 
@@ -84,6 +126,7 @@ after 'validate' => sub {
         values %$attribute_types
     );
 
+    my %used_attributes;
     for my $attribute_field ($attributes->fields) {
         next if is_empty_attribute($attribute_field);
         next if
@@ -103,11 +146,22 @@ after 'validate' => sub {
             next;
         }
 
+        my $used_attribute_values = ($used_attributes{$attribute_type} //= []);
+
+        if (scalar @$used_attribute_values > 0 && grep(/^$value$/, @$used_attribute_values)) {
+            $attribute_field->add_error(
+                l('You cannot enter the same attribute and value more than once.')
+            );
+            next;
+        }
+
         unless ($attribute_type->allows_value($value)) {
             $attribute_field->field('value')->add_error(
                 l('This value is not allowed for this work attribute type.')
             );
         }
+
+        push (@$used_attribute_values, $value // $type_id);
     }
 
     unless ($self->has_errors) {

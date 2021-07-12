@@ -1,5 +1,5 @@
 /*
- * @flow
+ * @flow strict-local
  * Copyright (C) 2018 MetaBrainz Foundation
  *
  * This file is part of MusicBrainz, the open internet music database,
@@ -11,30 +11,41 @@ import * as React from 'react';
 
 import Layout from '../layout';
 
-type Props = {|
-  +action?: string,
-  +question: React.Node,
-  +title: string,
-|};
+import FormCsrfToken from './FormCsrfToken';
 
-const ConfirmLayout = ({action, question, title}: Props) => (
+type Props = {
+  +action?: string,
+  +form: ConfirmFormT | SecureConfirmFormT,
+  +question: Expand2ReactOutput,
+  +title: string,
+};
+
+const ConfirmLayout = ({
+  action,
+  form,
+  question,
+  title,
+}: Props): React.Element<typeof Layout> => (
   <Layout fullWidth title={title}>
     <h1>{title}</h1>
     <p>{question}</p>
     <form action={action} method="post">
+      <FormCsrfToken form={form} />
       <span className="buttons">
+        <button
+          name="confirm.submit"
+          type="submit"
+          value="1"
+        >
+          {l('Yes, I am sure')}
+        </button>
         <button
           className="negative"
           name="confirm.cancel"
           type="submit"
           value="1"
-        >{l('Cancel')}
-        </button>
-        <button
-          name="confirm.submit"
-          type="submit"
-          value="1"
-        >{l('Yes, I am sure')}
+        >
+          {l('Cancel')}
         </button>
       </span>
     </form>

@@ -1,13 +1,13 @@
 /*
- * This file is part of MusicBrainz, the open internet music database.
  * Copyright (C) 2016 MetaBrainz Foundation
- * Licensed under the GPL version 2, or (at your option) any later version:
- * http://www.gnu.org/licenses/gpl-2.0.txt
+ *
+ * This file is part of MusicBrainz, the open internet music database,
+ * and is licensed under the GPL version 2, or (at your option) any
+ * later version: http://www.gnu.org/licenses/gpl-2.0.txt
  */
 
-import _ from 'lodash';
 import ko from 'knockout';
-import React from 'react';
+import * as React from 'react';
 
 import SearchIcon from './SearchIcon';
 
@@ -19,13 +19,14 @@ class Autocomplete extends React.Component {
     require('../MB/Control/Autocomplete');
 
     const currentSelection = ko.observable();
-    const options = _.clone(this.props);
+    const options = {...this.props};
 
     options.currentSelection = currentSelection;
     this._currentSelection = currentSelection;
     this._subscription = currentSelection.subscribe(this.props.onChange);
 
-    this._autocomplete = $(this._nameInput).entitylookup(options).data('mb-entitylookup');
+    this._autocomplete =
+      $(this._nameInput).entitylookup(options).data('mb-entitylookup');
     currentSelection(
       this._autocomplete._dataToEntity(this.props.currentSelection),
     );
@@ -46,7 +47,6 @@ class Autocomplete extends React.Component {
     const nextProps = this.props;
 
     this._subscription.dispose();
-    this._subscription = this._currentSelection.subscribe(nextProps.onChange);
 
     const prev = prevProps.currentSelection;
     const next = nextProps.currentSelection;
@@ -60,13 +60,18 @@ class Autocomplete extends React.Component {
       );
     }
 
+    this._subscription = this._currentSelection.subscribe(nextProps.onChange);
+
     autocomplete.element.prop('disabled', !!nextProps.disabled);
     if (next && autocomplete.element.val() !== next.name) {
       autocomplete.element.val(next.name);
     }
 
-    if (nextProps.hasOwnProperty('isLookupPerformed')) {
-      autocomplete.element.toggleClass('lookup-performed', !!nextProps.isLookupPerformed);
+    if (hasOwnProp(nextProps, 'isLookupPerformed')) {
+      autocomplete.element.toggleClass(
+        'lookup-performed',
+        !!nextProps.isLookupPerformed,
+      );
     }
   }
 

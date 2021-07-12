@@ -2,7 +2,7 @@ package MusicBrainz::Server::EditQueue;
 
 use Moose;
 use DBDefs;
-use MusicBrainz::Sentry qw( capture_exceptions );
+use MusicBrainz::Errors qw( capture_exceptions );
 use MusicBrainz::Server::Constants qw( :expire_action :editor :edit_status :vote $REQUIRED_VOTES $MINIMUM_RESPONSE_PERIOD $MINIMUM_VOTING_PERIOD );
 use DateTime::Format::Pg;
 
@@ -39,7 +39,6 @@ my %action_name = (
     $STATUS_FAILEDDEP => 'failed dep',
     $STATUS_FAILEDPREREQ => 'failed prereq',
     $STATUS_NOVOTES => 'no votes',
-    $STATUS_TOBEDELETED => 'to be deleted',
     $STATUS_DELETED => 'deleted',
     $STATUS_ERROR => 'error'
 );
@@ -125,31 +124,12 @@ sub _process_edit
 
     $self->c->model('Vote')->load_for_edits($edit);
 
-    if ($edit->status == $STATUS_TOBEDELETED) {
-        return $self->_process_tobedeleted_edit($edit);
-    }
-
     if ($edit->status == $STATUS_OPEN) {
         return $self->_process_open_edit($edit);
     }
 
     $self->log->warning("Edit #$edit_id is no longer open\n");
     return undef;
-}
-
-sub _process_tobedeleted_edit
-{
-    my ($self, $edit) = @_;
-
-    my $edit_id = $edit->id;
-    $self->log->info("Deleting edit #$edit_id\n");
-
-    # Delete the edit.
-    unless ($self->dry_run) {
-        $self->c->model('Edit')->reject($edit, $STATUS_DELETED);
-    }
-
-    return $STATUS_DELETED;
 }
 
 sub _process_open_edit
@@ -267,22 +247,12 @@ sub _determine_new_status
 no Moose;
 1;
 
-=head1 COPYRIGHT
+=head1 COPYRIGHT AND LICENSE
 
 Copyright (C) 2009 Lukas Lalinsky
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program; if not, write to the Free Software
-Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+This file is part of MusicBrainz, the open internet music database,
+and is licensed under the GPL version 2, or (at your option) any
+later version: http://www.gnu.org/licenses/gpl-2.0.txt
 
 =cut

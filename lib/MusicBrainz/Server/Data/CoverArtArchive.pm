@@ -27,6 +27,23 @@ sub get_stats_for_releases {
     };
 }
 
+sub is_valid_mime_type {
+    my ($self, $mime_type) = @_;
+    $self->sql->select_single_value(
+        'SELECT 1 FROM cover_art_archive.image_type WHERE mime_type = ?',
+        $mime_type,
+    );
+}
+
+sub is_id_in_use {
+    my ($self, $id) = @_;
+
+    $self->sql->select_single_value(
+        'SELECT 1 FROM cover_art_archive.cover_art WHERE id = ?',
+        $id,
+    );
+}
+
 sub fresh_id {
     return int((time() - 1327528905) * 100);
 }
@@ -206,24 +223,24 @@ sub exists {
     ) or return undef;
 }
 
+sub exists_for_release_gid {
+    my ($self, $release_gid) = @_;
+    $self->c->sql->select_single_value(
+        'SELECT 1 FROM cover_art_archive.cover_art ca ' .
+        'JOIN release r ON r.id = ca.release ' .
+        'WHERE r.gid = ?',
+        $release_gid,
+    );
+}
+
 1;
 
-=head1 COPYRIGHT
+=head1 COPYRIGHT AND LICENSE
 
 Copyright (C) 2011,2012 MetaBrainz Foundation
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program; if not, write to the Free Software
-Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+This file is part of MusicBrainz, the open internet music database,
+and is licensed under the GPL version 2, or (at your option) any
+later version: http://www.gnu.org/licenses/gpl-2.0.txt
 
 =cut

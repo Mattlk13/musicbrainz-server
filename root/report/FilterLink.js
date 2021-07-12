@@ -1,5 +1,5 @@
 /*
- * @flow
+ * @flow strict
  * Copyright (C) 2018 MetaBrainz Foundation
  *
  * This file is part of MusicBrainz, the open internet music database,
@@ -10,16 +10,18 @@
 import * as React from 'react';
 
 import uriWith from '../utility/uriWith';
-import {withCatalystContext} from '../context';
 
-const FilterLink = (
-  {$c, filtered}: {$c: CatalystContextT, filtered: boolean},
-) => {
+type Props = {
+  +$c: CatalystContextT,
+  +filtered: boolean,
+};
+
+const FilterLink = ({$c, filtered = false}: Props): React.Element<'li'> => {
   const reqUri = $c.req.uri;
 
   return (
     <li>
-      {filtered === true ? (
+      {filtered ? (
         <a href={uriWith(reqUri, {filter: 0})}>
           {l('Show all results.')}
         </a>
@@ -32,4 +34,4 @@ const FilterLink = (
   );
 };
 
-export default withCatalystContext(FilterLink);
+export default FilterLink;

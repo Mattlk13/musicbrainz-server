@@ -75,21 +75,21 @@ END; -%]
 [%- END -%]
 
 [%- USE JavaScript -%]
-[%~ MACRO display_artwork_image(artwork, fallback, message) BLOCK -%]
+[%~ MACRO display_artwork_image(artwork, fallback, message) BLOCK -%] [% # Converted to React at root/components/Artwork.js %]
     <noscript>
-        <img src="[% artwork.small_thumbnail %]" />
+        <img src="[% artwork.small_ia_thumbnail %]" />
     </noscript>
 
     <span class="cover-art-image"
-        data-small-thumbnail="[% artwork.small_thumbnail %]"
-        data-large-thumbnail="[% artwork.large_thumbnail %]"
+        data-small-thumbnail="[% artwork.small_ia_thumbnail %]"
+        data-large-thumbnail="[% artwork.large_ia_thumbnail %]"
         data-fallback="[% fallback %]"
         data-title="[% artwork_hover(artwork) %]"
         data-message="[% message ? message : l('Image not available yet, please try again in a few minutes.') | html %]"
     ></span>
 [% END %]
 
-[%~ MACRO display_artwork(artwork, fallback, message) BLOCK -%]
+[%~ MACRO display_artwork(artwork, fallback, message) BLOCK -%] [% # Converted to React at root/components/Artwork.js %]
     <a title="[% artwork_hover(artwork) %]" href="[% artwork.image %]" class="[% IF artwork.mime_type == "application/pdf" %]artwork-pdf[% ELSE %]artwork-image[% END %]">
         [%~ IF artwork.mime_type == "application/pdf" ~%]
             <div title="[% l("This is a PDF file, the thumbnail may not show the entire contents of the file.") %]" class="file-format-tag">[% l("PDF file") %]</div>
@@ -99,10 +99,8 @@ END; -%]
     </a>
 [%- END -%]
 
-[%~ MACRO cover_art_links(artwork) BLOCK -%]
-[% IF artwork.small_thumbnail %]<a href="[% artwork.small_thumbnail %]">[% l('250px') %]</a> |[% END %]
-[% IF artwork.large_thumbnail %]<a href="[% artwork.large_thumbnail %]">[% l('500px') %]</a> |[% END %]
-<a href="[% artwork.image %]">[% l('original') %]</a>
+[%~ MACRO display_missing_artwork BLOCK -%]
+    <img src="/static/images/no-cover-art.png" title="No cover art available" />
 [%- END -%]
 
 [%~ MACRO cover_art_url(url) BLOCK; # Converted to React at root/utility/coverArtUrl.js
@@ -194,13 +192,12 @@ END -%]
 -%]
     [%- IF ac.names -%]
         [%- React.embed(c, 'static/scripts/common/components/ArtistCreditLink', {
-            artistCredit => ac,
+            artistCredit => React.to_json_object(ac),
         }) -%]
     [%- END -%]
 [%- END -%]
 
-[%~ MACRO expanded_artist_credit(ac) IF ac -%]
-  [%- artist_credit(ac) -%]<br />
+[%~ MACRO expanded_artist_credit_list(ac) IF ac -%] [% # Converted to React at root/static/scripts/common/components/ExpandedArtistCredit.js %]
   [%- IF ac.name != ac.names.0.artist.name || ac.names.size > 1 || ac.names.0.artist.comment -%]
     [%- SET artist_list = [];
         SET show_list = 0;
@@ -217,6 +214,11 @@ END -%]
         END; -%]
     [%- IF show_list -%]<span class="expanded-ac-list">[%- comma_only_list(artist_list) -%]</span>[%- END -%]
   [% END %]
+[%- END -%]
+
+[%~ MACRO expanded_artist_credit(ac) IF ac -%] [% # Converted to React at root/static/scripts/common/components/ExpandedArtistCredit.js %]
+  [%- artist_credit(ac) -%]<br />
+  [%- expanded_artist_credit_list(ac) -%]<br />
 [%- END -%]
 
 [%~ MACRO entity_exists(entity) BLOCK; entity.gid.defined; END -%]
@@ -471,7 +473,7 @@ END -%]
     INCLUDE _link_other_entity content=text action=action type='iswc' default_content=iswc.iswc edits_pending=iswc.edits_pending code_tag=1;
 END -%]
 
-[%~ MACRO link_cdtoc(cdtoc, action, text) BLOCK;
+[%~ MACRO link_cdtoc(cdtoc, action, text) BLOCK; # Converted to React at root/static/scripts/common/components/CDTocLink.js
     INCLUDE _link_other_entity content=text action=action type='cdtoc' default_content=cdtoc.discid;
 END -%]
 
@@ -492,12 +494,7 @@ END -%]
     INCLUDE _link_other_entity content=text action=action type='user' default_content=editor.name avatar=image_url image_size=size;
 END -%]
 
-[%~ MACRO editor_type_info(editor) BLOCK; -%]
-    [% IF editor.is_limited; '<span class="editor-class">(<span class="tooltip" title="' _ l('This user is new to MusicBrainz.') _ '">' _ l('beginner') _ '</span>)</span>'; END %]
-    [% IF editor.is_bot; '<span class="editor-class">(<span class="tooltip" title="' _ l('This user is automated.') _ '">' _ l('bot') _ '</span>)</span>'; END %]
-[%- END -%]
-
-[%~ MACRO link_edit(edit, action, text) BLOCK;
+[%~ MACRO link_edit(edit, action, text) BLOCK; # Converted to React at root/static/scripts/common/components/EditLink.js
     INCLUDE _link_other_entity content=text action=action type='edit' default_content=edit.id;
 END -%]
 
@@ -509,11 +506,11 @@ END -%]
 [%- END -%]
 
 [%~ MACRO login_url(redirect) BLOCK;
-    c.uri_for_action('/user/login', { uri => c.req.query_params.uri || redirect || c.relative_uri });
+    c.uri_for_action('/user/login', { returnto => c.req.query_params.returnto || redirect || c.relative_uri });
 END -%]
 
 [%~ MACRO register_url(redirect) BLOCK;
-    c.uri_for_action('/account/register', { uri => c.req.query_params.uri || redirect || c.relative_uri });
+    c.uri_for_action('/account/register', { returnto => c.req.query_params.returnto || redirect || c.relative_uri });
 END -%]
 
 [%~ MACRO simple_link(url, text) BLOCK; # url may be a string or a URI object
@@ -525,7 +522,7 @@ END -%]
 END -%]
 
 [%~ MACRO tagger_icon(entity) BLOCK -%]
-    [%- React.embed(c, 'static/scripts/common/components/TaggerIcon', {entity => entity}) -%]
+    [%- React.embed(c, 'static/scripts/common/components/TaggerIcon', {entity => React.to_json_object(entity)}) -%]
 [%- END -%]
 
 [%~ MACRO release_label_list(labels) BLOCK; # Converted to React at root/components/ReleaseLabelList.js
@@ -568,7 +565,7 @@ END -%]
     END;
 END -%]
 
-[%~ MACRO format_entity_type_name(type_name) BLOCK # Converted to React at root/components/formatEntityTypeName.js -%]
+[%~ MACRO format_entity_type_name(type_name) BLOCK # Converted to React at root/static/scripts/common/utility/formatEntityTypeName.js -%]
     [%- IF    type_name == 'artist'; l('Artist');
         ELSIF type_name == 'area'; l('Area');
         ELSIF type_name == 'event'; l('Event');
@@ -585,7 +582,7 @@ END -%]
     END -%]
 [%- END -%]
 
-[%~ MACRO format_plural_entity_type_name(type_name) BLOCK # Converted to React at root/components/formatEntityTypeName.js -%]
+[%~ MACRO format_plural_entity_type_name(type_name) BLOCK # Converted to React at root/static/scripts/common/utility/formatEntityTypeName.js -%]
     [%- IF    type_name == 'artist'; l('Artists');
         ELSIF type_name == 'area'; l('Areas');
         ELSIF type_name == 'event'; l('Events');
@@ -602,22 +599,20 @@ END -%]
     END -%]
 [%- END -%]
 
-[%~ MACRO quality_name(quality) SWITCH quality;
+[%~ MACRO quality_name(quality) SWITCH quality; # Converted to React as QUALITY_NAMES in root/static/scripts/common/constants.js
     CASE 0;  l('Low');
     CASE 1;  l('Normal');
     CASE -1; l('Normal');
     CASE 2;  l('High');
 END -%]
 
-[%~ MACRO edit_status_class(edit) BLOCK ~%]
+[%~ MACRO edit_status_class(edit) BLOCK # Converted to React as getEditStatusClass at root/utility/edit.js ~%]
     [%~ IF edit.status == 1 ~%]
         [%- " open" -%]
     [%~ ELSIF edit.status == 2 ~%]
         [%- " applied" -%]
     [%~ ELSIF edit.status == 3 ~%]
         [%- " failed" -%]
-    [%~ ELSIF edit.status == 8 %]
-        [%- " cancelling" -%]
     [%~ ELSIF edit.status == 9 ~%]
         [%- " cancelled" -%]
     [%~ ELSE ~%]
@@ -625,7 +620,7 @@ END -%]
     [%~ END ~%]
 [%~ END ~%]
 
-[%~ MACRO vote_tally(edit) BLOCK -%]
+[%~ MACRO vote_tally(edit) BLOCK # Converted to React at root/edit/components/VoteTally.js -%]
     [%- IF edit.auto_edit; '<strong>' _ l('automatically applied') _ '</strong>';
        ELSE; l('{yes} yes : {no} no',
         { yes => '<strong>' _ edit.yes_votes _ '</strong>',
@@ -633,52 +628,7 @@ END -%]
     END -%]
 [%- END -%]
 
-[%~ MACRO display_relationship(relationship, phrase_field) BLOCK; -%]
-  [%- phrase_field = phrase_field || 'phrase';
-    extra_attributes_field = "extra_${phrase_field}_attributes";
-    IF relationship.edits_pending; '<span class="mp mp-rel">'; END;
-    IF phrase_field == "verbose_phrase";
-        expand(relationship.verbose_phrase_with_placeholders, {
-            entity0 => descriptive_link(relationship.source, relationship.source_credit),
-            entity1 => descriptive_link(relationship.target, relationship.target_credit)
-        });
-    ELSE;
-        relationship.${ phrase_field }; ' '; descriptive_link(relationship.target, relationship.target_credit);
-    END;
-    ' ';
-    IF !relationship.link.begin_date.is_empty;
-        ' ';
-        IF !relationship.link.end_date.is_empty;
-            IF relationship.link.begin_date.format == relationship.link.end_date.format;
-                IF relationship.link.begin_date.day;
-                    l('on {date}', { date => relationship.link.begin_date.format });
-                ELSE;
-                    l('in {date}', { date => relationship.link.begin_date.format });
-                END;
-            ELSE;
-                l('from {begin_date} until {end_date}', {
-                    begin_date => relationship.link.begin_date.format,
-                    end_date => relationship.link.end_date.format
-                });
-            END;
-        ELSIF relationship.link.ended;
-            l('from {date} to ????', { date => relationship.link.begin_date.format });
-        ELSE;
-            l('from {date} to present', { date => relationship.link.begin_date.format });
-        END;
-    ELSIF !relationship.link.end_date.is_empty;
-        ;' ';
-        l('until {date}', { date => relationship.link.end_date.format });
-    ELSIF relationship.link.ended;
-        ' ';
-        bracketedWithSpace(l('ended'));
-    END;
-    IF relationship.${extra_attributes_field};
-        ' (' _ relationship.${extra_attributes_field} _ ')';
-    END; -%]
-[%- END -%]
-
-[%~ MACRO css_class_name(name) BLOCK;
+[%~ MACRO css_class_name(name) BLOCK; # React equivalent is kebabCase at root/static/scripts/common/utility/strings.js
     name | lower | replace('[^a-z]+', '-') | remove('^-|-$');
     END -%]
 
@@ -724,11 +674,11 @@ END -%]
 
 [%~ MACRO format_length(n) BLOCK; n | format_length; END -%]
 
-[%~ MACRO medium_format_name(medium) BLOCK -%]
+[%~ MACRO medium_format_name(medium) BLOCK # Converted to React at root/static/scripts/common/utility/mediumFormatName.js -%]
     [% medium.l_format_name or l("Medium") | html %]
 [%- END -%]
 
-[%~ MACRO medium_description(medium) BLOCK;
+[%~ MACRO medium_description(medium) BLOCK; # Converted to React at root/static/scripts/common/components/MediumDescription.js
     format_position = l('{medium_format} {position}', {
         medium_format => medium_format_name(medium),
         position => medium.position,
@@ -740,7 +690,7 @@ END -%]
     END;
 END ~%]
 
-[%~ MACRO medium_link(medium) BLOCK;
+[%~ MACRO medium_link(medium) BLOCK; # Converted to React at root/static/scripts/common/components/MediumLink.js
     l('{medium} on {release}', {
         medium => medium_description(medium),
         release => descriptive_link(medium.release),
@@ -759,10 +709,6 @@ END ~%]
     </a>
 [%- END -%]
 
-[%~ MACRO filter_button BLOCK -%]
-  <div style="float:right;margin-top:1.5em;"><a class="filter-button">[% React.embed(c, 'static/scripts/common/components/FilterIcon') %]</a> <a class="filter-button" href="#">[% l("Filter") %]</a></div>
-[%- END -%]
-
 [%~ MACRO artist_begin_label_from_type(type_id) BLOCK ~%]
     [%~ type_id == 1 ? l('Born:') : (type_id ==  2 || type_id == 5 || type_id == 6) ? l('Founded:') : l('Begin date:') ~%]
 [%~ END -%]
@@ -775,12 +721,22 @@ END ~%]
 -%]
     [%- React.embed(c, 'static/scripts/common/components/WikipediaExtract', {
         entity => {entityType => entity.entity_type, gid => entity.gid},
-        cachedWikipediaExtract => wikipedia_extract,
+        cachedWikipediaExtract => React.to_json_object(wikipedia_extract),
     }) -%]
 [%- END -%]
 
-[%~ MACRO track_duration_changes(loop_over, old_base, new_base, old_prop, new_prop) BLOCK -%]
+[%~ MACRO track_duration_changes(loop_over, old_base, new_base, old_prop, new_prop, old_label, new_label) BLOCK -%]
   [% USE Diff %]
+  [%- IF old_label && new_label -%]
+    <table class="wrap-block details">
+        <tr>
+            <th>[%- old_label -%]</th>
+        </tr>
+        <tr>
+            <th>[%- new_label -%]</th>
+        </tr>
+    </table>
+  [%- END -%]  
   [%- FOR i = loop_over %]
      [%- IF old_prop;
        old_length = old_base.${ loop.index }.${ old_prop } | format_length;
@@ -814,41 +770,29 @@ END ~%]
     '</span>' IF rel.edits_pending;
 END ~%]
 
-[%~ MACRO release_countries(release_events) BLOCK; # Converted to React at root/components/ReleaseCountries.js
-    IF release_events.size;
-        '<ul class="links">';
-        FOR event=release_events;
-          IF event.country;
-            '<li>' _ country_abbr(event.country) _ '</li>';
-          END;
-        END;
-        '</ul>';
-    END;
-END -%]
-
-[%~ MACRO release_dates(release_events) BLOCK; # Converted to React at root/components/ReleaseDates.js
-    IF release_events.size;
-        '<ul class="links nowrap">';
-        FOR event=release_events;
-          IF !event.date.is_empty;
-            '<li>' _ event.date.format _ '</li>';
-          END;
-        END;
-        '</ul>';
-    END;
-END -%]
-
-[%~ MACRO release_events(release_events) BLOCK; # Converted to React at root/components/ReleaseEvents.js
-      IF release_events.size;
-        '<ul class="links">';
-        FOR event=release_events;
-          '<li>' _ release_event(event) _ '</li>';
-        END;
-        '</ul>';
+[%~ MACRO release_countries_list(release_events) BLOCK;
+    out = [];
+    FOR event=release_events;
+      IF event.country;
+        out.push(country_abbr(event.country));
       END;
-    END -%]
+    END;
+    comma_only_list(out);
+END -%]
 
-[%~ MACRO release_event(event) BLOCK; # Converted to React at root/components/ReleaseEvent.js
+[%~ MACRO release_dates_list(release_events) BLOCK;
+    out = [];
+    seen = {};
+    FOR event=release_events;
+      IF !event.date.is_empty AND !seen.${ event.date.format };
+        out.push(event.date.format);
+        seen.${ event.date.format } = 1;
+      END;
+    END;
+    comma_only_list(out);
+END -%]
+
+[%~ MACRO release_event(event) BLOCK; # Converted to React at root/static/scripts/common/components/ReleaseEvent.js
       date = event.date;
       country = event.country;
       parts = [];
@@ -861,10 +805,9 @@ END -%]
       isni.replace('(.{4})(.{4})(.{4})(.{4})', '$1 $2 $3 $4');
     END -%]
 
-[%~ MACRO country_abbr(country) BLOCK -%]
-    <span class="flag flag-[% country.primary_code %]">
+[%~ MACRO country_abbr(country) BLOCK # Converted to React at root/components/CountryAbbr.js -%]
+    <span class="flag flag-[% country.primary_code %]"></span>
     <abbr title="[% html_escape(country.l_name) %]">[% country.primary_code %]</abbr>
-    </span>
 [%- END -%]
 
 [%~ MACRO set_header BLOCK -%]
@@ -886,21 +829,25 @@ END -%]
   [%- END %]
 [%- END -%]
 
-[%~ MACRO link_type_cardinality_name(cardinality) BLOCK ~%]
+[%~ MACRO link_type_cardinality_name(cardinality) BLOCK ~%] [% # Converted to React at root/static/scripts/common/components/Cardinality.js %]
   [%~ IF cardinality == 0; l('Few relationships');
       ELSIF cardinality == 1; l('Many relationships');
       ELSE; l('Unknown');
   END %] ([% cardinality %])
 [%~ END ~%]
 
-[%~ MACRO orderable_direction_name(direction) BLOCK ~%]
+[%~ MACRO orderable_direction_name(direction) BLOCK ~%]  [% # Converted to React at root/static/scripts/common/components/OrderableDirection.js %]
   [%~ IF direction == 0; l('None');
       ELSIF direction == 1; l('Forward');
       ELSIF direction == 2; l('Backward');
   END %] ([% direction %])
 [%~ END ~%]
 
-[%~ MACRO data_track_icon BLOCK ~%]
+[%~ MACRO pregap_track_icon BLOCK ~%]  [% # Converted to React at root/static/scripts/common/components/PregapTrackIcon.js %]
+  <div class="pregap-track icon img" title="[% l('This track is hidden in the pregap.') %]"></div>
+[%~ END ~%]
+
+[%~ MACRO data_track_icon BLOCK ~%]  [% # Converted to React at root/static/scripts/common/components/DataTrackIcon.js %]
   <div class="data-track icon img" title="[% l('This track is a data track.') %]"></div>
 [%~ END ~%]
 
@@ -924,39 +871,31 @@ END -%]
   [%- END -%]
 [%~ END ~%]
 
-[%- MACRO note_anchor(edit, loop) BLOCK -%]
-note-[%- edit.id -%]-[%- loop.count() -%]
-[%- END -%]
-
-[% MACRO votename(note) BLOCK %]
-  [% edit = note.edit %]
-  [%- FOR vote=edit.votes -%]
-    [%- vote.vote_name IF (vote.editor_id == note.editor_id) && !vote.superseded -%]
-  [%- END -%]
-  [%- 'owner' IF edit.editor_id == note.editor_id -%]
-[% END %]
-
-[%~ MACRO edit_note_display(edit_note) BLOCK ~%]
-  <div class="edit-note" id="[% note_anchor(note.edit, loop) %]">
-    <h3 class="[%- votename(note) -%]">
-      [%- link_entity(note.editor) -%]
-      [%- FOR vote=note.edit.votes;
-        IF (vote.editor_id == note.editor_id) &&
-           !vote.superseded &&
-           (vote.vote_name == 'No' || vote.vote_name == 'Yes');
-        '<div class="voting-icon"></div>'; LAST;
-      END; END; -%]
-      <a href="#[% note_anchor(note.edit, loop) %]" class="date">[%- UserDate.format(note.post_time) -%]</a>
-      [%- editor_type_info(note.editor) -%]
-    </h3>
-    <div class="edit-note-text [% 'modbot' IF note.editor_id == 4 %]">
-      [%- note.text | format_editnote -%]
-    </div>
-  </div>
-[%~ END ~%]
-
 [%~ MACRO bugtracker_url(description) BLOCK; # Converted to React at root/static/scripts/common/utility/bugTrackerURL.js
     'http://tickets.metabrainz.org/secure/CreateIssueDetails!init.jspa?' _
     'pid=10000&issuetype=1' _
     (description == '' ? '' : '&description=' _ uri_escape(description));
 END ~%]
+
+[%- MACRO remove_from_merge_header(to_merge) BLOCK -%] [% # Converted to React at root/utility/tableColumns.js %]
+  [% IF to_merge.size > 2 %]
+      <th aria-label="[% l('Remove from merge') %]" style="width: 1em" />
+  [% END %]
+[%- END -%]
+
+[%- MACRO remove_from_merge(entity_type_url, to_merge) BLOCK -%] [% # Converted to React at root/components/RemoveFromMergeTableCell.js %]
+  [% IF to_merge.size > 2 %]
+      <td>
+          <a href="/[% entity_type_url %]/merge?remove=[% entity.id %]&amp;submit=remove&amp;[% c.returnto_relative_uri %]">
+            <button type="button" class="remove-item icon" title="[% l('Remove from merge') %]"></button>
+          </a>
+      </td>
+  [% END %]
+[%- END -%]
+
+[%~ MACRO form_csrf_token(r) BLOCK -%] [% # Converted to React at root/components/FormCsrfToken.js %]
+    [%- r.hidden('csrf_session_key') -%]
+    [%- field_errors(r.form, 'csrf_session_key') -%]
+    [%- r.hidden('csrf_token') -%]
+    [%- field_errors(r.form, 'csrf_token') -%]
+[%~ END ~%]

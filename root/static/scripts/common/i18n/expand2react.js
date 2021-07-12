@@ -10,13 +10,18 @@
 import he from 'he';
 import * as React from 'react';
 
+import {
+  l as lActual,
+  ln as lnActual,
+  lp as lpActual,
+} from '../i18n';
+
 import expand, {
   accept,
   createCondSubstParser,
   createTextContentParser,
   createVarSubstParser,
   error,
-  getString,
   getVarSubstArg,
   gotMatch,
   NO_MATCH_VALUE,
@@ -26,15 +31,12 @@ import expand, {
   saveMatch,
   state,
   substEnd,
+  VarArgs,
   type NO_MATCH,
   type Parser,
-  type VarArgs,
+  type VarArgsObject,
+  type VarArgsClass,
 } from './expand2';
-import {
-  l as lActual,
-  ln as lnActual,
-  lp as lpActual,
-} from '../i18n';
 
 type Input = Expand2ReactInput;
 type Output = Expand2ReactOutput;
@@ -46,13 +48,13 @@ const condSubstThenTextContent = /^[^<>{}|]+/;
 const percentSign = /(%)/;
 const linkSubstStart = /^\{([0-9A-z_]+)\|/;
 const htmlTagStart = /^<(?=[a-z])/;
-const htmlTagName = /^(a|abbr|b|br|code|em|li|p|span|strong|ul)(?=[\s\/>])/;
+const htmlTagName = /^(a|abbr|br|code|em|h1|h2|h3|h4|h5|h6|hr|li|ol|p|span|strong|ul)(?=[\s\/>])/;
 const htmlTagEnd = /^>/;
 const htmlSelfClosingTagEnd = /^\s*\/>/;
 const htmlAttrStart = /^\s+(?=[a-z])/;
 const htmlAttrName = /^(class|href|id|key|rel|target|title)="/;
 const htmlAttrTextContent = /^[^{}"]+/;
-const hrefValueStart = /^(?:\/|https?:\/\/)/;
+const hrefValueStart = /^(?:\/|https?:\/\/|ircs?:\/\/)/;
 
 function handleTextContentText(text: string) {
   if (typeof state.replacement === 'string') {
@@ -61,8 +63,26 @@ function handleTextContentText(text: string) {
   return he.decode(text);
 }
 
+/*
+ * `reactTextContentHook`, when overridden from the outside, allows
+ * customizing each bit of free text content in the expanded string. This can
+ * be used, for example, to wrap them in spans to apply a certain style.
+ * (This is how our relationship edit diff display works.)
+ *
+ * The use of the word "hooks" here is completely unrelated to the React
+ * concept with the same name.
+ */
+export const hooks: {
+  reactTextContentHook: ((Expand2ReactOutput) => Expand2ReactOutput) | null,
+} = {
+  reactTextContentHook: null,
+};
+
 function handleTextContentReact(text: string) {
   const replacement = state.replacement;
+  const hook = hooks.reactTextContentHook;
+  let content;
+
   if (gotMatch(replacement) && percentSign.test(text)) {
     const parts = text.split(percentSign);
     const result: Array<Output> = [];
@@ -75,12 +95,15 @@ function handleTextContentReact(text: string) {
       }
     }
     if (typeof replacement === 'string') {
-      return result.join('');
+      content = result.join('');
+    } else {
+      content = React.createElement(React.Fragment, null, ...result);
     }
-    return React.createElement(React.Fragment, null, ...result);
   } else {
-    return he.decode(text);
+    content = he.decode(text);
   }
+
+  return hook ? hook(content) : content;
 }
 
 const parseRootTextContent = createTextContentParser<Output, Input>(
@@ -125,6 +148,7 @@ function pushChild<T>(
   if (lastIndex >= 0 &&
       typeof match === 'string' &&
       typeof children[lastIndex] === 'string') {
+    // $FlowIssue[incompatible-type]
     children[lastIndex] += match;
   } else {
     children.push(match);
@@ -132,7 +156,15 @@ function pushChild<T>(
   return children;
 }
 
-function concatArrayMatch<T>(
+/*
+ * `MatchUpperBoundT` is used as the upper bound of `T` below, meaning
+ * `T` can be any subtype of `MatchUpperBoundT`. Generally parsers will
+ * produce strings/numbers, but they can also output React elements and
+ * other object types, so `{...}` must be included too.
+ */
+type MatchUpperBoundT = StrOrNum | {...};
+
+function concatArrayMatch<T: MatchUpperBoundT>(
   children: Array<T> | NO_MATCH,
   match: Array<T> | T,
 ): Array<T> {
@@ -149,9 +181,9 @@ function concatArrayMatch<T>(
   return children;
 }
 
-function parseContinuousArray<T, V>(
+function parseContinuousArray<T: MatchUpperBoundT, V>(
   parsers: $ReadOnlyArray<Parser<Array<T> | T | NO_MATCH, V>>,
-  args: VarArgs<V>,
+  args: VarArgsClass<V>,
 ): Array<T> {
   return parseContinuous<Array<T> | T, Array<T>, V>(
     parsers,
@@ -198,6 +230,18 @@ const htmlAttrValueParsers = [
   parseHtmlAttrValueCondSubst,
 ];
 
+// Keep in sync with the htmlAttrName RegExp above.
+type HtmlAttrs = {
+  className?: string,
+  href?: string,
+  id?: string,
+  key?: string,
+  rel?: string,
+  target?: string,
+  title?: string,
+  ...
+};
+
 function parseHtmlAttr(args) {
   if (!gotMatch(accept(htmlAttrStart))) {
     return NO_MATCH_VALUE;
@@ -222,7 +266,13 @@ function parseHtmlAttr(args) {
     throw error('bad href value');
   }
 
-  return {[name]: value};
+  /*
+   * See "Flow errors on unions in computed properties" here:
+   * https://medium.com/flow-type/spreads-common-errors-fixes-9701012e9d58
+   */
+  const attr: HtmlAttrs = {};
+  attr[name] = value;
+  return attr;
 }
 
 const htmlAttrParsers = [parseHtmlAttr];
@@ -237,9 +287,7 @@ function parseHtmlTag(args) {
     throw error('bad HTML tag');
   }
 
-  type HtmlAttr = {[string]: string};
-
-  const attributes = parseContinuousArray<HtmlAttr, Input>(
+  const attributes = parseContinuousArray<HtmlAttrs, Input>(
     htmlAttrParsers,
     args,
   );
@@ -317,7 +365,17 @@ const parseRoot = args => parseContinuousArray(rootParsers, args);
  */
 export default function expand2react(
   source: string,
-  args?: ?{+[string]: Input},
+  args?: ?VarArgsObject<Input>,
+): Output {
+  return expand2reactWithVarArgsInstance(
+    source,
+    args ? new VarArgs(args) : null,
+  );
+}
+
+export function expand2reactWithVarArgsInstance(
+  source: string,
+  args?: ?VarArgsClass<Input>,
 ): Output {
   const result = expand<$ReadOnlyArray<Output>, Input>(
     parseRoot,
@@ -336,18 +394,18 @@ export default function expand2react(
 
 export const l = (
   key: string,
-  args?: ?{+[string]: Input},
-) => expand2react(lActual(key), args);
+  args?: ?VarArgsObject<Input>,
+): Output => expand2react(lActual(key), args);
 
 export const ln = (
   skey: string,
   pkey: string,
   val: number,
-  args?: ?{+[string]: Input},
-) => expand2react(lnActual(skey, pkey, val), args);
+  args?: ?VarArgsObject<Input>,
+): Output => expand2react(lnActual(skey, pkey, val), args);
 
 export const lp = (
   key: string,
   context: string,
-  args?: ?{+[string]: Input},
-) => expand2react(lpActual(key, context), args);
+  args?: ?VarArgsObject<Input>,
+): Output => expand2react(lpActual(key, context), args);

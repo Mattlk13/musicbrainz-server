@@ -8,20 +8,24 @@
  */
 
 import {compare} from '../static/scripts/common/i18n';
-import linkedEntities from '../static/scripts/common/linkedEntities';
 import compareDates from '../static/scripts/common/utility/compareDates';
+
+import getSortName from './getSortName';
 
 export default function compareRelationships(
   a: RelationshipT,
   b: RelationshipT,
-) {
-  return (
+): number {
+  let result = (
+    (a.linkTypeID - b.linkTypeID) ||
     (a.linkOrder - b.linkOrder) ||
     compareDates(a.begin_date, b.begin_date) ||
-    compareDates(a.end_date, b.end_date) ||
-    (linkedEntities.link_type[a.linkTypeID].child_order -
-     linkedEntities.link_type[b.linkTypeID].child_order) ||
-    compare(a.target.sort_name || a.target.name,
-            b.target.sort_name || b.target.name)
+    compareDates(a.end_date, b.end_date)
   );
+  if (!result) {
+    const targetA = a.target;
+    const targetB = b.target;
+    result = compare(getSortName(targetA), getSortName(targetB));
+  }
+  return result;
 }

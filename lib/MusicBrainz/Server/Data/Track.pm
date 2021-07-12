@@ -1,8 +1,10 @@
 package MusicBrainz::Server::Data::Track;
 
+use Data::Page;
 use Moose;
 use namespace::autoclean;
 use MusicBrainz::Server::Entity::Track;
+use MusicBrainz::Server::Constants qw( $MAX_INITIAL_TRACKS );
 use MusicBrainz::Server::Data::Medium;
 use MusicBrainz::Server::Data::Release;
 use MusicBrainz::Server::Data::Utils qw(
@@ -12,6 +14,7 @@ use MusicBrainz::Server::Data::Utils qw(
     placeholders
 );
 use Scalar::Util 'weaken';
+use aliased 'MusicBrainz::Server::Entity::Work';
 
 extends 'MusicBrainz::Server::Data::CoreEntity';
 
@@ -62,6 +65,23 @@ sub load
     load_subobjects($self, 'track', @objs);
 }
 
+sub load_related_info {
+    my ($self, $user_id, @tracks) = @_;
+
+    my @recordings = $self->c->model('Recording')->load(@tracks);
+    $self->c->model('ArtistCredit')->load(@tracks, @recordings);
+    $self->c->model('Recording')->load_meta(@recordings);
+    $self->c->model('Recording')->load_gid_redirects(@recordings);
+    $self->c->model('Recording')->rating->load_user_ratings($user_id, @recordings) if $user_id;
+
+    $self->c->model('Relationship')->load_cardinal(@recordings);
+    $self->c->model('Relationship')->load_cardinal(grep { $_->isa(Work) } map { $_->target } map { $_->all_relationships } @recordings);
+
+    $self->c->model('ArtistType')->load(map { $_->target } map { @{ $_->relationships_by_type('artist') } } @recordings);
+
+    $self->c->model('ISRC')->load_for_recordings(@recordings);
+}
+
 sub load_for_mediums
 {
     my ($self, @media) = @_;
@@ -81,6 +101,49 @@ sub load_for_mediums
         my @media = @{ $id_to_medium{$track->medium_id} };
         $_->add_track($track) for @media;
     }
+
+    foreach my $medium (@media) {
+        $medium->has_loaded_tracks(1);
+    }
+}
+
+sub load_for_medium_paged
+{
+    my ($self, $medium_id, $page) = @_;
+
+    my $columns = $self->_columns;
+    my $table = $self->_table;
+    my $offset = ($page - 1) * $MAX_INITIAL_TRACKS;
+
+    my $total_tracks = $self->sql->select_single_value(<<~'EOSQL', $medium_id);
+        SELECT count(*) FROM track WHERE medium = ?
+        EOSQL
+
+    my @tracks = $self->query_to_list(<<~"EOSQL", [$medium_id, $MAX_INITIAL_TRACKS, $offset]);
+        SELECT $columns FROM $table
+        WHERE medium = ?
+        ORDER BY position
+        LIMIT ? OFFSET ?
+        EOSQL
+
+    my $pager = Data::Page->new;
+    $pager->entries_per_page($MAX_INITIAL_TRACKS);
+    $pager->current_page($page);
+    $pager->total_entries($total_tracks);
+
+    return ($pager, \@tracks);
+}
+
+sub find_by_artist_credit
+{
+    my ($self, $artist_credit_id, $limit, $offset) = @_;
+
+    my $query = "SELECT " . $self->_columns . ",
+                    name COLLATE musicbrainz AS name_collate
+                 FROM " . $self->_table . "
+                 WHERE artist_credit = ?
+                 ORDER BY name COLLATE musicbrainz";
+    $self->query_to_list_limited($query, [$artist_credit_id], $limit, $offset);
 }
 
 sub find_by_recording
@@ -114,9 +177,9 @@ sub find_by_recording
             FROM release_unknown_country
           ) release_event ON release_event.release = release.id
           WHERE track.recording = ?
-          ORDER BY track.id, medium.id, date_year, date_month, date_day, musicbrainz_collate(release.name)
+          ORDER BY track.id, medium.id, date_year, date_month, date_day, release.name COLLATE musicbrainz
         ) s
-        ORDER BY date_year, date_month, date_day, musicbrainz_collate(r_name)";
+        ORDER BY date_year, date_month, date_day, r_name COLLATE musicbrainz";
 
     $self->query_to_list_limited(
         $query,
@@ -204,22 +267,26 @@ sub delete
 
 sub merge_mediums
 {
-    my ($self, $new_medium, $old_medium) = @_;
+    my ($self, $new_medium_id, @old_medium_ids) = @_;
 
     my @track_merges = @{
         $self->sql->select_list_of_lists(
-            'SELECT DISTINCT newt.id AS new, oldt.id AS old
+            'SELECT newt.id AS new_id,
+                    array_agg(oldt.id) AS old_ids
                FROM track oldt
                JOIN track newt ON newt.position = oldt.position
-              WHERE newt.medium = ? AND oldt.medium = ?',
-            $new_medium, $old_medium
+              WHERE newt.medium = ?
+                AND oldt.medium = any(?)
+              GROUP BY newt.id',
+            $new_medium_id,
+            \@old_medium_ids,
         )
     };
 
     for my $track_merge (@track_merges) {
-        my ($new, $old) = @$track_merge;
+        my ($new_id, $old_ids) = @$track_merge;
 
-        $self->_delete_and_redirect_gids('track', $new, $old);
+        $self->_delete_and_redirect_gids('track', $new_id, @{$old_ids});
     }
 }
 
@@ -239,22 +306,12 @@ __PACKAGE__->meta->make_immutable;
 no Moose;
 1;
 
-=head1 COPYRIGHT
+=head1 COPYRIGHT AND LICENSE
 
 Copyright (C) 2009 Lukas Lalinsky
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program; if not, write to the Free Software
-Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+This file is part of MusicBrainz, the open internet music database,
+and is licensed under the GPL version 2, or (at your option) any
+later version: http://www.gnu.org/licenses/gpl-2.0.txt
 
 =cut

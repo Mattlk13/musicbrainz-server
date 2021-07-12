@@ -6,8 +6,9 @@ use MusicBrainz::Server::Constants qw( entities_with );
 
 extends 'MusicBrainz::Server::Form';
 with 'MusicBrainz::Server::Form::Role::Edit';
+with 'MusicBrainz::Server::Form::Role::CSRFToken';
 
-sub edit_field_names { qw( parent_id child_order name description year has_discids free_text entity_type ) }
+sub edit_field_names { qw( parent_id child_order name description year has_discids free_text item_entity_type ) }
 
 has '+name' => ( default => 'attr' );
 
@@ -42,7 +43,7 @@ has_field 'free_text' => (
     type => 'Boolean',
 );
 
-has_field 'entity_type' => (
+has_field 'item_entity_type' => (
     type => 'Select',
 );
 
@@ -51,29 +52,20 @@ sub options_parent_id {
     return select_options_tree($self->ctx, $self->ctx->stash->{model}, accessor => 'name');
 }
 
-sub options_entity_type {
-    my ($self) = @_;
-    return map { $_ => $_ } sort { $a cmp $b } entities_with('collections');
+sub options_item_entity_type {
+    my ($self, $model) = @_;
+    my $entity_type = $self->ctx->stash->{model} eq 'SeriesType' ? 'series' : 'collections';
+    return map { $_ => $_ } sort { $a cmp $b } entities_with($entity_type);
 }
 
 1;
 
-=head1 COPYRIGHT
+=head1 COPYRIGHT AND LICENSE
 
 Copyright (C) 2014 MetaBrainz Foundation
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program; if not, write to the Free Software
-Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+This file is part of MusicBrainz, the open internet music database,
+and is licensed under the GPL version 2, or (at your option) any
+later version: http://www.gnu.org/licenses/gpl-2.0.txt
 
 =cut

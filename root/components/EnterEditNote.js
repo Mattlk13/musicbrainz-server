@@ -1,5 +1,5 @@
 /*
- * @flow
+ * @flow strict-local
  * Copyright (C) 2018 MetaBrainz Foundation
  *
  * This file is part of MusicBrainz, the open internet music database,
@@ -7,30 +7,48 @@
  * later version: http://www.gnu.org/licenses/gpl-2.0.txt
  */
 
-import React from 'react';
+import * as React from 'react';
 
 import FieldErrors from './FieldErrors';
 import FormRow from './FormRow';
 
-type Props = {|
+type Props = {
   +field: ReadOnlyFieldT<string>,
   +hideHelp?: boolean,
-|};
+};
 
 const EnterEditNote = ({
   field,
   hideHelp = false,
-}: Props) => (
+}: Props):
+React.Element<'fieldset'> => (
   <fieldset className="editnote">
     <legend>{l('Edit Note')}</legend>
     {hideHelp ? null : (
       <>
         <p>
-          {exp.l('Entering an {note|edit note} that describes where you got your information is highly recommended. Not only does it make it clear where you got your information, but it can also encourage other users to vote on your edit — thus making your edit get applied faster.', {
-            note: {href: '/doc/Edit_Note', target: '_blank'},
-          })}
+          {exp.l(
+            `Entering an {note|edit note} that describes where you got
+             your information is highly recommended. Not only does it
+             make your sources clear (both now and to users who see the
+             edit years later), but it can also encourage other users
+             to vote on the edit — thus making it get applied faster.`,
+            {note: {href: '/doc/Edit_Note', target: '_blank'}},
+          )}
         </p>
-        <p>{l('Even just providing a URL or two is helpful!')}</p>
+        <p>
+          {exp.l(
+            `Even just providing a URL or two is helpful!
+             For more suggestions,
+             see {doc_how_to|our guide for writing good edit notes}.`,
+            {
+              doc_how_to: {
+                href: '/doc/How_to_Write_Edit_Notes',
+                target: '_blank',
+              },
+            },
+          )}
+        </p>
       </>
     )}
     <FormRow>

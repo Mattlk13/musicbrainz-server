@@ -1,5 +1,5 @@
 /*
- * @flow
+ * @flow strict
  * Copyright (C) 2014 MetaBrainz Foundation
  *
  * This file is part of MusicBrainz, the open internet music database,
@@ -14,7 +14,7 @@ const daysInMonth = [
   [31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31],
 ];
 
-export default function getDaysInMonth(year: number, month: number) {
+export default function getDaysInMonth(year: number, month: number): number {
   const isLeapYear = year % 400 ? (year % 100 ? !(year % 4) : false) : true;
   return daysInMonth[isLeapYear ? 1 : 0][month - 1];
 }

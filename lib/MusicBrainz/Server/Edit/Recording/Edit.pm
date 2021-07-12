@@ -22,6 +22,7 @@ use MusicBrainz::Server::Edit::Utils qw(
     verify_artist_credits
     merge_artist_credit
 );
+use MusicBrainz::Server::Entity::Util::JSON qw( to_json_object );
 use MusicBrainz::Server::Track;
 use MusicBrainz::Server::Translation qw( N_l );
 
@@ -42,6 +43,7 @@ use aliased 'MusicBrainz::Server::Entity::Recording';
 
 sub edit_type { $EDIT_RECORDING_EDIT }
 sub edit_name { N_l('Edit recording') }
+sub edit_template_react { "EditRecording" }
 sub _edit_model { 'Recording' }
 sub recording_id { return shift->entity_id }
 
@@ -139,13 +141,22 @@ sub build_display_data
 
     if (exists $self->data->{new}{artist_credit}) {
         $data->{artist_credit} = {
-            new => artist_credit_from_loaded_definition($loaded, $self->data->{new}{artist_credit}),
-            old => artist_credit_from_loaded_definition($loaded, $self->data->{old}{artist_credit})
+            new => to_json_object(artist_credit_from_loaded_definition($loaded, $self->data->{new}{artist_credit})),
+            old => to_json_object(artist_credit_from_loaded_definition($loaded, $self->data->{old}{artist_credit})),
         }
     }
 
-    $data->{recording} = $loaded->{Recording}{ $self->data->{entity}{id} }
-        || Recording->new( name => $self->data->{entity}{name} );
+    if (exists $self->data->{new}{video}) {
+        $data->{video} = {
+            new => boolean_to_json($self->data->{new}{video}),
+            old => boolean_to_json($self->data->{old}{video}),
+        };
+    }
+
+    $data->{recording} = to_json_object(
+        $loaded->{Recording}{ $self->data->{entity}{id} } ||
+        Recording->new( name => $self->data->{entity}{name} )
+    );
 
     return $data;
 }
@@ -224,23 +235,13 @@ no Moose;
 
 1;
 
-=head1 LICENSE
+=head1 COPYRIGHT AND LICENSE
 
 Copyright (C) 2011 MetaBrainz Foundation
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program; if not, write to the Free Software
-Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+This file is part of MusicBrainz, the open internet music database,
+and is licensed under the GPL version 2, or (at your option) any
+later version: http://www.gnu.org/licenses/gpl-2.0.txt
 
 =cut
 

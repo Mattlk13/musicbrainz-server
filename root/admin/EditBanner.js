@@ -1,5 +1,5 @@
 /*
- * @flow
+ * @flow strict-local
  * Copyright (C) 2019 MetaBrainz Foundation
  *
  * This file is part of MusicBrainz, the open internet music database,
@@ -9,17 +9,19 @@
 
 import * as React from 'react';
 
+import FormCsrfToken from '../components/FormCsrfToken';
 import FormRowTextArea from '../components/FormRowTextArea';
 import FormSubmit from '../components/FormSubmit';
 import Layout from '../layout';
 
-type Props = {|
-  +form: FormT<{|
+type Props = {
+  +form: ReadOnlyFormT<{
+    +csrf_token: ReadOnlyFieldT<string>,
     +message: ReadOnlyFieldT<string>,
-  |}>,
-|};
+  }>,
+};
 
-const EditBanner = ({form}: Props) => (
+const EditBanner = ({form}: Props): React.Element<typeof Layout> => (
   <Layout fullWidth title={l('Edit Banner Message')}>
     <div id="content">
       <h1>{l('Edit banner message')}</h1>
@@ -28,6 +30,7 @@ const EditBanner = ({form}: Props) => (
             of each page. An empty string removes the banner.`)}
       </p>
       <form action="/admin/banner/edit" method="post">
+        <FormCsrfToken form={form} />
         <FormRowTextArea
           field={form.field.message}
           label={addColonText(l('Banner message'))}

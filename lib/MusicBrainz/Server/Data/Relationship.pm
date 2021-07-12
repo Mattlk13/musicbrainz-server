@@ -25,7 +25,9 @@ use MusicBrainz::Server::Data::Utils qw(
     type_to_model
 );
 use MusicBrainz::Server::Constants qw(
+    :direction
     $PART_OF_AREA_LINK_TYPE
+    %ENTITIES
     %ENTITIES_WITH_RELATIONSHIP_CREDITS
     @RELATABLE_ENTITIES
     entities_with
@@ -33,12 +35,16 @@ use MusicBrainz::Server::Constants qw(
 use Scalar::Util 'weaken';
 use List::AllUtils qw( any part uniq );
 use List::UtilsBy qw( nsort_by partition_by );
+use aliased 'MusicBrainz::Server::Entity::RelationshipTargetTypeGroup';
+use aliased 'MusicBrainz::Server::Entity::RelationshipLinkTypeGroup';
 
 no if $] >= 5.018, warnings => "experimental::smartmatch";
 
 extends 'MusicBrainz::Server::Data::Entity';
 
 my %TYPES = map { $_ => 1} @RELATABLE_ENTITIES;
+
+sub _type { 'relationship' }
 
 sub _entity_class
 {
@@ -47,7 +53,7 @@ sub _entity_class
 
 sub _new_from_row
 {
-    my ($self, $row, $obj, $matching_entity_type) = @_;
+    my ($self, $row, $type0, $type1, $obj, $matching_entity_type) = @_;
     my $entity0 = $row->{entity0};
     my $entity1 = $row->{entity1};
     my %info = (
@@ -64,15 +70,24 @@ sub _new_from_row
 
     my $weaken;
     if (defined $obj) {
+        $info{source} = $obj;
+        $info{source_type} = $obj->entity_type;
+
         if ($matching_entity_type == 0 && $entity0 == $obj->id) {
             $weaken = 'entity0';
             $info{entity0} = $obj;
-            $info{direction} = $MusicBrainz::Server::Entity::Relationship::DIRECTION_FORWARD;
+            $info{direction} = $DIRECTION_FORWARD;
+            $info{source_credit} = $info{entity0_credit};
+            $info{target_credit} = $info{entity1_credit};
+            $info{target_type} = $type1;
         }
         elsif ($matching_entity_type == 1 && $entity1 == $obj->id) {
             $weaken = 'entity1';
             $info{entity1} = $obj;
-            $info{direction} = $MusicBrainz::Server::Entity::Relationship::DIRECTION_BACKWARD;
+            $info{direction} = $DIRECTION_BACKWARD;
+            $info{source_credit} = $info{entity1_credit};
+            $info{target_credit} = $info{entity0_credit};
+            $info{target_type} = $type0;
         }
         else {
             carp "Neither relationship end-point matched the object.";
@@ -103,7 +118,7 @@ sub get_by_id
     my $row = $self->sql->select_single_row_hash($query, $id)
         or return undef;
 
-    return $self->_new_from_row($row);
+    return $self->_new_from_row($row, $type0, $type1);
 }
 
 sub get_by_ids
@@ -114,7 +129,7 @@ sub get_by_ids
     my $query = "SELECT * FROM l_${type0}_${type1} WHERE id IN (" . placeholders(@ids) . ")";
     my $rows = $self->sql->select_list_of_hashes($query, @ids) or return undef;
 
-    return { map { $_->{id} => $self->_new_from_row($_) } @$rows };
+    return { map { $_->{id} => $self->_new_from_row($_, $type0, $type1) } @$rows };
 }
 
 sub _load
@@ -165,11 +180,18 @@ sub _load
                       JOIN link l ON link = l.id
                       JOIN link_type lt ON lt.id = l.link_type";
 
-        my $order = 'l.begin_date_year, l.begin_date_month, l.begin_date_day,
+        my $order = 'lt.name,
+                     l.begin_date_year, l.begin_date_month, l.begin_date_day,
                      l.end_date_year,   l.end_date_month,   l.end_date_day,
                      l.ended';
 
-        $order .= $target eq 'url' ? ', url' : ", musicbrainz_collate(${target}.name)";
+        if ($ENTITIES{$target}{sort_name}) {
+            $order .= ", ${target}.sort_name COLLATE musicbrainz";
+        } elsif ($target eq 'url') {
+            $order .= ', url';
+        } else {
+            $order .= ", ${target}.name COLLATE musicbrainz";
+        }
 
         $query = "SELECT $select
                     JOIN $target ON $target_id = ${target}.id
@@ -181,13 +203,13 @@ sub _load
             my $entity1 = $row->{entity1};
             if ($type eq $type0 && exists $objs_by_id{$entity0}) {
                 my $obj = $objs_by_id{$entity0};
-                my $rel = $self->_new_from_row($row, $obj, 0);
+                my $rel = $self->_new_from_row($row, $type0, $type1, $obj, 0);
                 $obj->add_relationship($rel);
                 push @rels, $rel;
             }
             if ($type eq $type1 && exists $objs_by_id{$entity1}) {
                 my $obj = $objs_by_id{$entity1};
-                my $rel = $self->_new_from_row($row, $obj, 1);
+                my $rel = $self->_new_from_row($row, $type0, $type1, $obj, 1);
                 $obj->add_relationship($rel);
                 push @rels, $rel;
             }
@@ -197,6 +219,160 @@ sub _load
         $obj->has_loaded_relationships(1);
     }
     return @rels;
+}
+
+sub _load_related_info {
+    my ($self, @rels) = @_;
+
+    $self->c->model('Link')->load(@rels);
+    my @links = map { $_->link } @rels;
+    $self->c->model('LinkType')->load(@links);
+    my @link_types = map { $_->type } @links;
+    $self->c->model('LinkType')->load_root_ids(@link_types);
+    $self->c->model('LinkAttributeType')->load(map { $_->all_attributes } @link_types);
+    $self->load_entities(@rels);
+}
+
+Readonly our $DEFAULT_LOAD_PAGED_LIMIT => 100;
+
+sub load_paged {
+    my ($self, $source, $target_types, %opts) = @_;
+
+    my $source_type = $source->entity_type;
+    my $source_id = $source->id;
+    my $limit = $opts{limit} // $DEFAULT_LOAD_PAGED_LIMIT;
+    my $offset = $opts{offset} // 0;
+    my $link_type_filter = $opts{link_type_id};
+    my $direction_filter = $opts{direction};
+    my @all_lt_groups;
+    my @all_rels;
+
+    for my $target_type (@{$target_types}) {
+        # Check if relationships were already loaded for this target type.
+        next if exists $source->paged_relationship_groups->{$target_type};
+
+        my ($type0, $type1) = sort($source_type, $target_type);
+
+        my $target_type_group =
+            $source->paged_relationship_groups->{$target_type} =
+            RelationshipTargetTypeGroup->new;
+
+        for my $side ((
+            [$type0, 0, 1, $DIRECTION_FORWARD],
+            [$type1, 1, 0, $DIRECTION_BACKWARD],
+        )) {
+            my ($entity_type, $source_index,
+                $target_index, $direction) = @$side;
+
+            next unless $source_type eq $entity_type;
+
+            next if defined $direction_filter &&
+                $direction_filter != $direction;
+
+            my $source_column = "entity${source_index}";
+            my $target_column = "entity${target_index}";
+
+            my $link_type_counts = $self->get_entity_link_type_counts(
+                $type0, $type1,
+                $source_column, $source->id,
+            );
+
+            my $link_type_groups = $target_type_group->link_type_groups;
+            my @link_type_ids = keys %{$link_type_counts};
+            my $link_types = $self->c->model('LinkType')->get_by_ids(
+                @link_type_ids,
+                $link_type_filter ? $link_type_filter : (),
+            );
+
+            for my $link_type_id (@link_type_ids) {
+                my $total_relationships = $link_type_counts->{$link_type_id};
+
+                my $lt_group = RelationshipLinkTypeGroup->new(
+                    link_type => $link_types->{$link_type_id},
+                    link_type_id => $link_type_id,
+                    backward => ($direction == $DIRECTION_BACKWARD),
+                    total_relationships => $total_relationships,
+                    limit => $limit,
+                    offset => $offset,
+                );
+                my $group_key = "${link_type_id}:${source_column}";
+                $link_type_groups->{$group_key} = $lt_group;
+
+                next if (
+                    $link_type_filter &&
+                    $link_type_id != $link_type_filter
+                );
+
+                my (@params, $query);
+
+                my $order = 'l.begin_date_year, l.begin_date_month, l.begin_date_day, ' .
+                            'l.end_date_year, l.end_date_month, l.end_date_day, ' .
+                            'l.ended';
+
+                if ($ENTITIES{$target_type}{sort_name}) {
+                    $order .= ", ${target_type}.sort_name COLLATE musicbrainz";
+                } elsif ($target_type eq 'url') {
+                    $order .= ', url.url';
+                } else {
+                    $order .= ", ${target_type}.name COLLATE musicbrainz";
+                }
+
+                my $condstring = "l.link_type = ? AND rel.$source_column = ?";
+                push @params, $link_type_id, $source_id;
+
+                if ($opts{use_cardinality}) {
+                    $condstring .= " AND ${source_column}_cardinality = 0";
+                }
+
+                $query = "SELECT rel.* " .
+                    "FROM l_${type0}_${type1} rel " .
+                    'JOIN link l ON link = l.id ' .
+                    "JOIN $target_type ON rel.$target_column = ${target_type}.id " .
+                    "WHERE $condstring " .
+                    "ORDER BY $order";
+
+                if ($limit) {
+                    $query .= ' LIMIT ?';
+                    push @params, $limit;
+                }
+
+                if ($offset) {
+                    $query .= ' OFFSET ?';
+                    push @params, $offset;
+                }
+
+                my @rels = map {
+                    $self->_new_from_row($_, $type0, $type1, $source, $source_index)
+                } @{ $self->sql->select_list_of_hashes($query, @params) };
+                push @all_rels, @rels;
+
+                $lt_group->relationships(\@rels);
+                $lt_group->is_loaded(1);
+                push @all_lt_groups, $lt_group;
+            }
+
+            # If there are 0 relationships for the filtered link type,
+            # return an empty group.
+            if (
+                defined $link_type_filter &&
+                !exists $link_type_counts->{$link_type_filter}
+            ) {
+                my $group_key = "${link_type_filter}:${source_column}";
+                $link_type_groups->{$group_key} = RelationshipLinkTypeGroup->new(
+                    link_type => $link_types->{$link_type_filter},
+                    link_type_id => $link_type_filter,
+                    backward => ($direction == $DIRECTION_BACKWARD),
+                    total_relationships => 0,
+                    limit => $limit,
+                    offset => $offset,
+                    is_loaded => 1,
+                );
+            }
+        }
+    }
+
+    $self->_load_related_info(@all_rels);
+    return \@all_lt_groups;
 }
 
 sub load_entities
@@ -227,12 +403,34 @@ sub load_entities
         if ($rel->entity0_id && !defined($rel->entity0)) {
             my $type = $rel->link->type->entity0_type;
             my $obj = $data_by_type{$type}->{$rel->entity0_id};
-            $rel->entity0($obj) if defined($obj);
+
+            if (defined $obj) {
+                $rel->entity0($obj);
+
+                if ($rel->direction == $DIRECTION_BACKWARD) {
+                    $rel->target($obj);
+                    $rel->target_type($type);
+                } elsif (!defined $rel->source) {
+                    $rel->source($obj);
+                    $rel->source_type($type);
+                }
+            }
         }
         if ($rel->entity1_id && !defined($rel->entity1)) {
             my $type = $rel->link->type->entity1_type;
             my $obj = $data_by_type{$type}->{$rel->entity1_id};
-            $rel->entity1($obj) if defined($obj);
+
+            if (defined $obj) {
+                $rel->entity1($obj);
+
+                if ($rel->direction == $DIRECTION_FORWARD) {
+                    $rel->target($obj);
+                    $rel->target_type($type);
+                } elsif (!defined $rel->source) {
+                    $rel->source($obj);
+                    $rel->source_type($type);
+                }
+            }
         }
     }
 
@@ -264,11 +462,7 @@ sub _load_subset {
         push @rels, $self->_load($type, $types, $use_cardinality, @{$objs_by_type{$type}});
     }
 
-    $self->c->model('Link')->load(@rels);
-    my @links = map { $_->link } @rels;
-    $self->c->model('LinkType')->load(@links);
-    $self->c->model('LinkAttributeType')->load(map { $_->type->all_attributes } @links);
-    $self->load_entities(@rels);
+    $self->_load_related_info(@rels);
 
     return @rels;
 }
@@ -286,6 +480,11 @@ sub load {
 sub load_cardinal {
     my ($self, @objs) = @_;
     return $self->_load_subset(\@RELATABLE_ENTITIES, 1, @objs);
+}
+
+sub load_subset_cardinal {
+    my ($self, $types, @objs) = @_;
+    return $self->_load_subset($types, 1, @objs);
 }
 
 sub generate_table_list {
@@ -358,7 +557,7 @@ sub merge_entities {
             );
         }
 
-        my $relationships = $self->sql->select_list_of_hashes(<<EOSQL, \@ids);
+        my $relationships = $self->sql->select_list_of_hashes(<<~"EOSQL", \@ids);
             SELECT * FROM (
                 SELECT
                     a.*,
@@ -382,7 +581,7 @@ sub merge_entities {
                 ) a
                 JOIN link ON link.id = a.link
             ) b WHERE redundant > 1
-EOSQL
+            EOSQL
 
         # Given a set of duplicate relationship where only one will be kept,
         # determine what {entity0,entity1}_credit should be used. Non-empty
@@ -605,6 +804,13 @@ sub insert
         $self->c->model('Series')->automatically_reorder($values->{entity1_id});
     }
 
+    $self->delete_entity_link_type_counts(
+        $type0,
+        $type1,
+        $row->{entity0},
+        $row->{entity1},
+    );
+
     return $self->_entity_class->new( id => $id );
 }
 
@@ -648,6 +854,13 @@ sub update
 
     $self->c->model('Series')->automatically_reorder($new->{entity1})
         if $series1_changed || ($series1 && $old->{link} != $new->{link});
+
+    $self->delete_entity_link_type_counts(
+        $type0,
+        $type1,
+        $new->{entity0},
+        $new->{entity1},
+    );
 }
 
 sub delete
@@ -659,16 +872,23 @@ sub delete
     $series_col = "entity0" if $type0 eq "series";
     $series_col = "entity1" if $type1 eq "series";
 
-    my $series_ids = $self->sql->select_list_of_hashes(
-        "SELECT $series_col FROM l_${type0}_${type1} WHERE id = any(?)", \@ids
-    ) if $series_col;
+    my $deleted = $self->sql->select_list_of_hashes(
+        "DELETE FROM l_${type0}_${type1} " .
+        "WHERE id IN (" . placeholders(@ids) . ") " .
+        "RETURNING entity0, entity1",
+        @ids,
+    );
 
-    $self->sql->do("DELETE FROM l_${type0}_${type1}
-                    WHERE id IN (" . placeholders(@ids) . ")", @ids);
-
-    if ($series_ids) {
-        $self->c->model('Series')->automatically_reorder($_)
-            for map { $_->{$series_col} } @$series_ids;
+    for my $row (@$deleted) {
+        $self->delete_entity_link_type_counts(
+            $type0,
+            $type1,
+            $row->{entity0},
+            $row->{entity1},
+        );
+        if (defined $series_col) {
+            $self->c->model('Series')->automatically_reorder($row->{$series_col});
+        }
     }
 }
 
@@ -739,6 +959,53 @@ sub lock_and_do {
     }, $self->c->sql);
 }
 
+sub get_entity_link_type_counts {
+    my ($self, $type0, $type1, $side, $entity_id) = @_;
+
+    $self->_check_types($type0, $type1);
+
+    die 'side must be entity0 or entity1'
+        unless $side =~ /^entity[01]$/;
+    die 'entity_id must be defined'
+        unless defined $entity_id;
+
+    my $cache_key = "entity_link_type_counts:$type0:$type1:$side:$entity_id";
+    my $cache = $self->c->cache($self->_type);
+    my $data = $cache->get($cache_key);
+
+    return $data if defined $data;
+
+    my $rows = $self->sql->select_list_of_hashes(
+        'SELECT link.link_type, count(*) AS l_count ' .
+        "FROM l_${type0}_${type1} r " .
+        'JOIN link ON r.link = link.id ' .
+        "WHERE r.$side = ? " .
+        'GROUP BY link.link_type',
+        $entity_id,
+    );
+
+    $data = { map { $_->{link_type} => $_->{l_count} } @$rows };
+    $cache->set($cache_key, $data);
+    return $data;
+}
+
+sub delete_entity_link_type_counts {
+    my ($self, $type0, $type1, $entity0_id, $entity1_id) = @_;
+
+    $self->_check_types($type0, $type1);
+
+    die 'entity0_id must be defined'
+        unless defined $entity0_id;
+    die 'entity1_id must be defined'
+        unless defined $entity1_id;
+
+    my $cache_key_prefix = "entity_link_type_counts:$type0:$type1";
+    $self->c->cache($self->_type)->delete_multi(
+        "$cache_key_prefix:entity0:$entity0_id",
+        "$cache_key_prefix:entity1:$entity1_id",
+    );
+}
+
 __PACKAGE__->meta->make_immutable;
 no Moose;
 1;
@@ -747,22 +1014,12 @@ no Moose;
 
 MusicBrainz::Server::Data::Relationship
 
-=head1 COPYRIGHT
+=head1 COPYRIGHT AND LICENSE
 
 Copyright (C) 2009 Lukas Lalinsky
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program; if not, write to the Free Software
-Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+This file is part of MusicBrainz, the open internet music database,
+and is licensed under the GPL version 2, or (at your option) any
+later version: http://www.gnu.org/licenses/gpl-2.0.txt
 
 =cut

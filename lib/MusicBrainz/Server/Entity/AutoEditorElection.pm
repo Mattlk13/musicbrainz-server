@@ -5,6 +5,7 @@ use namespace::autoclean;
 use MusicBrainz::Server::Entity::Types;
 use MusicBrainz::Server::Constants qw( :election_status );
 use MusicBrainz::Server::Data::Utils qw( boolean_to_json datetime_to_iso8601 );
+use MusicBrainz::Server::Entity::Util::JSON qw( to_json_array );
 use MusicBrainz::Server::Types qw( DateTime AutoEditorElectionStatus );
 use MusicBrainz::Server::Translation qw( N_lp );
 
@@ -167,26 +168,31 @@ sub current_expiration_time
            $self->propose_time->clone->add( weeks => 1 );
 }
 
+sub editor_to_json {
+    my $editor = shift;
+    return defined $editor ? $editor->TO_JSON : undef;
+}
+
 around TO_JSON => sub {
     my ($orig, $self) = @_;
 
     return {
         %{ $self->$orig },
-        candidate => $self->candidate,
+        candidate => editor_to_json($self->candidate),
         close_time => datetime_to_iso8601($self->close_time),
         current_expiration_time => datetime_to_iso8601($self->current_expiration_time),
         is_closed => boolean_to_json($self->is_closed),
         is_open => boolean_to_json($self->is_open),
         is_pending => boolean_to_json($self->is_pending),
         no_votes => $self->no_votes,
-        proposer => $self->proposer,
+        proposer => editor_to_json($self->proposer),
         propose_time => datetime_to_iso8601($self->propose_time),
         open_time => datetime_to_iso8601($self->open_time),
-        seconder_1 => $self->seconder_1,
-        seconder_2 => $self->seconder_2,
+        seconder_1 => editor_to_json($self->seconder_1),
+        seconder_2 => editor_to_json($self->seconder_2),
         status_name => $self->status_name,
         status_name_short => $self->status_name_short,
-        votes => $self->votes,
+        votes => to_json_array($self->votes),
         yes_votes => $self->yes_votes,
     };
 };
@@ -252,22 +258,12 @@ Check if this election has been closed
 
 Check if this election is waiting for other editors to second it.
 
-=head1 COPYRIGHT
+=head1 COPYRIGHT AND LICENSE
 
 Copyright (C) 2009 Oliver Charles
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program; if not, write to the Free Software
-Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+This file is part of MusicBrainz, the open internet music database,
+and is licensed under the GPL version 2, or (at your option) any
+later version: http://www.gnu.org/licenses/gpl-2.0.txt
 
 =cut

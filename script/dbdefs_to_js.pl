@@ -8,20 +8,21 @@ use DBDefs;
 use JSON;
 use Readonly;
 
+use MusicBrainz::Server::DatabaseConnectionFactory;
+
 my ($output_path) = @ARGV;
 
 Readonly our @BOOLEAN_DEFS => qw(
     DB_READ_ONLY
     DB_STAGING_SERVER
+    DB_STAGING_SERVER_SANITIZED
     DB_STAGING_TESTING_FEATURES
     DEVELOPMENT_SERVER
     IS_BETA
 );
 
-Readonly our @HASH_DEFS => qw(
-);
-
 Readonly our @NUMBER_DEFS => qw(
+    ACTIVE_SCHEMA_SEQUENCE
     REPLICATION_TYPE
     STAT_TTL
 );
@@ -37,6 +38,7 @@ Readonly our @STRING_DEFS => qw(
     GOOGLE_CUSTOM_SEARCH
     MAPBOX_ACCESS_TOKEN
     MAPBOX_MAP_ID
+    MB_SERVER_ROOT
     RENDERER_SOCKET
     SENTRY_DSN
     SENTRY_DSN_PUBLIC
@@ -45,7 +47,7 @@ Readonly our @STRING_DEFS => qw(
     WIKITRANS_SERVER
 );
 
-Readonly our @QW_DEFS => qw(
+Readonly our @QW_STRING_DEFS => qw(
     MB_LANGUAGES
 );
 
@@ -60,58 +62,90 @@ Readonly our %CLIENT_DEFS => (
     MB_LANGUAGES => 1,
     SENTRY_DSN_PUBLIC => 1,
     STATIC_RESOURCES_LOCATION => 1,
+    WEB_SERVER => 1,
     WIKITRANS_SERVER => 1,
+);
+
+my @conversions = (
+    {
+        defs => \@BOOLEAN_DEFS,
+        convert => sub { shift ? \\1 : \\0 },
+    },
+    {
+        defs => \@NUMBER_DEFS,
+        convert => sub { \(0 + shift) },
+    },
+    {
+        defs => \@STRING_DEFS,
+        convert => sub { \('' . shift) },
+    },
+    {
+        defs => \@QW_STRING_DEFS,
+        convert => sub { \[map { '' . $_ } @_] },
+    },
+    {
+        defs => ['DATABASES'],
+        convert => sub {
+            my ($databases) = @_;
+
+            my %conversion = map {
+                my $db = $databases->{$_};
+                ($_ => {
+                    user => $db->username,
+                    password => $db->password,
+                    database => $db->database,
+                    host => $db->host,
+                    port => $db->port,
+                })
+            } keys %{$databases};
+
+            return \\%conversion;
+        },
+    }
 );
 
 sub get_value {
     my $def = shift;
 
+    if ($def eq 'DATABASES') {
+        return \%MusicBrainz::Server::DatabaseConnectionFactory::databases;
+    }
+
     # Values can be overridden via the environment.
     $ENV{$def} // DBDefs->$def;
 }
 
+my $json = JSON->new->allow_nonref->ascii->canonical;
 my $server_code = '';
 my $client_code = '';
 
-for my $def (@BOOLEAN_DEFS) {
-    my $value = get_value($def);
+for my $conversion (@conversions) {
+    my ($defs, $convert) = @{$conversion}{qw(defs convert)};
 
-    if (defined $value && $value eq '1') {
-        $value = 'true';
-    } else {
-        $value = 'false';
+    for my $def (@$defs) {
+        my @raw_value = get_value($def);
+        my $json_value = \undef;
+
+        if (defined $raw_value[0]) {
+            $json_value = $convert->(@raw_value);
+        }
+
+        $json_value = $json->encode(${$json_value});
+
+        my $line = "exports.$def = $json_value;\n";
+        $server_code .= $line;
+        $client_code .= $line if $CLIENT_DEFS{$def};
     }
-
-    my $line = "exports.$def = $value;\n";
-    $server_code .= $line;
-    $client_code .= $line if $CLIENT_DEFS{$def};
 }
 
-my $json = JSON->new->allow_nonref->ascii->canonical;
-
-for my $def (@HASH_DEFS, @NUMBER_DEFS, @STRING_DEFS) {
-    my $value = get_value($def);
-    $value = $json->encode($value);
-    my $line = "exports.$def = $value;\n";
-    $server_code .= $line;
-    $client_code .= $line if $CLIENT_DEFS{$def};
-}
-
-for my $def (@QW_DEFS) {
-    my @words = get_value($def);
-    my $value = $json->encode(join ' ', @words);
-    my $line = "exports.$def = $value;\n";
-    $server_code .= $line;
-    $client_code .= $line if $CLIENT_DEFS{$def};
-}
-
-my $server_js_path = "$FindBin::Bin/../root/static/scripts/common/DBDefs.js";
-my $client_js_path = ($server_js_path =~ s/\.js$/-client.js/r);
+my $common_dir = "$FindBin::Bin/../root/static/scripts/common";
+my $server_js_path = "$common_dir/DBDefs.js";
+my $client_json_path = "$common_dir/DBDefs-client-values.js";
 
 open(my $fh, '>', $server_js_path);
 print $fh $server_code;
 close $fh;
 
-open($fh, '>', $client_js_path);
+open($fh, '>', $client_json_path);
 print $fh $client_code;
 close $fh;

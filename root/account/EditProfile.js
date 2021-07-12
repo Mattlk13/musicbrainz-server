@@ -9,33 +9,41 @@
 
 import * as React from 'react';
 
-import UserAccountLayout from '../components/UserAccountLayout';
-import {withCatalystContext} from '../context';
+import UserAccountLayout, {
+  sanitizedAccountLayoutUser,
+} from '../components/UserAccountLayout';
 import * as manifest from '../static/manifest';
-import EditProfileForm from '../static/scripts/account/components/EditProfileForm';
-import type {EditProfileFormPropsT} from '../static/scripts/account/components/EditProfileForm';
+import EditProfileForm
+  from '../static/scripts/account/components/EditProfileForm';
+import type {EditProfileFormPropsT}
+  from '../static/scripts/account/components/EditProfileForm';
 
-type Props = {|
-  +$c: CatalystContextT,
+type Props = {
   ...EditProfileFormPropsT,
-|};
+  +$c: CatalystContextT,
+};
 
-const EditProfile = ({$c, ...props}: Props) => {
+const EditProfile = ({
+  $c,
+  ...props
+}: Props): React.Element<typeof UserAccountLayout> | null => {
   const user = $c.user;
   if (!user) {
     return null;
   }
   return (
     <UserAccountLayout
-      entity={user}
-      gettext_domains={['attributes']}
+      entity={sanitizedAccountLayoutUser(user)}
       page="edit_profile"
       title={l('Edit Profile')}
     >
       <h2>{l('Edit Profile')}</h2>
       <p>
-        {exp.l('See also your {uri|user preferences}, which include your privacy settings.',
-               {uri: '/account/preferences'})}
+        {exp.l(
+          `See also your {uri|user preferences}, which include
+           your privacy settings.`,
+          {uri: '/account/preferences'},
+        )}
       </p>
       <EditProfileForm {...props} />
       {manifest.js('account/edit')}
@@ -43,4 +51,4 @@ const EditProfile = ({$c, ...props}: Props) => {
   );
 };
 
-export default withCatalystContext(EditProfile);
+export default EditProfile;

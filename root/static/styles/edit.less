@@ -86,10 +86,6 @@ table.vote-tally {
     }
 }
 
-.wrap-block {
-    display: inline-block;
-}
-
 .warn-lengths {
     color: @negative-text;
     font-weight: bold;
@@ -155,7 +151,7 @@ table.vote-tally {
     }
 
     /* Adding voting icons to gravatars */
-    h3.No, h3.Yes {
+    h3.Approve, h3.No, h3.Yes {
         position: relative;
 
         .voting-icon {
@@ -165,6 +161,16 @@ table.vote-tally {
             top: 12px;
             left: 17px;
             background-repeat: no-repeat;
+        }
+    }
+
+    h3.Approve {
+        a img {
+            border-color: @yes-border;
+        }
+
+        .voting-icon {
+            background-image: data-uri('../images/icons/tick.png');
         }
     }
 
@@ -201,6 +207,11 @@ table.vote-tally {
     input {
         display: none;
         margin-top: 5px;
+    }
+
+    .edit-note-help {
+        .help-box();
+        margin-left: 1em;
     }
 }
 
@@ -357,20 +368,18 @@ div.status span.msg {
 }
 
 /* Cover art type checkboxes */
-form div.row ul.checkboxes {
+ul.cover-art-type-checkboxes {
+    margin: 0;
     padding: 0;
+    display: flex;
+    flex-wrap: wrap;
 
     li {
         display: inline;
 
         label {
             float: none;
-            text-align: left;
-        }
-
-        span {
-            display: inline-block;
-            min-width: 50px;
+            text-align: left !important;
         }
     }
 }
@@ -429,14 +438,19 @@ div.thumb-position.moved {
     display: block;
 }
 
-#set-cover-art-images { margin: 2em 0; overflow: hidden; }
+#set-cover-art-images {
+    display: flex;
+    flex-wrap: wrap;
+    flex-direction: row;
+    margin: 2em 0;
+    overflow: hidden;
+}
 
 .set-cover-art div.cover-image { float: left; margin: 0 10px 10px 0; }
 
 .set-cover-art div.editimage {
-    position: relative;
-    float: left;
-    width: 300px;
+    display: inline-block;
+    width: 400px;
     min-height: 140px;
     margin: 3px;
     padding: 5px;
@@ -452,10 +466,6 @@ div.thumb-position.moved {
 .set-cover-art div.editimage img {
     max-width: 125px;
     max-height: 125px;
-}
-
-div.editimage button.set-cover-art {
-    position: absolute; right: 5px; bottom: 5px;
 }
 
 div.editimage p.currently-selected { display: none; }
@@ -491,4 +501,14 @@ div.editimage.selected p.currently-selected { display: block; }
     margin: 1em 0;
     h3 { margin-top: 0; }
     h3, p { margin-left: 0; }
+}
+
+/*
+  Vertical align for specific edit tables
+  ================================================
+*/
+
+tr.release-events-diff,
+tr.edit-medium-track {
+    td { vertical-align: top; }
 }

@@ -1,5 +1,5 @@
 /*
- * @flow
+ * @flow strict-local
  * Copyright (C) 2019 MetaBrainz Foundation
  *
  * This file is part of MusicBrainz, the open internet music database,
@@ -39,6 +39,14 @@ const layoutPicker = {
   work: WorkLayout,
 };
 
-export default function chooseLayoutComponent(typeName: string) {
+export default function chooseLayoutComponent(
+  typeName: string,
+): React$ComponentType<{
+  +children: React$Node,
+  +entity: CoreEntityT | EditorT | CollectionT,
+  +fullWidth?: boolean,
+  +page?: string,
+  +title: string,
+}> {
   return layoutPicker[typeName];
 }

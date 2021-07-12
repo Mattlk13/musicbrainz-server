@@ -1,5 +1,5 @@
 /*
- * @flow
+ * @flow strict-local
  * Copyright (C) 2018 MetaBrainz Foundation
  *
  * This file is part of MusicBrainz, the open internet music database,
@@ -7,38 +7,80 @@
  * later version: http://www.gnu.org/licenses/gpl-2.0.txt
  */
 
-import React from 'react';
+import * as React from 'react';
 
 import FieldErrors from './FieldErrors';
 import FormRow from './FormRow';
 import FormLabel from './FormLabel';
 
-type Props = {
+type InputOnChange = (SyntheticKeyboardEvent<HTMLInputElement>) => void;
+
+type InputProps = {
+  +className?: string,
+  defaultValue?: string,
+  +disabled: boolean,
+  +id: string,
+  +name: string,
+  onChange?: InputOnChange,
+  +required: boolean,
+  +size: ?number,
+  +type: string,
+  value?: string,
+};
+
+type CommonProps = {
+  +children?: React.Node,
+  +className?: string,
+  +disabled?: boolean,
   +field: ReadOnlyFieldT<?string>,
   +label: string,
   +required?: boolean,
+  +size?: number,
   +type?: string,
 };
 
-const FormRowText = ({
-  field,
-  label,
-  required = false,
-  type = 'text',
-  ...inputProps
-}: Props) => (
-  <FormRow>
-    <FormLabel forField={field} label={label} required={required} />
-    <input
-      defaultValue={field.value || ''}
-      id={'id-' + field.html_name}
-      name={field.html_name}
-      required={required}
-      type={type}
-      {...inputProps}
-    />
-    <FieldErrors field={field} />
-  </FormRow>
-);
+export type Props =
+  | $ReadOnly<{
+      ...CommonProps,
+      onChange: InputOnChange,
+      uncontrolled?: false,
+    }>
+  | $ReadOnly<{
+      ...CommonProps,
+      uncontrolled: true,
+    }>;
+
+const FormRowText = (props: Props): React.Element<typeof FormRow> => {
+  const field = props.field;
+  const required = props.required ?? false;
+
+  const inputProps: InputProps = {
+    className: props.className,
+    disabled: props.disabled ?? false,
+    id: 'id-' + field.html_name,
+    name: field.html_name,
+    required: required,
+    size: props.size,
+    type: props.type ?? 'text',
+  };
+
+  const inputValue = field.value ?? '';
+
+  if (props.uncontrolled /*:: === true */) {
+    inputProps.defaultValue = inputValue;
+  } else {
+    inputProps.onChange = props.onChange;
+    inputProps.value = inputValue;
+  }
+
+  return (
+    <FormRow>
+      <FormLabel forField={field} label={props.label} required={required} />
+      <input {...inputProps} />
+      {props.children}
+      <FieldErrors field={field} />
+    </FormRow>
+  );
+};
 
 export default FormRowText;

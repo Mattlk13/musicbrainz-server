@@ -8,14 +8,10 @@
       </script>
     </head>
   [% ELSE %]
-    [%- IF !gettext_domains;
-          SET gettext_domains = ['attributes', 'countries', 'instruments', 'instrument_descriptions', 'languages', 'relationships'];
-        END;
-        React.embed(c, 'layout/components/Head', {
-            gettext_domains => gettext_domains,
+    [%- React.embed(c, 'layout/components/Head', {
             homepage => homepage,
-            no_icons => no_icons,
-            pager => pager,
+            noIcons => boolean_to_json(no_icons),
+            pager => React.serialize_pager(pager),
             title => title,
         })
     -%]
@@ -31,17 +27,14 @@
 
       <script>
         $(document)
-          .on("submit", function () {
-            containingDialog.toggleLoading(true);
-          })
           .on("click", ":button", function () {
-            containingDialog.adjustSize(document);
+            containingDialog.current.adjustDialogSize(window);
           })
           .on("keydown", function (event) {
               // $.ui can't esc-close a dialog if focus is within an iframe,
               // so we handle it ourselves.
               if (event.keyCode === 27 && !event.isDefaultPrevented()) {
-                  containingDialog.close(event);
+                  containingDialog.current.close();
               }
           });
       </script>

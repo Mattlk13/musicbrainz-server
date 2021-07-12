@@ -1,5 +1,5 @@
 /*
- * @flow
+ * @flow strict-local
  * Copyright (C) 2018 MetaBrainz Foundation
  *
  * This file is part of MusicBrainz, the open internet music database,
@@ -7,17 +7,17 @@
  * later version: http://www.gnu.org/licenses/gpl-2.0.txt
  */
 
-import React from 'react';
+import * as React from 'react';
 
 import {CONTACT_URL, DONATE_URL} from '../constants';
 import StatusPage from '../components/StatusPage';
 
-type Props = {|
+type Props = {
   +days: number,
   +nag: boolean,
-|};
+};
 
-const Donation = ({days, nag}: Props) => (
+const Donation = ({days, nag}: Props): React.Element<typeof StatusPage> => (
   <StatusPage title={l('Donation Check')}>
     {nag
       ? (

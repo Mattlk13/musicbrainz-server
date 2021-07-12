@@ -1,5 +1,5 @@
 /*
- * @flow
+ * @flow strict
  * Copyright (C) 2017 MetaBrainz Foundation
  *
  * This file is part of MusicBrainz, the open internet music database,
@@ -17,7 +17,7 @@ let LAST_FIELD_ID = 99999;
 
 export type MapFields<F> = $ObjMap<F, <T>(T) => FieldT<T>>;
 
-export function createCompoundField<F: {[string]: mixed}>(
+export function createCompoundField<F: {[fieldValueKey: string]: mixed, ...}>(
   name: string,
   fieldValues: F,
 ): CompoundFieldT<MapFields<F>> {
@@ -31,6 +31,7 @@ export function createCompoundField<F: {[string]: mixed}>(
     has_errors: false,
     html_name: name,
     id: ++LAST_FIELD_ID,
+    type: 'compound_field',
   };
 }
 
@@ -43,6 +44,7 @@ export function createField<T>(
     has_errors: false,
     html_name: name,
     id: ++LAST_FIELD_ID,
+    type: 'field',
     value,
   };
 }

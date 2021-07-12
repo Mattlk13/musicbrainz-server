@@ -11,7 +11,8 @@ use MusicBrainz::Server::Edit::Exceptions;
 use MusicBrainz::Server::Edit::Types qw( Nullable PartialDateHash );
 use MusicBrainz::Server::Edit::Utils qw( gid_or_id merge_value );
 use MusicBrainz::Server::Entity::Area;
-use MusicBrainz::Server::Translation qw( N_l l );
+use MusicBrainz::Server::Entity::Util::JSON qw( to_json_object );
+use MusicBrainz::Server::Translation qw( N_l l lp );
 use MusicBrainz::Server::Entity::Util::MediumFormat qw( combined_medium_format_name );
 use Scalar::Util qw( looks_like_number );
 
@@ -94,7 +95,7 @@ sub process_medium_formats
 
     return combined_medium_format_name(map {
         if ($_ eq '(unknown)') {
-            l('(unknown)');
+            lp('(unknown)', 'medium format');
         }
         else {
             MediumFormat->new(name => $_)->l_name;
@@ -108,32 +109,40 @@ sub build_display_data {
     my $data = $self->data;
 
     my $display_data = {
-        release => $loaded->{Release}->{gid_or_id($data->{release})} // Release->new(name => $data->{release}{name}),
+        release => $loaded->{Release}{ gid_or_id($data->{release}) } // Release->new(name => $data->{release}{name}),
         catalog_number => {
             new => $data->{new}{catalog_number},
             old => $data->{old}{catalog_number},
         },
-        extra => $data->{release}
+        barcode => $data->{release}{barcode}
     };
 
-    if ($display_data->{extra}{medium_formats}) {
-        $display_data->{extra}{combined_format} = $self->process_medium_formats($data->{extra}{medium_formats});
+    if ($data->{release}{medium_formats}) {
+        $display_data->{combined_format} = $self->process_medium_formats($data->{release}{medium_formats});
     }
 
-    $display_data->{extra}{events} = [
+    $display_data->{events} = [
         map {
             my $event_display = {};
 
             if (exists $_->{country}) {
                 my $country = $_->{country};
+                my $country_gid_or_id = gid_or_id($country);
 
-                $event_display->{country} = $loaded->{Area}->{gid_or_id($country)} //
-                    (defined($country->{name}) && MusicBrainz::Server::Entity::Area->new($country));
+                $event_display->{country} = defined $country_gid_or_id && $loaded->{Area}{$country_gid_or_id};
+                $event_display->{country} //= defined $country->{name} && MusicBrainz::Server::Entity::Area->new($country);
             }
 
             $event_display->{date} = MusicBrainz::Server::Entity::PartialDate->new($_->{date});
             $event_display;
-        } @{ $display_data->{extra}{events} // [] }
+        } @{ $data->{release}{events} // [] }
+    ];
+
+    $display_data->{events_json} = [
+        map +{
+            country => to_json_object($_->{country}),
+            date => to_json_object($_->{date}),
+        }, @{ $display_data->{events} }
     ];
 
     for (qw( new old )) {
@@ -331,6 +340,8 @@ around extract_property => sub {
 sub _get_country_hash_from_id_or_name {
     my ($self, $id_or_name) = @_;
 
+    return undef unless non_empty($id_or_name);
+
     my $country_hash = {};
     my $country;
 
@@ -389,22 +400,12 @@ __PACKAGE__->meta->make_immutable;
 no Moose;
 1;
 
-=head1 COPYRIGHT
+=head1 COPYRIGHT AND LICENSE
 
 Copyright (C) 2010 MetaBrainz Foundation
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program; if not, write to the Free Software
-Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+This file is part of MusicBrainz, the open internet music database,
+and is licensed under the GPL version 2, or (at your option) any
+later version: http://www.gnu.org/licenses/gpl-2.0.txt
 
 =cut

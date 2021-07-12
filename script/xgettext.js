@@ -1,9 +1,10 @@
 #!/usr/bin/env node
 /*
- * This file is part of MusicBrainz, the open internet music database.
  * Copyright (C) 2018 MetaBrainz Foundation
- * Licensed under the GPL version 2, or (at your option) any later version:
- * http://www.gnu.org/licenses/gpl-2.0.txt
+ *
+ * This file is part of MusicBrainz, the open internet music database,
+ * and is licensed under the GPL version 2, or (at your option) any
+ * later version: http://www.gnu.org/licenses/gpl-2.0.txt
  */
 
 /* eslint-disable import/no-commonjs */
@@ -24,12 +25,11 @@ require('@babel/register')({
 });
 
 const gettextParser = require('gettext-parser');
-const has = require('lodash/has');
-const moment = require('moment');
 const XGettext = require('xgettext-js');
 const argv = require('yargs').argv;
 
-const cleanMsgid = require('../root/static/scripts/common/i18n/cleanMsgid').default;
+const cleanMsgid =
+  require('../root/static/scripts/common/i18n/cleanMsgid').default;
 
 const PO_DIR = path.resolve(__dirname, '../po');
 
@@ -41,7 +41,6 @@ const potFile = {
   headers: {
     'project-id-version': 'PACKAGE VERSION',
     'report-msgid-bugs-to': '',
-    'pot-creation-date': moment().format('YYYY-MM-DD HH:mmZZ'),
     'po-revision-date': 'YEAR-MO-DA HO:MI+ZONE',
     'last-translator': 'FULL NAME <EMAIL@ADDRESS>',
     'language-team': 'LANGUAGE <LL@li.org>',
@@ -62,7 +61,9 @@ function extractStringLiteral(node) {
 
     case 'TemplateLiteral':
       if (node.expressions.length) {
-        throw new Error('Error: Template literals are not allowed to contain expressions');
+        throw new Error(
+          'Error: Template literals are not allowed to contain expressions',
+        );
       }
       return node.quasis[0].value.cooked;
 
@@ -105,12 +106,17 @@ const getReference = node => (
 
 const getComments = node => ({reference: getReference(node)});
 const msgOrdering = new WeakMap();
+/*
+ * This module is not run through Webpack, so don't try to use `hasOwnProp`
+ * here. It's not available!
+ */
+const hasOwnProperty = Object.prototype.hasOwnProperty;
 
 const addMsg = (data) => {
   const msgid = data.msgid;
   const msgctxt = data.msgctxt || '';
 
-  if (!has(translations, msgctxt)) {
+  if (!hasOwnProperty.call(translations, msgctxt)) {
     translations[msgctxt] = {};
   }
 
@@ -136,8 +142,8 @@ const catchErrors = cb => {
     try {
       cb(match);
     } catch (err) {
-      console.error
-        (`Bad string in ${JSON.stringify(currentFile)}:`,
+      console.error(
+        `Bad string in ${JSON.stringify(currentFile)}:`,
         match,
       );
       throw err;
@@ -219,7 +225,14 @@ const keywords = {
 const parser = new XGettext({
   keywords,
   parseOptions: {
-    plugins: ['jsx', 'flow', 'dynamicImport', 'classProperties'],
+    plugins: [
+      'jsx',
+      'flow',
+      'dynamicImport',
+      'classProperties',
+      'optionalChaining',
+      'nullishCoalescingOperator',
+    ],
     sourceType: 'unambiguous',
   },
 });
@@ -242,5 +255,5 @@ console.log(
         return msgOrdering.get(a) - msgOrdering.get(b);
       },
     })
-    .toString('utf-8')
+    .toString('utf-8'),
 );

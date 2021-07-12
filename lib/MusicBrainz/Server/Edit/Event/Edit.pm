@@ -7,6 +7,7 @@ use MusicBrainz::Server::Constants qw(
     $EDIT_EVENT_EDIT
 );
 use MusicBrainz::Server::Constants qw( :edit_status );
+use MusicBrainz::Server::Data::Utils qw( boolean_to_json );
 use MusicBrainz::Server::Edit::Types qw( Nullable PartialDateHash );
 use MusicBrainz::Server::Edit::Utils qw(
     changed_relations
@@ -17,6 +18,7 @@ use MusicBrainz::Server::Edit::Utils qw(
     time_closure
 );
 use MusicBrainz::Server::Entity::PartialDate;
+use MusicBrainz::Server::Entity::Util::JSON qw( to_json_object );
 use MusicBrainz::Server::Translation qw( N_l );
 use MusicBrainz::Server::Validation qw( normalise_strings );
 
@@ -39,6 +41,7 @@ with 'MusicBrainz::Server::Edit::Role::DatePeriod';
 
 sub edit_name { N_l('Edit event') }
 sub edit_type { $EDIT_EVENT_EDIT }
+sub edit_template_react { "EditEvent" }
 
 sub _edit_model { 'Event' }
 
@@ -98,16 +101,28 @@ sub build_display_data
 
     my $data = changed_display_data($self->data, $loaded, %map);
 
-    $data->{event} = $loaded->{Event}{ $self->data->{entity}{id} }
-        || Event->new( name => $self->data->{entity}{name} );
+    $data->{event} = to_json_object(
+        $loaded->{Event}{ $self->data->{entity}{id} } ||
+        Event->new( name => $self->data->{entity}{name} )
+    );
 
     for my $date_prop (qw( begin_date end_date )) {
         if (exists $self->data->{new}{$date_prop}) {
             $data->{$date_prop} = {
-                new => PartialDate->new($self->data->{new}{$date_prop}),
-                old => PartialDate->new($self->data->{old}{$date_prop}),
+                new => to_json_object(PartialDate->new($self->data->{new}{$date_prop})),
+                old => to_json_object(PartialDate->new($self->data->{old}{$date_prop})),
             };
         }
+    }
+
+    if (exists $data->{cancelled}) {
+        $data->{cancelled}{old} = boolean_to_json($data->{cancelled}{old});
+        $data->{cancelled}{new} = boolean_to_json($data->{cancelled}{new});
+    }
+
+    if (exists $data->{type}) {
+        $data->{type}{old} = to_json_object($data->{type}{old});
+        $data->{type}{new} = to_json_object($data->{type}{new});
     }
 
     return $data;

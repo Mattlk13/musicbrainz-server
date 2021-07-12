@@ -1,14 +1,23 @@
 package MusicBrainz::Server::Data::Release;
 
+use 5.18.2; # enables the state feature
+use utf8;
+
 use Moose;
 use namespace::autoclean -also => [qw( _where_status_in _where_type_in )];
 
 use Carp 'confess';
 use DBDefs;
+use JSON::XS;
 use List::AllUtils qw( all );
 use List::MoreUtils qw( part );
-use List::UtilsBy qw( partition_by );
-use MusicBrainz::Server::Constants qw( :quality $EDIT_RELEASE_CREATE $STATUS_APPLIED );
+use List::UtilsBy qw( nsort_by partition_by );
+use MusicBrainz::Server::Constants qw(
+    :quality
+    $EDIT_RELEASE_CREATE
+    $STATUS_APPLIED
+    $VARTIST_ID
+);
 use MusicBrainz::Server::Entity::Barcode;
 use MusicBrainz::Server::Entity::PartialDate;
 use MusicBrainz::Server::Entity::Release;
@@ -23,7 +32,8 @@ use MusicBrainz::Server::Data::Utils qw(
     placeholders
 );
 use MusicBrainz::Server::Log qw( log_debug );
-use MusicBrainz::Server::Translation qw( N_l );
+use MusicBrainz::Server::Translation qw( comma_list N_l );
+use MusicBrainz::Server::Validation qw( encode_entities );
 use aliased 'MusicBrainz::Server::Entity::Artwork';
 
 extends 'MusicBrainz::Server::Data::CoreEntity';
@@ -39,6 +49,16 @@ with 'MusicBrainz::Server::Data::Role::Collection';
 use Readonly;
 Readonly our $MERGE_APPEND => 1;
 Readonly our $MERGE_MERGE => 2;
+
+Readonly::Hash our %RELEASE_MERGE_ERRORS => (
+    ambiguous_recording_merge   => N_l('Unable to determine which recording {source_recording} should be merged into. There are multiple valid options: {target_recordings}.'),
+    medium_missing              => N_l('Some mediums being merged don’t have an equivalent on the target release: either the target release has less mediums, or the positions don’t match.'),
+    medium_positions            => N_l('The medium positions conflict.'),
+    medium_track_counts         => N_l('The track counts on at least one set of corresponding mediums do not match.'),
+    merging_into_empty          => N_l('Merging a medium with tracks into one without them is not currently supported. You can always merge in the other direction!'),
+    pregaps                     => N_l('Mediums with a pregap track can only be merged with other mediums with a pregap track.'),
+    recording_merge_cycle       => N_l('A merge cycle exists whereby two recordings ({recording1} and {recording2}) each want to merge into the other. This is likely because the tracks or recordings are in an inconsistent order on the releases.'),
+);
 
 sub _type { 'release' }
 
@@ -82,13 +102,13 @@ sub _column_mapping
 
 sub _where_filter
 {
-    my ($filter) = @_;
+    my ($filter, $using_artist_release_table) = @_;
 
     my (@query, @joins, @params);
 
     if (defined $filter) {
         if (exists $filter->{name}) {
-            push @query, "(to_tsvector('mb_simple', release.name) @@ plainto_tsquery('mb_simple', ?) OR release.name = ?)";
+            push @query, "(mb_simple_tsvector(release.name) @@ plainto_tsquery('mb_simple', mb_lower(?)) OR release.name = ?)";
             push @params, $filter->{name}, $filter->{name};
         }
         if (exists $filter->{artist_credit_id}) {
@@ -98,7 +118,7 @@ sub _where_filter
         if (exists $filter->{status} && $filter->{status}) {
             my @statuses = ref($filter->{status}) ? @{ $filter->{status} } : ( $filter->{status} );
             if (@statuses) {
-                push @query, 'status IN (' . placeholders(@statuses) . ')';
+                push @query, 'release.status IN (' . placeholders(@statuses) . ')';
                 push @params, @statuses;
             }
         }
@@ -119,6 +139,36 @@ sub _where_filter
                 push @params, [ map { substr($_, 3) } @$secondary ];
                 push @joins, 'JOIN release_group_secondary_type_join st ON release.release_group = st.release_group';
             }
+        }
+        my $country_id_filter = $filter->{country_id};
+        my $date_filter = $filter->{date};
+        if (defined $country_id_filter || defined $date_filter) {
+            my $country_date_query = 'release.id IN (SELECT release FROM release_event WHERE ';
+            my @country_date_conditions;
+            if (defined $country_id_filter) {
+                push @country_date_conditions, 'country = ?';
+                push @params, $country_id_filter;
+            }
+            if (defined $date_filter) {
+                my $date = MusicBrainz::Server::Entity::PartialDate->new($date_filter);
+                if (defined $date->year) {
+                    push @country_date_conditions, 'date_year = ?';
+                    push @params, $date->year;
+                }
+                if (defined $date->month) {
+                    push @country_date_conditions, 'date_month = ?';
+                    push @params, $date->month;
+                }
+                if (defined $date->day) {
+                    push @country_date_conditions, 'date_day = ?';
+                    push @params, $date->day;
+                }
+            }
+            $country_date_query .= (join ' AND ', @country_date_conditions) . ')';
+            push @query, $country_date_query;
+        }
+        if ($using_artist_release_table) {
+            unshift @joins, 'JOIN release ON release.id = ar.release';
         }
     }
 
@@ -151,44 +201,133 @@ sub find_by_area {
                    JOIN release_event ON release.id = release_event.release
                    JOIN area ON release_event.country = area.id
                  WHERE area.id = ?
-                 ORDER BY musicbrainz_collate(release.name), release.id";
+                 ORDER BY release.name COLLATE musicbrainz, release.id";
 
     $self->query_to_list_limited($query, [$area_id], $limit, $offset);
+}
+
+sub has_materialized_artist_release_data {
+    my ($self) = @_;
+    CORE::state $has_data;
+    if (defined $has_data) {
+        return $has_data;
+    }
+    $has_data = $self->sql->select_single_value(
+        'SELECT 1 FROM artist_release LIMIT 1',
+    ) ? 1 : 0;
+    return $has_data;
+}
+
+sub _find_by_artist_slow
+{
+    my ($self, $artist_id, $limit, $offset, %args) = @_;
+
+    my ($conditions, $extra_joins, $params) = _where_filter($args{filter}, 0);
+
+    push @$conditions, "acn.artist = ?";
+    push @$params, $artist_id;
+
+    my $query;
+    if ($artist_id == $VARTIST_ID) {
+        # MBS-10939: For VA, only order by ID. Sorting by date, country
+        # name, etc. doesn't currently scale at this level and causes
+        # load issues on our DB server.
+        $query = "
+            SELECT DISTINCT ON (release.id) " .
+            $self->_columns . " FROM " . $self->_table . "
+            JOIN artist_credit_name acn ON acn.artist_credit = release.artist_credit
+            " . join(' ', @$extra_joins) . "
+            WHERE " . join(" AND ", @$conditions) . "
+            ORDER BY release.id";
+    } else {
+        $query = "
+            SELECT *
+            FROM (
+              SELECT DISTINCT ON (release.id)
+                " . $self->_columns . ",
+                date_year, date_month, date_day, area.name AS country_name
+              FROM " . $self->_table . "
+              JOIN artist_credit_name acn ON acn.artist_credit = release.artist_credit
+              " . join(' ', @$extra_joins) . "
+              LEFT JOIN release_event ON release_event.release = release.id
+              LEFT JOIN area ON area.id = release_event.country
+              WHERE " . join(" AND ", @$conditions) . "
+              ORDER BY release.id, date_year, date_month, date_day,
+                country_name, barcode, release.name COLLATE musicbrainz
+            ) release
+            ORDER BY date_year, date_month, date_day,
+              country_name, barcode, name COLLATE musicbrainz";
+    }
+    $self->query_to_list_limited($query, $params, $limit, $offset, undef, cache_hits => 1);
+}
+
+sub _find_by_artist_fast {
+    my ($self, $artist_id, $va, $limit, $offset, %args) = @_;
+
+    my ($conditions, $extra_joins, $params) = _where_filter($args{filter}, 1);
+
+    push @$conditions, 'ar.is_track_artist = ' . ($va ? 'TRUE' : 'FALSE');
+    push @$conditions, 'ar.artist = ?';
+    push @$params, $artist_id;
+
+    my $inner_query = "FROM artist_release ar " .
+        join(' ', @$extra_joins) . ' ' .
+        'WHERE ' . join(' AND ', @$conditions);
+
+    my $count_query = 'SELECT count(*) ' . $inner_query;
+    my $total_row_count = $self->sql->select_single_value($count_query, @$params);
+
+    my $results_query = 'SELECT release ' .
+        $inner_query . ' ' .
+        # Do NOT modify the `ORDER BY` here. We're returning things in
+        # index order (`artist_release_*_idx_sort`) to avoid a sort
+        # operation. Changing the order is a schema change.
+        'ORDER BY ar.artist, ' .
+            'ar.first_release_date NULLS LAST, ' .
+            'ar.catalog_numbers NULLS LAST, ' .
+            'ar.country_code NULLS LAST, ' .
+            'ar.barcode NULLS LAST, ' .
+            'ar.sort_character, ' .
+            'ar.release ' .
+        'LIMIT ? OFFSET ?';
+
+    my $release_ids = $self->sql->select_single_column_array(
+        $results_query, @$params, $limit, $offset,
+    );
+    my $releases_by_id = $self->get_by_ids(@$release_ids);
+
+    my @releases = map { $releases_by_id->{$_} } @$release_ids;
+    $self->load_meta(@releases);
+
+    return (\@releases, $total_row_count);
 }
 
 sub find_by_artist
 {
     my ($self, $artist_id, $limit, $offset, %args) = @_;
 
-    my ($conditions, $extra_joins, $params) = _where_filter($args{filter});
+    if ($self->has_materialized_artist_release_data) {
+        return $self->_find_by_artist_fast($artist_id, 0, $limit, $offset, %args);
+    }
+    return $self->_find_by_artist_slow($artist_id, $limit, $offset, %args);
+}
 
-    push @$conditions, "acn.artist = ?";
-    push @$params, $artist_id;
+sub find_by_artist_credit
+{
+    my ($self, $artist_credit_id, $limit, $offset) = @_;
 
-    my $query = "
-      SELECT *
-      FROM (
-        SELECT DISTINCT ON (release.id)
-          " . $self->_columns . ",
-          date_year, date_month, date_day, area.name AS country_name
-        FROM " . $self->_table . "
-        JOIN artist_credit_name acn ON acn.artist_credit = release.artist_credit
-        " . join(' ', @$extra_joins) . "
-        LEFT JOIN release_event ON release_event.release = release.id
-        LEFT JOIN area ON area.id = release_event.country
-        WHERE " . join(" AND ", @$conditions) . "
-        ORDER BY release.id, date_year, date_month, date_day,
-          country_name, barcode, musicbrainz_collate(release.name)
-      ) release
-      ORDER BY date_year, date_month, date_day,
-        country_name, barcode, musicbrainz_collate(name)";
-    $self->query_to_list_limited($query, $params, $limit, $offset);
+    my $query = "SELECT " . $self->_columns . ",
+                   release.name COLLATE musicbrainz AS name_collate
+                 FROM " . $self->_table . "
+                 WHERE artist_credit = ?
+                 ORDER BY release.name COLLATE musicbrainz";
+    $self->query_to_list_limited($query, [$artist_credit_id], $limit, $offset);
 }
 
 sub find_by_instrument {
     my ($self, $instrument_id, $limit, $offset, %args) = @_;
 
-    my ($conditions, $extra_joins, $params) = _where_filter($args{filter});
+    my ($conditions, $extra_joins, $params) = _where_filter($args{filter}, 0);
 
     push @$conditions, "instrument.id = ?";
     push @$params, $instrument_id;
@@ -200,10 +339,12 @@ sub find_by_instrument {
         SELECT " . $self->_columns . ",
           date_year, date_month, date_day,
           area.name AS country_name,
-          array_agg(lac.credited_as) AS instrument_credits
+          array_agg(json_build_object('typeName', link_type.name, 'credit', lac.credited_as)) AS instrument_credits_and_rel_types
         FROM " . $self->_table . "
         JOIN l_artist_release ON l_artist_release.entity1 = release.id
-        JOIN link_attribute ON link_attribute.link = l_artist_release.link
+        JOIN link ON link.id = l_artist_release.link
+        JOIN link_type ON link_type.id = link.link_type
+        JOIN link_attribute ON link_attribute.link = link.id
         JOIN link_attribute_type ON link_attribute_type.id = link_attribute.attribute_type
         JOIN instrument ON instrument.gid = link_attribute_type.gid
         LEFT JOIN link_attribute_credit lac ON (
@@ -216,18 +357,18 @@ sub find_by_instrument {
          WHERE " . join(" AND ", @$conditions) . "
         GROUP BY release.id, date_year, date_month, date_day, country_name
         ORDER BY release.id, date_year, date_month, date_day,
-          musicbrainz_collate(release.name), country_name,
+          release.name COLLATE musicbrainz, country_name,
           barcode
       ) s
       ORDER BY date_year, date_month, date_day,
-        musicbrainz_collate(name), country_name,
+        name COLLATE musicbrainz, country_name,
         barcode";
 
     $self->query_to_list_limited($query, $params, $limit, $offset, sub {
         my ($model, $row) = @_;
 
-        my $credits = delete $row->{instrument_credits};
-        { release => $model->_new_from_row($row), instrument_credits => $credits };
+        my $credits_and_rel_types = delete $row->{instrument_credits_and_rel_types};
+        { release => $model->_new_from_row($row), instrument_credits_and_rel_types => $credits_and_rel_types };
     });
 }
 
@@ -235,7 +376,7 @@ sub find_by_label
 {
     my ($self, $label_id, $limit, $offset, %args) = @_;
 
-    my ($conditions, $extra_joins, $params) = _where_filter($args{filter});
+    my ($conditions, $extra_joins, $params) = _where_filter($args{filter}, 0);
 
     push @$conditions, "release_label.label = ?";
     push @$params, $label_id;
@@ -254,13 +395,13 @@ sub find_by_label
         LEFT JOIN area ON area.id = release_event.country
          WHERE " . join(" AND ", @$conditions) . "
         ORDER BY release.id, date_year, date_month, date_day, catalog_number,
-          musicbrainz_collate(release.name), country_name,
+          release.name COLLATE musicbrainz, country_name,
           barcode
       ) s
       ORDER BY date_year, date_month, date_day, catalog_number,
-        musicbrainz_collate(name), country_name,
+        name COLLATE musicbrainz, country_name,
         barcode";
-    $self->query_to_list_limited($query, $params, $limit, $offset);
+    $self->query_to_list_limited($query, $params, $limit, $offset, undef, cache_hits => 1);
 }
 
 sub find_by_disc_id
@@ -280,10 +421,10 @@ sub find_by_disc_id
         LEFT JOIN release_event ON release_event.release = release.id
         WHERE cdtoc.discid = ?
         ORDER BY release.id, date_year, date_month, date_day,
-          musicbrainz_collate(release.name)
+          release.name COLLATE musicbrainz
       ) s
       ORDER BY date_year, date_month, date_day,
-        musicbrainz_collate(name)";
+        name COLLATE musicbrainz";
 
     $self->query_to_list($query, [$disc_id]);
 }
@@ -293,7 +434,7 @@ sub find_by_release_group
     my ($self, $ids, $limit, $offset, %args) = @_;
     my @ids = ref $ids ? @$ids : ( $ids );
 
-    my ($conditions, $extra_joins, $params) = _where_filter($args{filter});
+    my ($conditions, $extra_joins, $params) = _where_filter($args{filter}, 0);
 
     push @$conditions, "release_group IN (" . placeholders(@ids) . ")";
     push @$params, @ids;
@@ -318,11 +459,11 @@ sub find_by_release_group
     $self->query_to_list_limited($query, $params, $limit, $offset);
 }
 
-sub find_by_track_artist
+sub _find_by_track_artist_slow
 {
     my ($self, $artist_id, $limit, $offset, %args) = @_;
 
-    my ($conditions, $extra_joins, $params) = _where_filter($args{filter});
+    my ($conditions, $extra_joins, $params) = _where_filter($args{filter}, 0);
 
     push @$conditions, "
         release.id IN (
@@ -351,57 +492,33 @@ sub find_by_track_artist
           LEFT JOIN area ON area.id = release_event.country
           WHERE " . join(" AND ", @$conditions) . "
           ORDER BY release.id, date_year, date_month, date_day,
-            musicbrainz_collate(release.name)
+            release.name COLLATE musicbrainz
       ) s
       ORDER BY date_year, date_month, date_day,
-        musicbrainz_collate(name)";
+        name COLLATE musicbrainz";
 
     $self->query_to_list_limited($query, $params, $limit, $offset);
 }
 
-sub find_for_various_artists
+sub find_by_track_artist
 {
     my ($self, $artist_id, $limit, $offset, %args) = @_;
 
-    my ($conditions, $extra_joins, $params) = _where_filter($args{filter});
-
-    push @$conditions, "
-        acn.artist != ?
-        AND release.id IN (
-            SELECT release FROM medium
-                JOIN track tr
-                ON tr.medium = medium.id
-                JOIN artist_credit_name acn
-                ON acn.artist_credit = tr.artist_credit
-            WHERE acn.artist = ?)";
-    push @$params, $artist_id, $artist_id;
-
-    my $query = "
-      SELECT *
-      FROM (
-        SELECT DISTINCT ON (release.id)
-          " . $self->_columns . ",
-          date_year, date_month, date_day
-        FROM " . $self->_table . "
-        JOIN artist_credit_name acn
-          ON acn.artist_credit = release.artist_credit
-        " . join(' ', @$extra_joins) . "
-        LEFT JOIN release_event ON release_event.release = release.id
-        WHERE " . join(" AND ", @$conditions) . "
-        ORDER BY release.id,
-          date_year, date_month, date_day, musicbrainz_collate(release.name)
-      ) release
-      ORDER BY date_year, date_month, date_day, musicbrainz_collate(name)";
-
-    $self->query_to_list_limited($query, $params, $limit, $offset);
+    # Note: This excludes releases where $artist_id appears in the
+    # release artist credit.
+    if ($self->has_materialized_artist_release_data) {
+        return $self->_find_by_artist_fast($artist_id, 1, $limit, $offset, %args);
+    }
+    return $self->_find_by_track_artist_slow($artist_id, $limit, $offset, %args);
 }
 
 sub find_by_recording
 {
     my ($self, $ids, $limit, $offset, %args) = @_;
     my @ids = ref $ids ? @$ids : ( $ids );
+    return ([], 0) unless @ids;
 
-    my ($conditions, $extra_joins, $params) = _where_filter($args{filter});
+    my ($conditions, $extra_joins, $params) = _where_filter($args{filter}, 0);
 
     push @$conditions, "track.recording IN (" . placeholders(@ids) . ")";
     push @$params, @ids;
@@ -420,10 +537,10 @@ sub find_by_recording
         LEFT JOIN area ON area.id = release_event.country
         WHERE " . join(" AND ", @$conditions) . "
         ORDER BY release.id, date_year, date_month, date_day,
-          musicbrainz_collate(release.name)
+          release.name COLLATE musicbrainz
       ) s
       ORDER BY date_year, date_month, date_day,
-        musicbrainz_collate(name)
+        name COLLATE musicbrainz
     ";
 
     $self->query_to_list_limited($query, $params, $limit, $offset);
@@ -461,7 +578,7 @@ sub find_by_country
 {
     my ($self, $country_id, $limit, $offset, %args) = @_;
 
-    my ($conditions, $extra_joins, $params) = _where_filter($args{filter});
+    my ($conditions, $extra_joins, $params) = _where_filter($args{filter}, 0);
 
     push @$conditions, "release_event.country = ?";
     push @$params, $country_id;
@@ -482,10 +599,10 @@ sub find_by_country
         LEFT JOIN area ON area.id = release_event.country
         WHERE " . join(" AND ", @$conditions) . "
         ORDER BY release.id, date_year, date_month, date_day,
-          country_name, barcode, musicbrainz_collate(release.name)
+          country_name, barcode, release.name COLLATE musicbrainz
       ) release
       ORDER BY date_year, date_month, date_day,
-        country_name, barcode, musicbrainz_collate(name)";
+        country_name, barcode, name COLLATE musicbrainz";
 
     $self->query_to_list_limited($query, $params, $limit, $offset);
 }
@@ -513,10 +630,10 @@ sub find_for_cdtoc
         WHERE track_count_matches_cdtoc(medium, ?)
           AND acn.artist = ?
         ORDER BY release.id, release.release_group,
-          date_year, date_month, date_day, musicbrainz_collate(release.name)
+          date_year, date_month, date_day, release.name COLLATE musicbrainz
       ) s
       ORDER BY release_group,
-          date_year, date_month, date_day, musicbrainz_collate(name)";
+          date_year, date_month, date_day, name COLLATE musicbrainz";
 
     $self->query_to_list_limited($query, [$track_count, $artist_id], $limit, $offset);
 }
@@ -543,7 +660,7 @@ sub load_with_medium_for_recording
 {
     my ($self, $recording_id, $limit, $offset, %args) = @_;
 
-    my ($conditions, $extra_joins, $params) = _where_filter($args{filter});
+    my ($conditions, $extra_joins, $params) = _where_filter($args{filter}, 0);
 
     push @$conditions, "track.recording = ?";
     push @$params, $recording_id;
@@ -588,10 +705,10 @@ sub load_with_medium_for_recording
         " . join(' ', @$extra_joins) . "
         WHERE " . join(" AND ", @$conditions) . "
         ORDER BY release.id, date_year, date_month, date_day,
-          musicbrainz_collate(release.name)
+          release.name COLLATE musicbrainz
       ) s
       ORDER BY date_year, date_month, date_day,
-        musicbrainz_collate(r_name)";
+        r_name COLLATE musicbrainz";
 
     $self->query_to_list_limited($query, $params, $limit, $offset, sub {
         my ($model, $row) = @_;
@@ -609,16 +726,17 @@ sub load_with_medium_for_recording
 }
 
 sub find_by_medium {
-    my ($self, @medium_ids) = @_;
+    my ($self, $medium_ids, $limit, $offset) = @_;
 
     my $query = 'SELECT ' . $self->_columns .
                 ' FROM ' . $self->_table .
                 ' WHERE release.id IN (
                     SELECT release FROM medium
                      WHERE medium.id = any(?)
-                )';
+                )' .
+                ' ORDER BY release.id';
 
-    $self->query_to_list($query, [\@medium_ids]);
+    $self->query_to_list_limited($query, [$medium_ids], $limit, $offset);
 }
 
 sub _order_by {
@@ -629,10 +747,10 @@ sub _order_by {
 
     my $order_by = order_by($order, "date", {
         "date" => sub {
-            return "date_year, date_month, date_day, musicbrainz_collate(name)"
+            return "date_year, date_month, date_day, release.name COLLATE musicbrainz"
         },
-        "title" => sub {
-            return "musicbrainz_collate(name), date_year, date_month, date_day"
+        "name" => sub {
+            return "release.name COLLATE musicbrainz, date_year, date_month, date_day"
         },
         "country" => sub {
             $extra_join = "LEFT JOIN area ON release_event.country = area.id";
@@ -642,42 +760,42 @@ sub _order_by {
         "artist" => sub {
             $extra_join = "JOIN artist_credit ac ON ac.id = release.artist_credit";
             $also_select = "ac.name AS ac_name";
-            return "musicbrainz_collate(ac_name), musicbrainz_collate(name)";
+            return "ac_name COLLATE musicbrainz, release.name COLLATE musicbrainz";
         },
         "label" => sub {
             $extra_join = "LEFT OUTER JOIN
-                (SELECT release, array_agg(musicbrainz_collate(label.name)) AS labels FROM release_label
+                (SELECT release, array_agg(label.name COLLATE musicbrainz) AS labels FROM release_label
                     JOIN label ON release_label.label = label.id
                     GROUP BY release) rl
                 ON rl.release = release.id";
             $also_select = "rl.labels AS labels";
-            return "labels, musicbrainz_collate(name)";
+            return "labels, release.name COLLATE musicbrainz";
         },
         "catno" => sub {
             $extra_join = "LEFT OUTER JOIN
-                (SELECT release, array_agg(catalog_number) AS catnos from release_label
+                (SELECT release, array_agg(catalog_number) AS catnos FROM release_label
                   WHERE catalog_number IS NOT NULL GROUP BY release) rl
                 ON rl.release = release.id";
             $also_select = "catnos";
-            return "catnos, musicbrainz_collate(name)";
+            return "catnos, release.name COLLATE musicbrainz";
         },
         "format" => sub {
             $extra_join = "LEFT JOIN medium ON medium.release = release.id
                            LEFT JOIN medium_format ON medium.format = medium_format.id";
             $also_select = "medium_format.name AS medium_format_name";
-            return "medium_format_name, musicbrainz_collate(name)";
+            return "medium_format_name COLLATE musicbrainz, release.name COLLATE musicbrainz";
         },
         "tracks" => sub {
             $extra_join = "LEFT JOIN
                 (SELECT medium.release, sum(track_count) AS total_track_count
                     FROM medium
-                    GROUP BY medium.release) medium
-                ON medium.release = release.id";
+                    GROUP BY medium.release) tc
+                ON tc.release = release.id";
             $also_select = "total_track_count";
-            return "total_track_count, musicbrainz_collate(name)";
+            return "total_track_count, release.name COLLATE musicbrainz";
         },
         "barcode" => sub {
-            return "length(barcode), barcode, musicbrainz_collate(name)"
+            return "length(barcode), barcode, release.name COLLATE musicbrainz"
         },
     });
 
@@ -689,14 +807,22 @@ sub _order_by {
 
     $extra_join = "LEFT JOIN release_event ON release_event.release = release.id " . $extra_join;
 
-    return ($order_by, $extra_join, $also_select);
+    my $inner_order_by = $order_by
+        =~ s/country_name/area.name/r
+        =~ s/ac_name/ac.name/r
+        =~ s/labels/rl.labels/r
+        =~ s/catnos/rl.catnos/r
+        =~ s/medium_format_name/medium_format.name/r
+        =~ s/total_track_count/tc.total_track_count/r;
+
+    return ($order_by, $extra_join, $also_select, $inner_order_by);
 }
 
 sub _insert_hook_after_each {
     my ($self, $created, $release) = @_;
 
     $self->set_release_events(
-        $created->{id}, _release_events_from_spec($release->{events} // [])
+        $created->{id}, $release->{release_group_id}, _release_events_from_spec($release->{events} // [])
     );
 }
 
@@ -715,8 +841,12 @@ sub _release_events_from_spec {
 sub update {
     my ($self, $release_id, $update) = @_;
 
+    my $release_group_id = $update->{release_group_id} // $self->sql->select_single_value(
+        'SELECT release_group FROM release WHERE id = ?', $release_id
+    );
+
     $self->set_release_events(
-        $release_id, _release_events_from_spec($update->{events})
+        $release_id, $release_group_id, _release_events_from_spec($update->{events})
     ) if $update->{events};
 
     my $row = $self->_hash_to_row($update);
@@ -727,9 +857,6 @@ sub update {
     }
 
     if ($update->{events} || $update->{release_group_id}) {
-        my $release_group_id = $update->{release_group_id} // $self->sql->select_single_value(
-            'SELECT release_group FROM release WHERE id = ?', $release_id
-        );
         $self->c->model('Series')->reorder_for_entities('release_group', $release_group_id);
     }
 }
@@ -791,23 +918,52 @@ sub can_merge {
     my $strategy = $opts->{merge_strategy} || $MERGE_APPEND;
 
     if ($strategy == $MERGE_MERGE) {
-        my $mediums_differ = $self->sql->select_single_value(
+        my $mediums_query =
             'SELECT TRUE
              FROM (
                  SELECT medium.id, medium.position, medium.track_count
                  FROM medium
-                 WHERE release IN (' . placeholders(@old_ids) . ')
+                 WHERE release = any(?)
              ) s
              LEFT JOIN medium new_medium ON
-                 (new_medium.position = s.position AND new_medium.release = ?)
-             WHERE new_medium.track_count <> s.track_count
-                OR new_medium.id IS NULL
-             LIMIT 1',
-            @old_ids, $new_id);
+                 (new_medium.position = s.position AND new_medium.release = ?)';
 
-        if ($mediums_differ) {
-            $opts->{_cannot_merge_reason} = N_l('The track counts on at least one set of corresponding mediums do not match.');
-            return 0;
+        my $target_medium_missing = $self->sql->select_single_value(
+            "$mediums_query
+             WHERE new_medium.id IS NULL
+             LIMIT 1",
+            \@old_ids, $new_id);
+
+        if ($target_medium_missing) {
+            return (0, {
+                message => $RELEASE_MERGE_ERRORS{medium_missing},
+            });
+        }
+
+        my $merging_into_empty_medium = $self->sql->select_single_value(<<~"EOSQL", \@old_ids, $new_id);
+            $mediums_query
+            WHERE s.track_count > 0
+            AND new_medium.track_count = 0
+            LIMIT 1
+            EOSQL
+
+        if ($merging_into_empty_medium) {
+            return (0, {
+                message => $RELEASE_MERGE_ERRORS{merging_into_empty},
+            });
+        }
+
+        my $medium_track_counts_differ = $self->sql->select_single_value(<<~"EOSQL", \@old_ids, $new_id);
+            $mediums_query
+            WHERE new_medium.track_count <> s.track_count
+            AND s.track_count > 0
+            LIMIT 1
+            EOSQL
+
+        if ($medium_track_counts_differ) {
+            return (0, {
+                message => $RELEASE_MERGE_ERRORS{medium_track_counts},
+            });
         }
 
         my $medium_ids = $self->sql->select_single_column_array(
@@ -826,15 +982,18 @@ sub can_merge {
             # Mediums in the same position should either all have pregaps,
             # or none should.
             if ($pregap_count{0} && $pregap_count{1}) {
-                $opts->{_cannot_merge_reason} = N_l('Mediums with a pregap track can only be merged with other mediums with a pregap track.');
-                return 0;
+                return (0, {
+                    message => $RELEASE_MERGE_ERRORS{pregaps},
+                });
             }
         }
 
         return 1;
     }
     elsif ($strategy == $MERGE_APPEND) {
-        $opts->{_cannot_merge_reason} = N_l('The medium positions conflict.');
+        my @failure = (0, {
+            message => $RELEASE_MERGE_ERRORS{medium_positions},
+        });
 
         my %positions = %{ $opts->{medium_positions} || {} } or return 0;
 
@@ -844,7 +1003,7 @@ sub can_merge {
             \@old_ids
         ) };
 
-        return 0 if grep { !exists $positions{$_} } @must_move_mediums;
+        return @failure if grep { !exists $positions{$_} } @must_move_mediums;
 
         # Make sure the new positions don't conflict with the current new medium
         my @conflicts = @{
@@ -863,7 +1022,7 @@ sub can_merge {
                  FROM changes
                  JOIN medium changed_m ON changed_m.id = changes.id
                  JOIN medium all_m ON all_m.release = changed_m.release
-                 WHERE all_m.id not in (select id from changes)
+                 WHERE all_m.id NOT IN (SELECT id FROM changes)
                )
              ) s
              GROUP BY position
@@ -871,62 +1030,192 @@ sub can_merge {
              ', map { $_, $positions{$_} } keys %positions)
         };
 
-        return 0 if @conflicts;
+        return @failure if @conflicts;
 
         # If we've got this far, it must be ok to merge
-        delete $opts->{_cannot_merge_reason};
         return 1;
     }
 }
 
-sub determine_recording_merges
-{
-    my ($self, @releases) = @_;
+sub determine_medium_merges {
+    my ($self, $new_id, @old_ids) = @_;
 
-    my %medium_by_position;
-    foreach my $release (@releases) {
-        foreach my $medium ($release->all_mediums) {
-            if (exists $medium_by_position{$medium->position}) {
-                push @{ $medium_by_position{$medium->position} }, $medium;
-            }
-            else {
-                $medium_by_position{$medium->position} = [ $medium ];
+    $self->sql->select_list_of_hashes(
+        'SELECT newm.id AS new_id,
+                array_agg(oldm.id) AS old_ids
+           FROM medium newm,
+                medium oldm
+          WHERE newm.release = ?
+            AND oldm.release = any(?)
+            AND newm.position = oldm.position
+            AND newm.track_count = oldm.track_count
+          GROUP BY newm.id',
+        $new_id,
+        \@old_ids,
+    );
+}
+
+sub _link_recording {
+    my $recording_info = shift;
+
+    MusicBrainz::Server::Translation->expand(
+        '{url|{name}}',
+        url => '/recording/' . $recording_info->{gid},
+        name => encode_entities($recording_info->{name}),
+    );
+}
+
+sub determine_recording_merges {
+    my ($self, $new_release_id, @old_release_ids) = @_;
+
+    my $possible_merges = $self->sql->select_list_of_hashes(q{
+        SELECT newm.position AS new_medium_position,
+               newt.number AS new_track_number,
+               newt.position AS new_track_position,
+               jsonb_build_object(
+                 'id', newr.id,
+                 'gid', newr.gid,
+                 'name', newr.name,
+                 'length', newr.length,
+                 'artist_credit_id', newr.artist_credit
+               ) AS new_recording,
+               array_agg(DISTINCT jsonb_build_object(
+                 'id', oldr.id,
+                 'gid', oldr.gid,
+                 'name', oldr.name,
+                 'length', oldr.length,
+                 'artist_credit_id', oldr.artist_credit
+               )) AS old_recordings
+          FROM medium newm,
+               medium oldm,
+               track newt,
+               track oldt,
+               recording newr,
+               recording oldr
+         WHERE newm.release = ?
+           AND oldm.release = any(?)
+           AND newm.position = oldm.position
+           AND newm.track_count = oldm.track_count
+           AND newt.medium = newm.id
+           AND oldt.medium = oldm.id
+           AND newt.position = oldt.position
+           AND newr.id = newt.recording
+           AND oldr.id = oldt.recording
+           AND newr.id != oldr.id
+         GROUP BY new_medium_position,
+                  new_track_number,
+                  new_track_position,
+                  newr.id
+         ORDER BY new_medium_position,
+                  new_track_position
+    }, $new_release_id, \@old_release_ids);
+
+    state $json = JSON::XS->new->utf8(0);
+    # MBS-8614. Track recording merges, to resolve cases where a recording is
+    # a merge source on one track (after which it gets deleted), and a merge
+    # target on another track (in which case we should instead use the ID of
+    # the target from the first merge). Example where recording 3 should be
+    # merged into recording 2:
+    # 1 -> 2
+    # 3 -> 1
+    my %merge_targets;
+    my %old_recordings_by_id;
+
+    for my $possible_merge (@{$possible_merges}) {
+        my $new_recording =
+            $possible_merge->{new_recording} =
+            $json->decode($possible_merge->{new_recording});
+
+        my $old_recordings = $possible_merge->{old_recordings};
+        @{$old_recordings} = map { $json->decode($_) } @{$old_recordings};
+
+        for my $old_recording (@{$old_recordings}) {
+            my $old_id = $old_recording->{id};
+
+            $old_recordings_by_id{$old_id} = $old_recording;
+
+            my $target = \$merge_targets{$old_id};
+
+            if (defined ${$target}) {
+                ${$target} = [${$target}] if ref ${$target} ne 'ARRAY';
+                push @{${$target}}, $new_recording;
+            } else {
+                ${$target} = $new_recording;
             }
         }
     }
 
-    my %recording_by_position;
-    for my $m_pos (keys %medium_by_position) {
-        # must have at least two mediums
-        my @mediums = @{ $medium_by_position{$m_pos} };
-        next if @mediums <= 1;
-        # all mediums must have the same number of tracks
-        my $track_count = $mediums[0]->track_count;
-        next if grep { $_->track_count != $track_count } @mediums;
-        # group recordings by track position
-        $recording_by_position{$m_pos} = {};
-        for my $medium (@mediums) {
-            for my $tr ($medium->all_tracks) {
-                my $tr_pos = $tr->position;
-                if (exists $recording_by_position{$m_pos}->{$tr_pos}) {
-                    push @{ $recording_by_position{$m_pos}->{$tr_pos} }, $tr->recording;
-                }
-                else {
-                    $recording_by_position{$m_pos}->{$tr_pos} = [ $tr->recording ];
-                }
+    for my $old_id (keys %merge_targets) {
+        my $target = $merge_targets{$old_id};
+
+        # We need to make sure that for each old recording, there is only 1
+        # new recording to merge into. If there is > 1, then it's not clear
+        # what we should merge into.
+
+        if (ref $target eq 'ARRAY') {
+            my $source = $old_recordings_by_id{$old_id};
+
+            return (0, {
+                message => $RELEASE_MERGE_ERRORS{ambiguous_recording_merge},
+                vars => {
+                    source_recording => _link_recording($source),
+                    target_recordings => comma_list(map { _link_recording($_) } @{$target}),
+                },
+            });
+        }
+    }
+
+    my %recording_merges;
+    for my $possible_merge (@{$possible_merges}) {
+        my ($new_recording, $old_recordings) = @{$possible_merge}{qw(
+            new_recording
+            old_recordings
+        )};
+
+        my $target = $merge_targets{$new_recording->{id}} // $new_recording;
+        my $new_id = $target->{id};
+
+        for my $old_recording (@{$old_recordings}) {
+            my $old_id = $old_recording->{id};
+
+            # If two recordings' positions are swapped (e.g. recording 1 is being
+            # merged into recording 2, and recording 2 is being merged into
+            # recording 1), then we don't merge them in that case, because it's
+            # probably not intentional.
+            if ($new_id == $old_id) {
+                return (0, {
+                    message => $RELEASE_MERGE_ERRORS{recording_merge_cycle},
+                    vars => {
+                        recording1 => _link_recording($old_recording),
+                        recording2 => _link_recording($new_recording),
+                    },
+                });
             }
+
+            my $merge = ($recording_merges{$new_id} //= {
+                new_recording       => $target,
+                new_medium_position => $possible_merge->{new_medium_position},
+                new_track_number    => $possible_merge->{new_track_number},
+                new_track_position  => $possible_merge->{new_track_position},
+            });
+
+            push @{$merge->{old_recordings}}, $old_recording;
+
+            $merge_targets{$old_id} = $target;
         }
     }
 
-    my @merges;
-    for my $m_pos (sort { $a <=> $b } keys %recording_by_position) {
-        for my $tr_pos (sort { $a <=> $b } keys %{ $recording_by_position{$m_pos} }) {
-            my $recordings = $recording_by_position{$m_pos}->{$tr_pos};
-            push @merges, $recordings if scalar @$recordings;
-        }
-    }
-
-    return @merges;
+    # Sort, then convert to the format expected by
+    # MusicBrainz::Server::Edit::Release::Merge.
+    (1, [map +{
+        medium      => $_->{new_medium_position},
+        track       => $_->{new_track_number},
+        destination => $_->{new_recording},
+        sources     => $_->{old_recordings},
+    }, sort {
+        $a->{new_medium_position} <=> $b->{new_medium_position} ||
+        $a->{new_track_position} <=> $b->{new_track_position}
+    } values %recording_merges]);
 }
 
 sub merge
@@ -1070,29 +1359,28 @@ sub merge
         }
     }
     elsif ($merge_strategy == $MERGE_MERGE) {
-        confess('Mediums contain differing numbers of tracks')
-            unless $self->can_merge({
-                merge_strategy => $MERGE_MERGE,
-                new_id => $new_id,
-                old_ids => \@old_ids,
-            });
+        my $recording_merges = $opts{recording_merges};
 
-        my @merges = @{
-            $self->sql->select_list_of_hashes(
-                'SELECT newmed.id AS new_id,
-                        oldmed.id AS old_id
-                   FROM medium newmed, medium oldmed
-                  WHERE newmed.release = ?
-                    AND oldmed.release IN (' . placeholders(@old_ids) . ')
-                    AND newmed.position = oldmed.position',
-                $new_id, @old_ids
-            )
-        };
-        for my $merge (@merges) {
-            $self->c->model('Medium')->merge($merge->{new_id}, $merge->{old_id});
+        unless (defined $recording_merges) {
+            (my $can_merge, $recording_merges) = $self->determine_recording_merges($new_id, @old_ids);
+            die unless $can_merge; # we should never hit this here
+        }
+
+        for my $recording_merge (@{$recording_merges}) {
+            $self->c->model('Recording')->merge(
+                $recording_merge->{destination}{id},
+                map { $_->{id} } @{$recording_merge->{sources}},
+            );
+        }
+
+        for my $medium_merge (@{ $self->determine_medium_merges($new_id, @old_ids) }) {
+            $self->c->model('Track')->merge_mediums(
+                $medium_merge->{new_id},
+                @{$medium_merge->{old_ids}},
+            );
             $self->c->model('MediumCDTOC')->merge_mediums(
-                $merge->{new_id},
-                $merge->{old_id}
+                $medium_merge->{new_id},
+                @{$medium_merge->{old_ids}},
             );
         }
 
@@ -1127,6 +1415,31 @@ sub _hash_to_row
     });
 
     return $row;
+}
+
+=method load_ids
+
+Load internal IDs for release objects that only have GIDs.
+
+=cut
+
+sub load_ids
+{
+    my ($self, @releases) = @_;
+
+    my @gids = map { $_->gid } @releases;
+    return () unless @gids;
+
+    my $query = "
+        SELECT gid, id FROM release
+        WHERE gid IN (" . placeholders(@gids) . ")
+    ";
+    my %map = map { $_->[0] => $_->[1] }
+        @{ $self->sql->select_list_of_lists($query, @gids) };
+
+    for my $release (@releases) {
+        $release->id($map{$release->gid}) if exists $map{$release->gid};
+    }
 }
 
 sub load_meta
@@ -1234,6 +1547,7 @@ sub newest_releases_with_artwork {
       WHERE cover_art_type.type_id = ?
         AND cover_art.ordering = 1
         AND edit.type = ?
+        AND cover_art.date_uploaded < NOW() - INTERVAL \'10 minutes\'
       ORDER BY edit.id DESC
       LIMIT 10';
 
@@ -1248,6 +1562,7 @@ sub newest_releases_with_artwork {
         Artwork->new(
             id => $caa_id,
             release => $release,
+            suffix => 'spoof',
         );
     });
 }
@@ -1281,7 +1596,7 @@ sub find_release_events {
         date_year ASC NULLS LAST,
         date_month ASC NULLS LAST,
         date_day ASC NULLS LAST,
-        musicbrainz_collate(area.name) ASC NULLS LAST
+        area.name COLLATE musicbrainz ASC NULLS LAST
     ";
 
     my $events = $self->sql->select_list_of_hashes($query, \@release_ids);
@@ -1299,7 +1614,7 @@ sub find_release_events {
 }
 
 sub set_release_events {
-    my ($self, $release_id, $events) = @_;
+    my ($self, $release_id, $release_group_id, $events) = @_;
 
     my ($without_country, $with_country) = part { defined($_->country_id) } @$events;
 
@@ -1326,6 +1641,9 @@ sub set_release_events {
             date_day => $_->date->day
         }, @$without_country
     );
+
+    # To ensure the new first release date is cached
+    $self->c->model('ReleaseGroup')->_delete_from_cache($release_group_id);
 }
 
 sub series_ordering {
@@ -1368,22 +1686,12 @@ Finds releases by the specified release group, and returns an array containing
 a reference to the array of releases and the total number of found releases.
 The $limit parameter is used to limit the number of returned releass.
 
-=head1 COPYRIGHT
+=head1 COPYRIGHT AND LICENSE
 
 Copyright (C) 2009 Lukas Lalinsky
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program; if not, write to the Free Software
-Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+This file is part of MusicBrainz, the open internet music database,
+and is licensed under the GPL version 2, or (at your option) any
+later version: http://www.gnu.org/licenses/gpl-2.0.txt
 
 =cut

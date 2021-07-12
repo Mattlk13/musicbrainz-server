@@ -1,28 +1,29 @@
-// This file is part of MusicBrainz, the open internet music database.
-// Copyright (C) 2016 MetaBrainz Foundation
-// Licensed under the GPL version 2, or (at your option) any later version:
-// http://www.gnu.org/licenses/gpl-2.0.txt
+/*
+ * Copyright (C) 2016 MetaBrainz Foundation
+ *
+ * This file is part of MusicBrainz, the open internet music database,
+ * and is licensed under the GPL version 2, or (at your option) any
+ * later version: http://www.gnu.org/licenses/gpl-2.0.txt
+ */
 
-import _ from 'lodash';
-import React from 'react';
+import * as React from 'react';
 
 import Autocomplete from '../../common/components/Autocomplete';
 import clean from '../../common/utility/clean';
-import nonEmpty from '../../common/utility/nonEmpty';
 
 class ArtistCreditNameEditor extends React.Component {
   constructor(props) {
     super(props);
 
-    this.artistName = _.get(props.name, ['artist', 'name'], '');
-    this.onArtistChange = this.onArtistChange.bind(this);
-    this.onNameBlur = this.onNameBlur.bind(this);
-    this.onNameChange = this.onNameChange.bind(this);
-    this.onJoinPhraseBlur = this.onJoinPhraseBlur.bind(this);
-    this.onJoinPhraseChange = this.onJoinPhraseChange.bind(this);
+    this.artistName = (props.name.artist?.name) ?? '';
+    this.handleArtistChange = this.handleArtistChange.bind(this);
+    this.handleNameBlur = this.handleNameBlur.bind(this);
+    this.handleNameChange = this.handleNameChange.bind(this);
+    this.handleJoinPhraseBlur = this.handleJoinPhraseBlur.bind(this);
+    this.handleJoinPhraseChange = this.handleJoinPhraseChange.bind(this);
   }
 
-  onArtistChange(artist) {
+  handleArtistChange(artist) {
     const update = {artist};
     const artistName = artist ? artist.name : '';
 
@@ -34,7 +35,7 @@ class ArtistCreditNameEditor extends React.Component {
     this.props.onChange(update);
   }
 
-  onNameBlur(event) {
+  handleNameBlur(event) {
     let newName = clean(event.target.value);
 
     const artist = this.props.name.artist;
@@ -45,20 +46,22 @@ class ArtistCreditNameEditor extends React.Component {
     this.props.onChange({name: newName});
   }
 
-  onNameChange(event) {
+  handleNameChange(event) {
     this.props.onChange({name: event.target.value});
   }
 
-  onJoinPhraseBlur(event) {
+  handleJoinPhraseBlur(event) {
     if (!this.props.name.automaticJoinPhrase) {
       return;
     }
 
-    // This is the first value the user has entered into this field. If it is a
-    // simple word (such as "and") or an abbreviation (such as "feat.") it is
-    // likely that it should be surrounded by spaces. Add those spaces
-    // automatically only this first time. Also standardise "feat." according
-    // to our guidelines.
+    /*
+     * This is the first value the user has entered into this field. If it is
+     * a simple word (such as "and") or an abbreviation (such as "feat.")
+     * it is likely that it should be surrounded by spaces. Add those spaces
+     * automatically only this first time. Also standardise "feat." according
+     * to our guidelines.
+     */
     const currentJoinPhrase = event.target.value;
 
     let joinPhrase = clean(currentJoinPhrase);
@@ -66,13 +69,10 @@ class ArtistCreditNameEditor extends React.Component {
 
     if (/^[A-Za-z]+\.?$/.test(joinPhrase)) {
       joinPhrase = ' ' + joinPhrase + ' ';
-
     } else if (/^,$/.test(joinPhrase)) {
       joinPhrase = ', ';
-
     } else if (/^&$/.test(joinPhrase)) {
       joinPhrase = ' & ';
-
     } else if (/^;$/.test(joinPhrase)) {
       joinPhrase = '; ';
     }
@@ -82,7 +82,7 @@ class ArtistCreditNameEditor extends React.Component {
     }
   }
 
-  onJoinPhraseChange(event) {
+  handleJoinPhraseChange(event) {
     // The join phrase has been changed, it should no longer be automatic.
     this.props.onChange({
       automaticJoinPhrase: false,
@@ -102,29 +102,34 @@ class ArtistCreditNameEditor extends React.Component {
             currentSelection={name.artist || {name: name.name}}
             entity="artist"
             inputID={`${id}-artist-${index}`}
-            onChange={this.onArtistChange} />
+            onChange={this.handleArtistChange}
+          />
         </td>
         <td>
           <input
             id={`${id}-credited-as-${index}`}
-            onBlur={this.onNameBlur}
-            onChange={this.onNameChange}
+            onBlur={this.handleNameBlur}
+            onChange={this.handleNameChange}
             type="text"
-            value={nonEmpty(name.name) ? name.name : ''} />
+            value={nonEmpty(name.name) ? name.name : ''}
+          />
         </td>
         <td>
           <input
             id={`${id}-join-phrase-${index}`}
-            onBlur={this.onJoinPhraseBlur}
-            onChange={this.onJoinPhraseChange}
+            onBlur={this.handleJoinPhraseBlur}
+            onChange={this.handleJoinPhraseChange}
             type="text"
-            value={nonEmpty(name.joinPhrase) ? name.joinPhrase : ''} />
+            value={nonEmpty(name.joinPhrase) ? name.joinPhrase : ''}
+          />
         </td>
         <td className="align-right">
-          <button className="icon remove-item remove-artist-credit"
-                  onClick={this.props.onRemove}
-                  title={l('Remove Artist Credit')}
-                  type="button" />
+          <button
+            className="icon remove-item remove-artist-credit"
+            onClick={this.props.onRemove}
+            title={l('Remove Artist Credit')}
+            type="button"
+          />
         </td>
       </tr>
     );

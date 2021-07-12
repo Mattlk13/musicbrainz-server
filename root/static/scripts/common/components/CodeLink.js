@@ -1,5 +1,5 @@
 /*
- * @flow
+ * @flow strict-local
  * Copyright (C) 2018 MetaBrainz Foundation
  *
  * This file is part of MusicBrainz, the open internet music database,
@@ -7,19 +7,19 @@
  * later version: http://www.gnu.org/licenses/gpl-2.0.txt
  */
 
-import React from 'react';
+import * as React from 'react';
 
 import entityHref from '../utility/entityHref';
 
-type Props = {|
+type Props = {
   +code: IsrcT | IswcT,
-|};
+};
 
-const CodeLink = ({code}: Props) => {
+const CodeLink = ({code}: Props): React.MixedElement=> {
   let link = (
     <a href={entityHref(code)}>
       <bdi>
-        {/* $FlowFixMe */}
+        {/* $FlowIssue[prop-missing] */}
         <code>{code[code.entityType]}</code>
       </bdi>
     </a>

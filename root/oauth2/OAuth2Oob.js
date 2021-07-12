@@ -1,5 +1,5 @@
 /*
- * @flow
+ * @flow strict-local
  * Copyright (C) 2019 MetaBrainz Foundation
  *
  * This file is part of MusicBrainz, the open internet music database,
@@ -11,15 +11,15 @@ import * as React from 'react';
 
 import Layout from '../layout';
 
-type Props = {|
+type Props = {
   +application: ApplicationT,
   +code: string,
-|};
+};
 
 const OAuth2Oob = ({
   application,
   code,
-}: Props) => (
+}: Props): React.Element<typeof Layout> => (
   <Layout fullWidth title={l('OAuth Authorization')}>
     <h1>{l('Success!')}</h1>
     <p>

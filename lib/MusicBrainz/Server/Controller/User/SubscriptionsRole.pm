@@ -3,6 +3,8 @@ use MooseX::MethodAttributes::Role;
 use MooseX::Role::Parameterized;
 
 use MusicBrainz::Server::Data::Utils qw( type_to_model );
+use MusicBrainz::Server::ControllerUtils::JSON qw( serialize_pager );
+use MusicBrainz::Server::Entity::Util::JSON qw( to_json_array );
 
 parameter 'type' => (
     required => 1
@@ -35,35 +37,37 @@ role {
         my $entities = $self->_load_paged($c, sub {
             $c->model(type_to_model($type))->find_by_subscribed_editor($user->id, shift, shift);
         });
+        my %extra_props;
+
+        if ($type eq 'collection') {
+            $extra_props{privateCollectionCount} = scalar(grep { !$_->public } @{$entities});
+            $entities = [grep { $_->public } @{$entities}]
+        }
 
         $c->stash(
-            user      => $user,
-            entities  => $entities,
-            template  => "user/subscriptions/$type.tt",
-            summary   => $c->model('Editor')->subscription_summary($user->id)
+            current_view => 'Node',
+            component_path => 'user/UserSubscriptions',
+            component_props => {
+                entities  => to_json_array($entities),
+                user      => $c->controller('User')->serialize_user($user),
+                summary   => $c->model('Editor')->subscription_summary($user->id),
+                type      => $type,
+                pager     => serialize_pager($c->stash->{pager}),
+                %extra_props,
+            },
         );
     };
 };
 
 1;
 
-=head1 COPYRIGHT
+=head1 COPYRIGHT AND LICENSE
 
 Copyright (C) 2010 MetaBrainz Foundation
 Copyright (C) 2009 Lukas Lalinsky
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program; if not, write to the Free Software
-Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+This file is part of MusicBrainz, the open internet music database,
+and is licensed under the GPL version 2, or (at your option) any
+later version: http://www.gnu.org/licenses/gpl-2.0.txt
 
 =cut

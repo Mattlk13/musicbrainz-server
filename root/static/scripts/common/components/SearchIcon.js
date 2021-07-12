@@ -1,5 +1,5 @@
 /*
- * @flow
+ * @flow strict
  * Copyright (C) 2019 MetaBrainz Foundation
  *
  * This file is part of MusicBrainz, the open internet music database,
@@ -9,7 +9,7 @@
 
 import * as React from 'react';
 
-const SearchIcon = () => (
+const SearchIcon = (): React.Element<'img'> => (
   <img
     alt={l('Search')}
     className="search"

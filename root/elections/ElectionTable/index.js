@@ -1,5 +1,5 @@
 /*
- * @flow
+ * @flow strict-local
  * Copyright (C) 2018 MetaBrainz Foundation
  *
  * This file is part of MusicBrainz, the open internet music database,
@@ -7,15 +7,19 @@
  * later version: http://www.gnu.org/licenses/gpl-2.0.txt
  */
 
-import React from 'react';
+import * as React from 'react';
 
 import Rows from './ElectionTableRows';
 
 type PropsT = {
+  +$c: CatalystContextT,
   +elections: $ReadOnlyArray<AutoEditorElectionT>,
 };
 
-const ElectionTable = ({elections}: PropsT) => (
+const ElectionTable = ({
+  $c,
+  elections,
+}: PropsT): React.Element<'table'> => (
   <table className="tbl" style={{width: 'auto'}}>
     <thead>
       <tr>
@@ -32,7 +36,7 @@ const ElectionTable = ({elections}: PropsT) => (
       </tr>
     </thead>
     <tbody>
-      <Rows elections={elections} />
+      <Rows $c={$c} elections={elections} />
     </tbody>
   </table>
 );

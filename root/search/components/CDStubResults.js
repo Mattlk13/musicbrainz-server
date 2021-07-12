@@ -1,5 +1,5 @@
 /*
- * @flow
+ * @flow strict-local
  * Copyright (C) 2018 MetaBrainz Foundation
  *
  * This file is part of MusicBrainz, the open internet music database,
@@ -37,7 +37,8 @@ const CDStubResults = ({
   pager,
   query,
   results,
-}: ResultsPropsT<CDStubT>) => (
+}: ResultsPropsT<CDStubT>):
+React.Element<typeof ResultsLayout> => (
   <ResultsLayout form={form} lastUpdated={lastUpdated}>
     <PaginatedSearchResults
       buildResult={buildResult}

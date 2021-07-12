@@ -1,3 +1,5 @@
+[%- PROCESS 'cdtoc/attach_list.tt' -%]
+
 <table class="tbl">
     <thead>
         <tr>
@@ -5,8 +7,7 @@
             <th>[% l('Title') %]</th>
             <th>[% l('Artist') %]</th>
             <th>[% l('Format') %]</th>
-            <th>[% l('Date') %]</th>
-            <th>[% l('Country') %]</th>
+            <th>[% l('Country') _ lp('/', 'and') _ l('Date') %]</th>
             <th>[% l('Label') %]</th>
             <th>[% l('Catalog#') %]</th>
             <th>[% l('Barcode') %]</th>
@@ -25,13 +26,17 @@
            classes = [];
            classes.push(loop.parity);
            classes.push('mp') IF medium_cdtoc.edits_pending > 0; %]
-        <tr class="[% classes.join(' ') %]">
-            <td>[% medium.position %]/[% release.medium_count %]</td>
+        <tr class="[% classes.join(' ') %]" id="[% release.gid %]">
+            <td>
+              [% medium.position %]/[% release.medium_count %]
+              [% tracklist_toggle %]
+            </td>
             <td>[% link_entity(release) %]</td>
             <td>[% artist_credit(release.artist_credit) %]</td>
             <td>[% medium_format_name(medium) %]</td>
-            <td>[% release_dates(release.events) %]</td>
-            <td>[% release_countries(release.events) %]</td>
+            <td>
+              [% React.embed(c, 'static/scripts/common/components/ReleaseEvents', {events => React.to_json_array(release.events)}) %]
+            </td>
             <td>[% release_label_list(release.labels) %]</td>
             <td>[% release_catno_list(release.labels) %]</td>
             <td class="barcode-cell">[% release.barcode.format %]</td>
@@ -59,6 +64,24 @@
             </td>
             [% END %]
         </tr>
-        [%- END -%]
+        [% tracklist_block %]
+      [%- END -%]
+      [% attach_list_script() %]
     </tbody>
 </table>
+
+[% MACRO cdtoc_list_script BLOCK %]
+  <script>
+    $(".tracklist").hide();
+
+    $(document).on("click", ".toggle", function () {
+      var $tracklist = $(this).closest("tr").next(".tracklist").toggle();
+
+      if ($tracklist.is(":hidden")) {
+        $(this).text("[% l('show tracklist') | js %]");
+      } else {
+        $(this).text("[% l('hide tracklist') | js %]");
+      }
+    });
+  </script>
+[% END %]

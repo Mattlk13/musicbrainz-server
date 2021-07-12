@@ -1,5 +1,5 @@
 /*
- * @flow
+ * @flow strict-local
  * Copyright (C) 2018 MetaBrainz Foundation
  *
  * This file is part of MusicBrainz, the open internet music database,
@@ -9,10 +9,13 @@
 
 import * as React from 'react';
 
-import {withCatalystContext} from '../../../context';
-import CommonsImage from '../../../static/scripts/common/components/CommonsImage';
-import DescriptiveLink from '../../../static/scripts/common/components/DescriptiveLink';
+import {CatalystContext} from '../../../context';
+import CommonsImage
+  from '../../../static/scripts/common/components/CommonsImage';
+import DescriptiveLink
+  from '../../../static/scripts/common/components/DescriptiveLink';
 import * as age from '../../../utility/age';
+import isFutureDate from '../../../utility/isFutureDate';
 import {formatCoordinates, osmUrl} from '../../../utility/coordinates';
 import ExternalLinks from '../ExternalLinks';
 
@@ -25,18 +28,20 @@ import SidebarBeginDate from './SidebarBeginDate';
 import SidebarEndDate from './SidebarEndDate';
 import SidebarLicenses from './SidebarLicenses';
 import {SidebarProperty, SidebarProperties} from './SidebarProperties';
+import SidebarRating from './SidebarRating';
 import SidebarTags from './SidebarTags';
 import SidebarType from './SidebarType';
 
-type Props = {|
-  +$c: CatalystContextT,
+type Props = {
   +place: PlaceT,
-|};
+};
 
-const PlaceSidebar = ({$c, place}: Props) => {
+const PlaceSidebar = ({place}: Props): React.Element<'div'> => {
+  const $c = React.useContext(CatalystContext);
   const placeAge = age.age(place);
   const gid = encodeURIComponent(place.gid);
-  const coordinates = place.coordinates;
+  const {area, coordinates} = place;
+  const heldAtRelGid = 'e2c6f697-07dc-38b1-be0b-83d740165532';
 
   return (
     <div id="sidebar">
@@ -52,9 +57,25 @@ const PlaceSidebar = ({$c, place}: Props) => {
       <SidebarProperties>
         <SidebarType entity={place} typeType="place_type" />
 
-        <SidebarBeginDate age={placeAge} entity={place} label={l('Opened:')} />
+        <SidebarBeginDate
+          age={placeAge}
+          entity={place}
+          label={
+            isFutureDate(place.begin_date)
+              ? addColonText(lp('Opening', 'place'))
+              : addColonText(lp('Opened', 'place'))
+          }
+        />
 
-        <SidebarEndDate age={placeAge} entity={place} label={l('Closed:')} />
+        <SidebarEndDate
+          age={placeAge}
+          entity={place}
+          label={
+            isFutureDate(place.end_date)
+              ? addColonText(lp('Closing', 'place'))
+              : addColonText(lp('Closed', 'place'))
+          }
+        />
 
         {place.address ? (
           <SidebarProperty className="address" label={l('Address:')}>
@@ -62,9 +83,9 @@ const PlaceSidebar = ({$c, place}: Props) => {
           </SidebarProperty>
         ) : null}
 
-        {place.area ? (
+        {area ? (
           <SidebarProperty className="area" label={l('Area:')}>
-            <DescriptiveLink entity={place.area} />
+            <DescriptiveLink entity={area} />
           </SidebarProperty>
         ) : null}
 
@@ -77,18 +98,19 @@ const PlaceSidebar = ({$c, place}: Props) => {
         ) : null}
       </SidebarProperties>
 
-      <SidebarTags
-        aggregatedTags={$c.stash.top_tags}
-        entity={place}
-        more={!!$c.stash.more_tags}
-        userTags={$c.stash.user_tags}
-      />
+      <SidebarRating entity={place} />
+
+      <SidebarTags entity={place} />
 
       <ExternalLinks empty entity={place} />
 
       <EditLinks entity={place}>
         <li>
-          <a href={`/event/create?rels.0.target=${gid}&rels.0.type=e2c6f697-07dc-38b1-be0b-83d740165532`}>
+          <a
+            href={
+              `/event/create?rels.0.target=${gid}&rels.0.type=${heldAtRelGid}`
+            }
+          >
             {l('Add event')}
           </a>
         </li>
@@ -111,4 +133,4 @@ const PlaceSidebar = ({$c, place}: Props) => {
   );
 };
 
-export default withCatalystContext(PlaceSidebar);
+export default PlaceSidebar;

@@ -6,13 +6,43 @@ use feature 'switch';
 
 use Moose;
 use FindBin;
+use Getopt::Long;
 use lib "$FindBin::Bin/../lib";
 use Carp qw( croak );
 use Encode qw( encode );
-use MusicBrainz::Script::EntityDump qw( get_core_entities_by_gids );
+use MusicBrainz::Script::EntityDump qw( edits get_core_entities_by_gids );
 use MusicBrainz::Server::Context;
 
 no warnings 'experimental::smartmatch';
+
+my $database = 'READWRITE';
+my $aliases = 0;
+my $annotations = 0;
+# collections, relationships, subscriptions
+my $extra_data = 0;
+my $ratings = 0;
+my $tags = 0;
+
+GetOptions(
+    'database=s'    => \$database,
+    'aliases!'      => \$aliases,
+    'annotations!'  => \$annotations,
+    'extra-data!'   => \$extra_data,
+    'ratings!'      => \$ratings,
+    'tags!'         => \$tags,
+) or exit 2;
+
+$MusicBrainz::Script::EntityDump::dump_aliases = $aliases;
+$MusicBrainz::Script::EntityDump::dump_annotations = $annotations;
+$MusicBrainz::Script::EntityDump::follow_extra_data = $extra_data;
+$MusicBrainz::Script::EntityDump::dump_ratings = $ratings;
+$MusicBrainz::Script::EntityDump::dump_tags = $tags;
+# release_coverart rows conflict with those added by the a_ins_release
+# trigger. A better alternative may be to use INSERT ... ON CONFLICT DO
+# UPDATE for these.
+@MusicBrainz::Script::EntityDump::skip_tables = qw(
+    release_coverart
+);
 
 sub quote_column {
     my ($type, $data) = @_;
@@ -73,38 +103,40 @@ sub dump_release_groups {
 }
 
 our %DUMP_METHODS = (
+    edit => \&edits,
     release_group => \&dump_release_groups,
 );
 
 sub main {
-    my $c = MusicBrainz::Server::Context->create_script_context(database => 'READWRITE');
+    my $c = MusicBrainz::Server::Context->create_script_context(
+        database => $database,
+    );
 
-    my ($entity_type, @gids) = @ARGV;
-    my $arguments_string = $entity_type . ' ' . join(' ', @gids);
+    my ($entity_type, @ids) = @ARGV;
+    my $arguments_string = $entity_type . ' ' . join(' ', @ids);
 
-    print <<"EOSQL";
--- Automatically generated, do not edit.
--- $arguments_string
+    print <<~"EOSQL";
+        -- Automatically generated, do not edit.
+        -- $arguments_string
 
-SET client_min_messages TO 'warning';
+        SET client_min_messages TO 'warning';
 
--- Temporarily drop triggers.
-DROP TRIGGER deny_deprecated ON link;
-
-EOSQL
+        -- Temporarily drop triggers.
+        DROP TRIGGER deny_deprecated ON link;
+        EOSQL
 
     my $dump_method = $DUMP_METHODS{$entity_type} // sub {
         my ($c, $gids) = @_;
         get_core_entities_by_gids($c, $entity_type, $gids);
     };
 
-    $dump_method->($c, \@gids);
+    $dump_method->($c, \@ids);
 
-    print <<'EOSQL';
-
--- Restore triggers.
-CREATE TRIGGER deny_deprecated BEFORE UPDATE OR INSERT ON link FOR EACH ROW EXECUTE PROCEDURE deny_deprecated_links();
-EOSQL
+    print <<~'EOSQL';
+        -- Restore triggers.
+        CREATE TRIGGER deny_deprecated BEFORE UPDATE OR INSERT ON link
+            FOR EACH ROW EXECUTE PROCEDURE deny_deprecated_links();
+        EOSQL
 
 }
 

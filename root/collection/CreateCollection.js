@@ -7,7 +7,7 @@
  * later version: http://www.gnu.org/licenses/gpl-2.0.txt
  */
 
-import React from 'react';
+import * as React from 'react';
 
 import Layout from '../layout';
 import * as manifest from '../static/manifest';
@@ -16,12 +16,15 @@ import CollectionEditForm
 
 import type {CollectionEditFormT} from './types';
 
-type Props = {|
+type Props = {
   +collectionTypes: SelectOptionsT,
   +form: CollectionEditFormT,
-|};
+};
 
-const CreateCollection = ({collectionTypes, form}: Props) => (
+const CreateCollection = ({
+  collectionTypes,
+  form,
+}: Props): React.Element<typeof Layout> => (
   <Layout
     fullWidth
     title={l('Create a new collection')}

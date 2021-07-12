@@ -4,6 +4,8 @@ use Moose;
 use MusicBrainz::Server::Constants qw( $EDIT_PLACE_CREATE );
 use MusicBrainz::Server::Edit::Types qw( CoordinateHash Nullable PartialDateHash );
 use MusicBrainz::Server::Translation qw( N_l );
+use MusicBrainz::Server::Data::Utils qw( boolean_to_json );
+use MusicBrainz::Server::Entity::Util::JSON qw( to_json_object );
 use aliased 'MusicBrainz::Server::Entity::PartialDate';
 use aliased 'MusicBrainz::Server::Entity::Coordinates';
 use Moose::Util::TypeConstraints;
@@ -57,19 +59,24 @@ sub build_display_data
 
     return {
         ( map { $_ => $_ ? $self->data->{$_} : '' } qw( name ) ),
-        type        => $type ? $loaded->{PlaceType}->{$type} : '',
-        begin_date  => PartialDate->new($self->data->{begin_date}),
-        end_date    => PartialDate->new($self->data->{end_date}),
-        place       => ($self->entity_id && $loaded->{Place}->{ $self->entity_id }) ||
-            Place->new( name => $self->data->{name} ),
-        ended       => $self->data->{ended} // 0,
+        type        => $type ? to_json_object($loaded->{PlaceType}{$type}) : undef,
+        begin_date  => to_json_object(PartialDate->new($self->data->{begin_date})),
+        end_date    => to_json_object(PartialDate->new($self->data->{end_date})),
+        place       => to_json_object((defined($self->entity_id) &&
+            $loaded->{Place}{ $self->entity_id }) ||
+            Place->new( name => $self->data->{name} )
+        ),
+        ended       => boolean_to_json($self->data->{ended}),
         comment     => $self->data->{comment},
         address     => $self->data->{address},
-        coordinates => defined $self->data->{coordinates} ? Coordinates->new($self->data->{coordinates}) : '',
+        coordinates => defined $self->data->{coordinates} &&
+                       to_json_object(Coordinates->new($self->data->{coordinates})),
         area        => defined($self->data->{area_id}) &&
-                       ($loaded->{Area}->{ $self->data->{area_id} } // Area->new())
+                       to_json_object($loaded->{Area}{ $self->data->{area_id} } // Area->new())
     };
 }
+
+sub edit_template_react { "AddPlace" }
 
 before restore => sub {
     my ($self, $data) = @_;

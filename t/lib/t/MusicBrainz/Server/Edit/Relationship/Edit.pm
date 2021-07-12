@@ -82,12 +82,10 @@ test 'The display data works even if and endpoint or link type is deleted' => su
     $c->model('Edit')->load_all($edit);
 
     ok(defined $edit->display_data->{old});
-    is($edit->display_data->{old}->entity0->name, 'Artist 1');
-    is($edit->display_data->{old}->entity1->name, 'Artist 2');
-    is($edit->display_data->{old}->phrase, 'additional member of');
-    is($edit->display_data->{new}->entity0->name, 'Artist 1');
-    is($edit->display_data->{new}->entity1->name, 'Artist 3');
-    is($edit->display_data->{new}->phrase, 'additional collaborator on');
+    is($edit->display_data->{old}{target}{name}, 'Artist 2');
+    is($edit->display_data->{old}{verbosePhrase}, 'is/was an additional member of');
+    is($edit->display_data->{new}{target}{name}, 'Artist 3');
+    is($edit->display_data->{new}{verbosePhrase}, 'collaborated additionally on');
 };
 
 test 'Editing a relationship more than once fails subsequent edits' => sub {
@@ -203,28 +201,30 @@ test 'Editing a relationship refreshes existing cover art' => sub {
     my $test = shift;
     my $c = $test->c;
 
-    $c->sql->do(<<'EOSQL');
-INSERT INTO artist (id, gid, name, sort_name)
-  VALUES (1, '9d0ed9ec-ebd4-40d3-80ec-af70c07c3667', 'Artist', 'Artist');
-INSERT INTO artist_credit (id, artist_count, name) VALUES (1, 1, 'Artist');
-INSERT INTO artist_credit_name (artist_credit, position, artist, join_phrase, name)
-  VALUES (1, 0, 1, '', 'Artist');
+    $c->sql->do(<<~'EOSQL');
+        INSERT INTO artist (id, gid, name, sort_name)
+            VALUES (1, '9d0ed9ec-ebd4-40d3-80ec-af70c07c3667', 'Artist', 'Artist');
+        INSERT INTO artist_credit (id, artist_count, name) VALUES (1, 1, 'Artist');
+        INSERT INTO artist_credit_name (artist_credit, position, artist, join_phrase, name)
+            VALUES (1, 0, 1, '', 'Artist');
 
-INSERT INTO release_group (id, name, artist_credit, gid)
-  VALUES (1, 'Release', 1, '8265e53b-94d8-4700-bcd2-c3d25dcf104d');
-INSERT INTO release (id, gid, artist_credit, name, release_group)
-  VALUES (1, 'aa289662-5b07-425c-a3e7-bbb6898ff46d', 1, 'Release', 1),
-         (2, '362e3ac2-5afb-4d14-95be-3b808da95121', 1, 'Release', 1);
-UPDATE release_coverart
-  SET cover_art_url = 'http://www.archive.org/download/CoverArtsForVariousAlbum/karenkong-mulakan.jpg';
-INSERT INTO url (id, gid, url)
-  VALUES (1, '24332737-b876-4d5e-9c30-e414b4570bda', 'http://www.archive.org/download/CoverArtsForVariousAlbum/karenkong-mulakan.jpg');
+        INSERT INTO release_group (id, name, artist_credit, gid)
+            VALUES (1, 'Release', 1, '8265e53b-94d8-4700-bcd2-c3d25dcf104d');
+        INSERT INTO release (id, gid, artist_credit, name, release_group)
+            VALUES (1, 'aa289662-5b07-425c-a3e7-bbb6898ff46d', 1, 'Release', 1),
+                   (2, '362e3ac2-5afb-4d14-95be-3b808da95121', 1, 'Release', 1);
 
-UPDATE link_type SET is_deprecated = FALSE where id = 78;
-INSERT INTO link (id, link_type) VALUES (1, 78);
-UPDATE link_type SET is_deprecated = TRUE where id = 78;
-INSERT INTO l_release_url (id, entity0, entity1, link) VALUES (1, 1, 1, 1);
-EOSQL
+        UPDATE release_coverart
+        SET cover_art_url = 'http://www.archive.org/download/CoverArtsForVariousAlbum/karenkong-mulakan.jpg';
+
+        INSERT INTO url (id, gid, url)
+            VALUES (1, '24332737-b876-4d5e-9c30-e414b4570bda', 'http://www.archive.org/download/CoverArtsForVariousAlbum/karenkong-mulakan.jpg');
+
+        UPDATE link_type SET is_deprecated = FALSE WHERE id = 78;
+        INSERT INTO link (id, link_type) VALUES (1, 78);
+        UPDATE link_type SET is_deprecated = TRUE WHERE id = 78;
+        INSERT INTO l_release_url (id, entity0, entity1, link) VALUES (1, 1, 1, 1);
+        EOSQL
 
     my $rel = $c->model('Relationship')->get_by_id('release', 'url', 1);
     $c->model('Link')->load($rel);
@@ -473,6 +473,8 @@ test 'Entity credits can be added to an existing relationship' => sub {
         relationship_id => 1,
         type1 => 'artist',
         type0 => 'artist',
+        entity1_credit => '',
+        entity0_credit => ''
     });
 };
 

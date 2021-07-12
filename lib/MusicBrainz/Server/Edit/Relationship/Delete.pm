@@ -2,14 +2,17 @@ package MusicBrainz::Server::Edit::Relationship::Delete;
 use Moose;
 use Try::Tiny;
 
-use MusicBrainz::Server::Constants qw( $EDIT_RELATIONSHIP_DELETE );
+use List::MoreUtils qw( any );
+use MusicBrainz::Server::Constants qw( $CONTACT_URL $EDIT_RELATIONSHIP_DELETE );
 use MusicBrainz::Server::Data::Utils qw(
+    localized_note
     partial_date_to_hash
     type_to_model
 );
 use MusicBrainz::Server::Edit::Utils qw( gid_or_id );
 use MusicBrainz::Server::Edit::Types qw( LinkAttributesArray PartialDateHash );
 use MusicBrainz::Server::Entity::Types;
+use MusicBrainz::Server::Entity::Util::JSON qw( to_json_object );
 use MooseX::Types::Moose qw( Int Str ArrayRef Bool );
 use MooseX::Types::Structured qw( Dict Optional );
 
@@ -28,6 +31,7 @@ with 'MusicBrainz::Server::Edit::Role::Preview';
 sub edit_type { $EDIT_RELATIONSHIP_DELETE }
 sub edit_name { N_l("Remove relationship") }
 sub edit_kind { 'remove' }
+sub edit_template_react { 'RemoveRelationship' }
 
 has '+data' => (
     isa => Dict[
@@ -69,8 +73,14 @@ has 'relationship' => (
     is => 'rw'
 );
 
+# Some old edits don't actually have a link type ID stored
+# We use this dirty hack so that we can access the data in linkedEntities
+my $link_type_fake_id = 10000;
+
 sub model0 { type_to_model(shift->data->{relationship}{link}{type}{entity0_type}) }
 sub model1 { type_to_model(shift->data->{relationship}{link}{type}{entity1_type}) }
+
+sub link_type { shift->data->{relationship}{link}{type} }
 
 sub foreign_keys
 {
@@ -87,6 +97,7 @@ sub foreign_keys
     $ids{$self->model1}->{gid_or_id($entity1)} = [ 'ArtistCredit' ];
 
     $ids{LinkType} = [$self->data->{link}{type}{id}];
+    $ids{LinkAttributeType} = { map { $_->{type}{id} => ['LinkAttributeType'] } @{ $self->data->{relationship}{link}{attributes} // [] } };
 
     return \%ids;
 }
@@ -101,8 +112,11 @@ sub build_display_data
         map {
             my $type = $_->{type};
             MusicBrainz::Server::Entity::LinkAttribute->new(
-                type => MusicBrainz::Server::Entity::LinkAttributeType->new(
+                type_id => $type->{id},
+                type => $loaded->{LinkAttributeType}{$type->{id}} // MusicBrainz::Server::Entity::LinkAttributeType->new(
+                    id => $type->{id},
                     name => $type->{name},
+                    root_id => $type->{root}{id},
                     root => MusicBrainz::Server::Entity::LinkAttributeType->new(
                         name => $type->{root}{name},
                     )
@@ -114,33 +128,55 @@ sub build_display_data
     ];
 
     my $link_type = $relationship->{link}{type};
+    my $entity0_type = $link_type->{entity0_type};
+    my $entity1_type = $link_type->{entity1_type};
+
+    # If no link type exists, we use the fake ID and ensure the next one doesn't clash
+    my $link_type_id = $link_type->{id} // $link_type_fake_id++;
+    my $loaded_link_type = $loaded->{LinkType}{ $link_type->{id} } if $link_type->{id};
+
     my $link = MusicBrainz::Server::Entity::Link->new(
+        type_id => $link_type_id,
         begin_date => MusicBrainz::Server::Entity::PartialDate->new_from_row($relationship->{link}{begin_date}),
         end_date => MusicBrainz::Server::Entity::PartialDate->new_from_row($relationship->{link}{end_date}),
         ended => $relationship->{link}{ended},
-        type => $loaded->{LinkType}{$link_type->{id}} // MusicBrainz::Server::Entity::LinkType->new(
-            $link_type->{id} ? (id => $link_type->{id}) : (),
-            entity0_type => $link_type->{entity0_type},
-            entity1_type => $link_type->{entity1_type},
-            long_link_phrase => $link_type->{long_link_phrase} // '',
+        type => $loaded_link_type // MusicBrainz::Server::Entity::LinkType->new(
+            id => $link_type_id,
+            entity0_type => $entity0_type,
+            entity1_type => $entity1_type,
+            long_link_phrase => $link_type->{long_link_phrase} // $relationship->{phrase} // '',
         ),
         attributes => $attrs
     );
 
-    my $entity0 = $relationship->{entity0};
-    my $entity1 = $relationship->{entity1};
+    my $entity0_data = $relationship->{entity0};
+    my $entity1_data = $relationship->{entity1};
+    my $entity0 = $loaded->{ $self->model0 }{ gid_or_id($entity0_data) } ||
+        $self->c->model($self->model0)->_entity_class->new(
+            id => $entity0_data->{id},
+            name => $entity0_data->{name}
+        );
+    my $entity1 = $loaded->{ $self->model1 }{ gid_or_id($entity1_data) } ||
+        $self->c->model($self->model1)->_entity_class->new(
+            id => $entity1_data->{id},
+            name => $entity1_data->{name}
+        );
+    my $entity0_credit = $relationship->{entity0_credit} // '';
+    my $entity1_credit = $relationship->{entity1_credit} // '';
 
     my %relationship_opts = (
-        entity0 => $loaded->{ $self->model0 }->{gid_or_id($entity0)} ||
-            $self->c->model($self->model0)->_entity_class->new(
-                name => $entity0->{name}
-            ),
-        entity1 => $loaded->{ $self->model1 }->{gid_or_id($entity1)} ||
-            $self->c->model($self->model1)->_entity_class->new(
-                name => $entity1->{name}
-            ),
-        entity0_credit => $relationship->{entity0_credit} // '',
-        entity1_credit => $relationship->{entity1_credit} // '',
+        entity0 => $entity0,
+        entity1 => $entity1,
+        entity0_id => $entity0->id,
+        entity1_id => $entity1->id,
+        entity0_credit => $entity0_credit,
+        entity1_credit => $entity1_credit,
+        source => $entity0,
+        target => $entity1,
+        source_type => $entity0_type,
+        target_type => $entity1_type,
+        source_credit => $entity0_credit,
+        target_credit => $entity1_credit,
         link => $link
     );
     if ($relationship->{phrase}) {
@@ -151,9 +187,9 @@ sub build_display_data
     }
 
     return {
-        relationship => MusicBrainz::Server::Entity::Relationship->new(
+        relationship => to_json_object(MusicBrainz::Server::Entity::Relationship->new(
             %relationship_opts
-        )
+        ))
     }
 }
 
@@ -235,6 +271,23 @@ sub accept {
         $self->data->{relationship}{link}{type}{entity1_type},
         $self->data->{relationship}{id}
     ) or return;
+
+    $self->c->model('Link')->load($relationship);
+    $self->c->model('LinkType')->load($relationship->link);
+    $self->c->model('LinkType')->load_documentation($relationship->link->type);
+    my @examples = $relationship->link->type->all_examples;
+
+    if (any { $_->{relationship}->id == $relationship->id } @examples) {
+        my $error = localized_note(
+            N_l(
+                'This edit would remove a relationship that is set ' .
+                'as an example of its relationship type in the documentation. ' .
+                'If you still think this should be removed, please ' .
+                '{contact_url|contact us}.'),
+            vars => {contact_url => $CONTACT_URL},
+        );
+        MusicBrainz::Server::Edit::Exceptions::GeneralError->throw($error);
+    }
 
     $self->c->model('Relationship')->delete(
         $self->data->{relationship}{link}{type}{entity0_type},
@@ -333,22 +386,12 @@ no Moose;
 
 MusicBrainz::Server::Data::Relationship
 
-=head1 COPYRIGHT
+=head1 COPYRIGHT AND LICENSE
 
 Copyright (C) 2009 Lukas Lalinsky
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program; if not, write to the Free Software
-Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+This file is part of MusicBrainz, the open internet music database,
+and is licensed under the GPL version 2, or (at your option) any
+later version: http://www.gnu.org/licenses/gpl-2.0.txt
 
 =cut

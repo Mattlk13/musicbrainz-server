@@ -1,5 +1,5 @@
 /*
- * @flow
+ * @flow strict-local
  * Copyright (C) 2018 MetaBrainz Foundation
  *
  * This file is part of MusicBrainz, the open internet music database,
@@ -7,38 +7,38 @@
  * later version: http://www.gnu.org/licenses/gpl-2.0.txt
  */
 
-import React from 'react';
+import * as React from 'react';
 
 import {l_statistics as l} from '../static/scripts/common/i18n/statistics';
 import EditorLink from '../static/scripts/common/components/EditorLink';
-import {withCatalystContext} from '../context';
 import loopParity from '../utility/loopParity';
 
 import {formatCount} from './utilities';
 import StatisticsLayout from './StatisticsLayout';
 
-type EditorsStatsT = {|
+type EditorsStatsT = {
+  +$c: CatalystContextT,
   +dateCollected: string,
   +topEditors: $ReadOnlyArray<EditorStatT>,
   +topRecentlyActiveEditors: $ReadOnlyArray<EditorStatT>,
   +topRecentlyActiveVoters: $ReadOnlyArray<EditorStatT>,
   +topVoters: $ReadOnlyArray<EditorStatT>,
-|};
+};
 
-type EditorStatsTableProps = {|
+type EditorStatsTableProps = {
   +$c: CatalystContextT,
   countLabel: string,
   dataPoints: $ReadOnlyArray<EditorStatT>,
   editorLabel: string,
   tableLabel: string,
-|};
+};
 
-type EditorStatT = {|
+type EditorStatT = {
   +count: number,
   +editor: EditorT,
-|};
+};
 
-const EditorStatsTable = withCatalystContext(({
+const EditorStatsTable = ({
   $c,
   countLabel,
   dataPoints,
@@ -85,15 +85,16 @@ const EditorStatsTable = withCatalystContext(({
       </tbody>
     </table>
   </>
-));
+);
 
 const Editors = ({
+  $c,
   dateCollected,
   topEditors,
   topRecentlyActiveEditors,
   topRecentlyActiveVoters,
   topVoters,
-}: EditorsStatsT) => (
+}: EditorsStatsT): React.Element<typeof StatisticsLayout> => (
   <StatisticsLayout fullWidth page="editors" title={l('Editors')}>
     <p>
       {texp.l('Last updated: {date}', {date: dateCollected})}
@@ -107,12 +108,14 @@ const Editors = ({
     >
       <h2 style={{marginTop: 0}}>{l('Editors')}</h2>
       <EditorStatsTable
+        $c={$c}
         countLabel={l('Open and applied edits in past week')}
         dataPoints={topRecentlyActiveEditors}
         editorLabel={l('Editor')}
         tableLabel={l('Most active editors in the past week')}
       />
       <EditorStatsTable
+        $c={$c}
         countLabel={l('Total applied edits')}
         dataPoints={topEditors}
         editorLabel={l('Editor')}
@@ -124,12 +127,14 @@ const Editors = ({
     >
       <h2 style={{marginTop: 0}}>{l('Voters')}</h2>
       <EditorStatsTable
+        $c={$c}
         countLabel={l('Votes in past week')}
         dataPoints={topRecentlyActiveVoters}
         editorLabel={l('Voter')}
         tableLabel={l('Most active voters in the past week')}
       />
       <EditorStatsTable
+        $c={$c}
         countLabel={l('Total votes')}
         dataPoints={topVoters}
         editorLabel={l('Voter')}

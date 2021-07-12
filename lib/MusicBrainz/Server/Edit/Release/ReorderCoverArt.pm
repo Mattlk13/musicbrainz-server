@@ -8,6 +8,7 @@ use MooseX::Types::Structured qw( Dict Optional );
 use MusicBrainz::Server::Constants qw( $EDIT_RELEASE_REORDER_COVER_ART );
 use MusicBrainz::Server::Edit::Exceptions;
 use MusicBrainz::Server::Edit::Utils qw( changed_display_data );
+use MusicBrainz::Server::Entity::Util::JSON qw( to_json_object );
 use MusicBrainz::Server::Translation qw( N_l );
 
 use List::UtilsBy 'nsort_by';
@@ -25,6 +26,7 @@ sub edit_name { N_l('Reorder cover art') }
 sub edit_kind { 'other' }
 sub edit_type { $EDIT_RELEASE_REORDER_COVER_ART }
 sub release_ids { shift->data->{entity}{id} }
+sub edit_template_react { 'ReorderCoverArt' }
 
 sub alter_edit_pending {
     return {
@@ -131,30 +133,22 @@ sub build_display_data {
     my @old = nsort_by { $_->{position} } @{ $self->data->{old} };
     my @new = nsort_by { $_->{position} } @{ $self->data->{new} };
 
-    $data{old} = [ map { $artwork_by_id{$_->{id}} } @old ];
-    $data{new} = [ map { $artwork_by_id{$_->{id}} } @new ];
+    $data{old} = [ map { to_json_object($artwork_by_id{$_->{id}}) } @old ];
+    $data{new} = [ map { to_json_object($artwork_by_id{$_->{id}}) } @new ];
+
+    $data{release} = to_json_object($data{release});
 
     return \%data;
 }
 
 1;
 
-=head1 COPYRIGHT
+=head1 COPYRIGHT AND LICENSE
 
 Copyright (C) 2012 MetaBrainz Foundation
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program; if not, write to the Free Software
-Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+This file is part of MusicBrainz, the open internet music database,
+and is licensed under the GPL version 2, or (at your option) any
+later version: http://www.gnu.org/licenses/gpl-2.0.txt
 
 =cut

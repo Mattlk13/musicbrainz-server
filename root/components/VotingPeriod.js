@@ -1,5 +1,5 @@
 /*
- * @flow
+ * @flow strict-local
  * Copyright (C) 2018 MetaBrainz Foundation
  *
  * This file is part of MusicBrainz, the open internet music database,
@@ -7,39 +7,48 @@
  * later version: http://www.gnu.org/licenses/gpl-2.0.txt
  */
 
-import React from 'react';
-import moment from 'moment';
-
-import formatUserDate from '../utility/formatUserDate';
+import {formatUserDateObject} from '../utility/formatUserDate';
+import parseIsoDate from '../utility/parseIsoDate';
 
 type PropsT = {
+  +$c: CatalystContextT,
   +closingDate: string,
-  +user?: EditorT,
 };
 
-const VotingPeriod = ({closingDate, user}: PropsT) => {
-  const dateMoment = moment(closingDate);
-  const userDate = formatUserDate(user, closingDate);
+const VotingPeriod = ({
+  $c,
+  closingDate,
+}: PropsT): Expand2ReactOutput | null => {
+  const date = parseIsoDate(closingDate);
+  if (!date) {
+    return null;
+  }
+  const userDate = formatUserDateObject($c, date);
+  const now = new Date();
 
-  if (dateMoment.isAfter()) {
-    const duration = moment.duration(dateMoment.diff(moment()));
-    if (duration.days() > 0) {
+  if (date > now) {
+    const durationSeconds = Math.floor((date - now) / 1000);
+    const durationMinutes = Math.round(durationSeconds / 60);
+    const durationHours = Math.round(durationMinutes / 60);
+    const durationDays = Math.round(durationHours / 24);
+
+    if (durationHours > 23) {
       return exp.ln(
         `Closes in
          <span class="tooltip" title="{exactdate}">{num} day</span>`,
         `Closes in
          <span class="tooltip" title="{exactdate}">{num} days</span>`,
-        duration.days(),
-        {exactdate: userDate, num: duration.days()},
+        durationDays,
+        {exactdate: userDate, num: durationDays},
       );
-    } else if (duration.hours() > 0) {
+    } else if (durationMinutes > 59) {
       return exp.ln(
         `Closes in
          <span class="tooltip" title="{exactdate}">{num} hour</span>`,
         `Closes in
          <span class="tooltip" title="{exactdate}">{num} hours</span>`,
-        duration.hours(),
-        {exactdate: userDate, num: duration.hours()},
+        durationHours,
+        {exactdate: userDate, num: durationHours},
       );
     }
     return exp.ln(
@@ -47,8 +56,8 @@ const VotingPeriod = ({closingDate, user}: PropsT) => {
        <span class="tooltip" title="{exactdate}">{num} minute</span>`,
       `Closes in
        <span class="tooltip" title="{exactdate}">{num} minutes</span>`,
-      duration.minutes(),
-      {exactdate: userDate, num: duration.minutes()},
+      durationMinutes,
+      {exactdate: userDate, num: durationMinutes},
     );
   }
   return l('About to close');

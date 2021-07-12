@@ -3,6 +3,7 @@ use Moose;
 
 use MusicBrainz::Server::Data::Utils qw( boolean_to_json );
 use MusicBrainz::Server::Entity::Types;
+use MusicBrainz::Server::Entity::Util::JSON qw( to_json_array );
 use MusicBrainz::Server::Translation::Relationships;
 use MusicBrainz::Server::Translation::Instruments;
 use MusicBrainz::Server::Translation::InstrumentDescriptions;
@@ -30,6 +31,16 @@ has 'root_gid' => (
 has 'root' => (
     is => 'rw',
     isa => 'LinkAttributeType',
+);
+
+has 'parent_gid' => (
+    is => 'rw',
+    isa => 'Maybe[Str]',
+);
+
+has 'parent_name' => (
+    is => 'rw',
+    isa => 'Maybe[Str]',
 );
 
 sub l_name {
@@ -67,6 +78,16 @@ has 'instrument_comment' => (
     isa => 'Maybe[Str]',
 );
 
+has 'instrument_type_id' => (
+    is => 'rw',
+    isa => 'Maybe[Int]',
+);
+
+has 'instrument_type_name' => (
+    is => 'rw',
+    isa => 'Maybe[Str]',
+);
+
 around TO_JSON => sub {
     my ($orig, $self) = @_;
 
@@ -75,14 +96,25 @@ around TO_JSON => sub {
         $self->link_entity('link_attribute_type', $root->id, $root);
     }
 
+    my $parent = $self->parent;
+    if ($parent) {
+        $self->link_entity('link_attribute_type', $parent->id, $parent);
+    }
+
+    my $children = to_json_array($self->children);
+
     return {
         %{ $self->$orig },
         gid => $self->gid,
         root_id => $self->root_id + 0,
         root_gid => $self->root_gid,
+        parent_id => defined $self->parent_id ? ($self->parent_id + 0) : undef,
         free_text => boolean_to_json($self->free_text),
         creditable => boolean_to_json($self->creditable),
         $self->instrument_comment ? (instrument_comment => $self->instrument_comment) : (),
+        $self->instrument_type_id ? (instrument_type_id => $self->instrument_type_id) : (),
+        $self->instrument_type_name ? (instrument_type_name => $self->instrument_type_name) : (),
+        (defined $children && @$children) ? (children => $children) : (),
     };
 };
 
@@ -90,22 +122,12 @@ __PACKAGE__->meta->make_immutable;
 no Moose;
 1;
 
-=head1 COPYRIGHT
+=head1 COPYRIGHT AND LICENSE
 
 Copyright (C) 2009 Lukas Lalinsky
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program; if not, write to the Free Software
-Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+This file is part of MusicBrainz, the open internet music database,
+and is licensed under the GPL version 2, or (at your option) any
+later version: http://www.gnu.org/licenses/gpl-2.0.txt
 
 =cut

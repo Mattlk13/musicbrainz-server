@@ -1,5 +1,5 @@
 /*
- * @flow
+ * @flow strict-local
  * Copyright (C) 2018 MetaBrainz Foundation
  *
  * This file is part of MusicBrainz, the open internet music database,
@@ -12,10 +12,10 @@ import * as React from 'react';
 import Layout from '../layout';
 import TagLink from '../static/scripts/common/components/TagLink';
 
-type Props = {|
-  tagMaxCount: number,
-  tags: $ReadOnlyArray<AggregatedTagT>,
-|};
+type Props = {
+  +tagMaxCount: number,
+  +tags: $ReadOnlyArray<AggregatedTagT>,
+};
 
 function getTagSize(count: number, tagMaxCount: number) {
   const percent = count / tagMaxCount * 100;
@@ -40,7 +40,10 @@ function getTagSize(count: number, tagMaxCount: number) {
   return 'tag7';
 }
 
-const TagCloud = ({tagMaxCount, tags}: Props) => (
+const TagCloud = ({
+  tagMaxCount,
+  tags,
+}: Props): React.Element<typeof Layout> => (
   <Layout fullWidth title={l('Tags')}>
     <div id="content">
       <h1>{l('Tags')}</h1>
@@ -50,10 +53,13 @@ const TagCloud = ({tagMaxCount, tags}: Props) => (
             {tags.map(({count, tag}) => (
               <li
                 className={getTagSize(count, tagMaxCount)}
-                key={tag}
-                title={texp.l("'{tag}' has been used {num} times", {num: count.toLocaleString(), tag})}
+                key={tag.name}
+                title={texp.l(
+                  "'{tag}' has been used {num} times",
+                  {num: count.toLocaleString(), tag: tag.name},
+                )}
               >
-                <TagLink tag={tag} />
+                <TagLink tag={tag.name} />
                 {' '}
               </li>
             ))}

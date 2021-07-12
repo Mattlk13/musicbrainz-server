@@ -38,7 +38,7 @@ sub language_options {
     my @languages = $c->model('Language')->get_all;
     if ($context eq "editor") {
         for my $language (@languages) {
-            if ($language->iso_code_3 && $language->iso_code_3 =~ /mis|mul|qaa|und|zxx/) {
+            if ($language->iso_code_3 && $language->iso_code_3 eq 'mul') {
                 $language->frequency($skip);
             }
         }
@@ -176,8 +176,6 @@ sub build_type_info {
 
         my $result = $root->TO_JSON;
 
-        $result->{children} = build_child_info($root, \&build_type) if $root->all_children;
-
         return $result;
     };
 
@@ -206,13 +204,14 @@ sub validate_username {
 
     my $username = $self->value;
     my $previous_username = $self->init_value;
+    my $editor_model = $self->form->ctx->model('Editor');
 
     if (defined $username) {
-        unless (defined $previous_username && $previous_username eq $username) {
+        unless (defined $previous_username && $editor_model->are_names_equivalent($previous_username, $username)) {
             if ($username =~ qr{^deleted editor \#\d+$}i) {
                 $self->add_error(l('This username is reserved for internal use.'));
             }
-            if ($self->form->ctx->model('Editor')->is_name_used($username)) {
+            if ($editor_model->is_name_used($username)) {
                 $self->add_error(l('Please choose another username, this one is already taken.'));
             }
         }
@@ -221,22 +220,12 @@ sub validate_username {
 
 1;
 
-=head1 COPYRIGHT
+=head1 COPYRIGHT AND LICENSE
 
 Copyright (C) 2011 MetaBrainz Foundation
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program; if not, write to the Free Software
-Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+This file is part of MusicBrainz, the open internet music database,
+and is licensed under the GPL version 2, or (at your option) any
+later version: http://www.gnu.org/licenses/gpl-2.0.txt
 
 =cut

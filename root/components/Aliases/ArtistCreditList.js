@@ -1,5 +1,5 @@
 /*
- * @flow
+ * @flow strict-local
  * Copyright (C) 2019 MetaBrainz Foundation
  *
  * This file is part of MusicBrainz, the open internet music database,
@@ -7,12 +7,14 @@
  * later version: http://www.gnu.org/licenses/gpl-2.0.txt
  */
 
-import React from 'react';
+import * as React from 'react';
 
-import {withCatalystContext} from '../../context';
 import ArtistCreditLink
   from '../../static/scripts/common/components/ArtistCreditLink';
+import ArtistCreditUsageLink
+  from '../../static/scripts/common/components/ArtistCreditUsageLink';
 import EntityLink from '../../static/scripts/common/components/EntityLink';
+import bracketed from '../../static/scripts/common/utility/bracketed';
 import loopParity from '../../utility/loopParity';
 
 type Props = {
@@ -21,7 +23,11 @@ type Props = {
   +entity: CoreEntityT,
 };
 
-const ArtistCreditList = ({$c, artistCredits, entity}: Props) => {
+const ArtistCreditList = ({
+  $c,
+  artistCredits,
+  entity,
+}: Props): React.Element<typeof React.Fragment> => {
   return (
     <>
       <h2>{l('Artist credits')}</h2>
@@ -43,8 +49,8 @@ const ArtistCreditList = ({$c, artistCredits, entity}: Props) => {
             <th>
               {l('Name')}
             </th>
-            {$c.user_exists ? (
-              <th className="actions-header">
+            {$c.user ? (
+              <th className="actions">
                 {l('Actions')}
               </th>
             ) : null}
@@ -55,11 +61,20 @@ const ArtistCreditList = ({$c, artistCredits, entity}: Props) => {
             <tr className={loopParity(index)} key={credit.id}>
               <td>
                 <ArtistCreditLink artistCredit={credit} />
+                {' '}
+                <span className="small">
+                  {bracketed(
+                    <ArtistCreditUsageLink
+                      artistCredit={credit}
+                      content={l('see uses')}
+                    />,
+                  )}
+                </span>
               </td>
-              {$c.user_exists ? (
-                <td>
+              {$c.user ? (
+                <td className="actions">
                   <a href={`/artist/${entity.gid}/credit/${credit.id}/edit`}>
-                    {credit.editsPending
+                    {credit.editsPending /*:: === true */
                       ? <span className="mp">{l('Edit')}</span>
                       : l('Edit')}
                   </a>
@@ -73,4 +88,4 @@ const ArtistCreditList = ({$c, artistCredits, entity}: Props) => {
   );
 };
 
-export default withCatalystContext(ArtistCreditList);
+export default ArtistCreditList;

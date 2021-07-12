@@ -63,17 +63,20 @@ sub _load_attributes
                 root_attr.gid AS root_gid,
                 root_attr.name AS root_name,
                 COALESCE(text_value, '') AS text_value,
-                COALESCE((SELECT true FROM link_text_attribute_type ltat
+                COALESCE((SELECT TRUE FROM link_text_attribute_type ltat
                           WHERE ltat.attribute_type = attr.id), false) AS free_text,
-                COALESCE((SELECT true FROM link_creditable_attribute_type lcat
+                COALESCE((SELECT TRUE FROM link_creditable_attribute_type lcat
                           WHERE lcat.attribute_type = attr.id), false) AS creditable,
-                COALESCE((SELECT comment FROM instrument
-                          WHERE instrument.gid = attr.gid), '') AS instrument_comment
+                COALESCE(ins.comment, '') AS instrument_comment,
+                ins_t.id AS instrument_type_id,
+                COALESCE(ins_t.name, '') AS instrument_type_name
             FROM link_attribute
                 JOIN link_attribute_type AS attr ON attr.id = link_attribute.attribute_type
                 JOIN link_attribute_type AS root_attr ON root_attr.id = attr.root
                 LEFT OUTER JOIN link_attribute_text_value USING (link, attribute_type)
                 LEFT OUTER JOIN link_attribute_credit attr_credit USING (link, attribute_type)
+                LEFT OUTER JOIN instrument ins ON ins.gid = attr.gid
+                LEFT OUTER JOIN instrument_type ins_t ON ins.type = ins_t.id
             WHERE link IN (" . placeholders(@ids) . ")
             ORDER BY link, attr.name";
 
@@ -86,6 +89,8 @@ sub _load_attributes
                     free_text => $row->{free_text},
                     creditable => $row->{creditable},
                     instrument_comment => $row->{instrument_comment},
+                    instrument_type_id => $row->{instrument_type_id},
+                    instrument_type_name => $row->{instrument_type_name},
                     root_id => $row->{root_id},
                     root_gid => $row->{root_gid},
                     root => MusicBrainz::Server::Entity::LinkAttributeType->new(
@@ -263,22 +268,12 @@ __PACKAGE__->meta->make_immutable;
 no Moose;
 1;
 
-=head1 COPYRIGHT
+=head1 COPYRIGHT AND LICENSE
 
 Copyright (C) 2009 Lukas Lalinsky
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program; if not, write to the Free Software
-Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+This file is part of MusicBrainz, the open internet music database,
+and is licensed under the GPL version 2, or (at your option) any
+later version: http://www.gnu.org/licenses/gpl-2.0.txt
 
 =cut

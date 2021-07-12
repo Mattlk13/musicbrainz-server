@@ -9,12 +9,94 @@
 
 import mutate from 'mutate-cow';
 import * as React from 'react';
-import ReactDOM from 'react-dom';
+import * as ReactDOM from 'react-dom';
+import * as Sentry from '@sentry/browser';
 
-export default function hydrate<Config>(
+import {SanitizedCatalystContext} from '../context';
+
+import escapeClosingTags from './escapeClosingTags';
+
+type PropsDataT =
+  | StrOrNum
+  | $ReadOnlyArray<PropsDataT>
+  | {+[key: string]: PropsDataT, ...}
+  | null
+  | void;
+
+/*
+ * During testing or development mode, ensure that hydration props do
+ * not embed sensitive data like emails and birth dates of users. Only
+ * `sanitizedEditorProps` are allowed wherever an object with entityType
+ * "editor" appears.
+ *
+ * It may be valid to embed certain unsanitized data for the currently
+ * logged-in user, but that should be part of `$c.user` in
+ * `GLOBAL_JS_NAMESPACE`; we otherwise may need to relax this check for
+ * admin-only forms in the future.
+ */
+let checkForUnsanitizedEditorData;
+if (__DEV__) {
+  /*
+   * Please keep these keys in sync with what's returned by
+   * root/utility/sanitizedEditor.js.
+   */
+  const sanitizedEditorProps = new Set([
+    'deleted',
+    'entityType',
+    'gravatar',
+    'id',
+    'is_limited',
+    'name',
+    'privileges',
+  ]);
+
+  const suspectKeyPattern = /(?:birth|email|password)/;
+
+  checkForUnsanitizedEditorData = (
+    data: PropsDataT,
+  ) => {
+    if (data) {
+      if (Array.isArray(data)) {
+        data.forEach(checkForUnsanitizedEditorData);
+      } else if (typeof data === 'object') {
+        if (data.entityType === 'editor') {
+          for (const key in data) {
+            if (!sanitizedEditorProps.has(key)) {
+              throw new Error(
+                'Unsanitized editor data was found on the client: ' +
+                JSON.stringify(data),
+              );
+            }
+          }
+        } else {
+          for (const key in data) {
+            const normalizedKey =
+              key.toLowerCase().replace(/[_-]/g, '');
+            if (suspectKeyPattern.test(normalizedKey)) {
+              console.warn(
+                'Possible unsanitized editor data was found on ' +
+                'the client. If it\'s relevant to a particular *secure* ' +
+                'page, or only relates to the current authorized user, ' +
+                'you may ignore this warning; but please ensure that ' +
+                `it\'s intended (check key ${JSON.stringify(key)}): ` +
+                JSON.stringify(data),
+              );
+            }
+            checkForUnsanitizedEditorData(data[key]);
+          }
+        }
+      }
+    }
+  };
+}
+
+export default function hydrate<
+  Config: {+$c?: CatalystContextT, ...},
+  SanitizedConfig = Config,
+>(
   containerSelector: string,
-  Component: React.AbstractComponent<Config>,
-  mungeProps?: (Config) => Config,
+  Component: React.AbstractComponent<Config | SanitizedConfig>,
+  mungeProps?: (Config) => SanitizedConfig,
 ): React.AbstractComponent<Config, void> {
   const [containerTag, ...classes] = containerSelector.split('.');
   if (typeof document !== 'undefined') {
@@ -23,27 +105,54 @@ export default function hydrate<Config>(
     $(function () {
       const roots = document.querySelectorAll(containerSelector);
       for (const root of roots) {
-        const propString = root.getAttribute('data-props');
-        root.removeAttribute('data-props');
+        const propScript = root.previousElementSibling;
+        if (!propScript || propScript.tagName.toLowerCase() !== 'script') {
+          const errorMsg =
+            'Props <script> for ' + containerSelector + ' not found.';
+          console.error(errorMsg);
+          Sentry.captureException(new Error(errorMsg));
+          continue;
+        }
+        const propString = propScript.textContent;
         if (propString) {
-          const props: Config = JSON.parse(propString);
-          ReactDOM.hydrate(<Component {...props} />, root);
+          const $c: SanitizedCatalystContextT =
+            window[GLOBAL_JS_NAMESPACE].$c;
+          const props: SanitizedConfig = JSON.parse(propString);
+          if (__DEV__) {
+            checkForUnsanitizedEditorData((props: any));
+          }
+          ReactDOM.hydrate(
+            <SanitizedCatalystContext.Provider value={$c}>
+              <Component $c={$c} {...props} />
+            </SanitizedCatalystContext.Provider>,
+            root,
+          );
         }
       }
     });
   }
-  return (props) => {
-    let dataProps = props;
+  return (props: Config) => {
+    let dataProps = {...props};
+    if (dataProps.$c) {
+      delete dataProps.$c;
+    }
     if (mungeProps) {
       dataProps = mungeProps(dataProps);
     }
-    return React.createElement(
-      containerTag,
-      {
-        'className': classes.join(' '),
-        'data-props': JSON.stringify(dataProps),
-      },
-      <Component {...props} />,
+    return (
+      <>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: escapeClosingTags(JSON.stringify(dataProps) ?? ''),
+          }}
+          type="application/json"
+        />
+        {React.createElement(
+          containerTag,
+          {className: classes.join(' ')},
+          <Component {...props} />,
+        )}
+      </>
     );
   };
 }

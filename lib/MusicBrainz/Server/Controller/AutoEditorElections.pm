@@ -2,6 +2,7 @@ package MusicBrainz::Server::Controller::AutoEditorElections;
 BEGIN { use Moose; extends 'MusicBrainz::Server::Controller' }
 
 use MusicBrainz::Server::Translation qw( l );
+use MusicBrainz::Server::Entity::Util::JSON qw( to_json_array );
 use Try::Tiny;
 
 __PACKAGE__->config( namespace => 'elections' );
@@ -21,11 +22,11 @@ sub index : Path('')
     $c->stash(
         current_view => 'Node',
         component_path => 'elections/Index.js',
-        component_props => {elections => \@elections},
+        component_props => {elections => to_json_array(\@elections)},
     );
 }
 
-sub nominate : Path('nominate') Args(1) RequireAuth(auto_editor)
+sub nominate : Path('nominate') Args(1) RequireAuth(auto_editor) SecureForm
 {
     my ($self, $c, $editor) = @_;
 
@@ -33,8 +34,8 @@ sub nominate : Path('nominate') Args(1) RequireAuth(auto_editor)
     $c->detach('/error_404')
         unless $c->user->can_nominate($candidate);
 
-    my $form = $c->form( form => 'SubmitCancel' );
-    if ($c->form_posted && $form->submitted_and_valid($c->req->params)) {
+    my $form = $c->form( form => 'SecureConfirm' );
+    if ($c->form_posted_and_valid($form)) {
         if ($form->field('cancel')->input) {
             my $url = $c->uri_for_action('/user/profile', [ $candidate->name ]);
             $c->res->redirect($url);
@@ -51,7 +52,10 @@ sub nominate : Path('nominate') Args(1) RequireAuth(auto_editor)
     $c->stash(
         current_view => 'Node',
         component_path => 'elections/Nominate.js',
-        component_props => {candidate => $candidate},
+        component_props => {
+            candidate => $candidate->TO_JSON,
+            form => $form->TO_JSON,
+        },
     );
 }
 
@@ -92,7 +96,7 @@ sub show : Chained('load') PathPart('') Args(0)
     $c->stash(
         current_view => 'Node',
         component_path => 'elections/Show.js',
-        component_props => {election => $election},
+        component_props => {election => $election->TO_JSON},
 
     );
 }
@@ -103,8 +107,8 @@ sub second : Chained('load') Args(0) RequireAuth(auto_editor)
 
     my $election = $c->stash->{election};
 
-    my $form = $c->form( form => 'Submit' );
-    if ($c->form_posted && $form->submitted_and_valid($c->req->params)) {
+    my $form = $c->form( form => 'Confirm' );
+    if ($c->form_posted_and_valid($form)) {
         $c->model('AutoEditorElection')->second($election, $c->user);
     }
 
@@ -121,8 +125,8 @@ sub cancel : Chained('load') Args(0) RequireAuth(auto_editor)
     $c->detach('/error_403')
         unless $election->proposer_id == $c->user->id;
 
-    my $form = $c->form( form => 'Submit' );
-    if ($c->form_posted && $form->submitted_and_valid($c->req->params)) {
+    my $form = $c->form( form => 'Confirm' );
+    if ($c->form_posted_and_valid($form)) {
         $c->model('AutoEditorElection')->cancel($election, $c->user);
     }
 
@@ -138,7 +142,7 @@ sub vote : Chained('load') Args(0) RequireAuth(auto_editor)
     my $election = $c->stash->{election};
 
     my $form = $c->form( form => 'AutoEditorElection::Vote' );
-    if ($c->form_posted && $form->submitted_and_valid($c->req->params)) {
+    if ($c->form_posted_and_valid($form)) {
         $c->model('AutoEditorElection')->vote($election, $c->user,
                                               $form->field('vote')->value);
     }

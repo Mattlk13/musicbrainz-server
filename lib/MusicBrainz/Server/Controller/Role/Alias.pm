@@ -1,6 +1,7 @@
 package MusicBrainz::Server::Controller::Role::Alias;
 use Moose::Role -traits => 'MooseX::MethodAttributes::Role::Meta::Role';
 use MusicBrainz::Server::ControllerUtils::Delete qw( cancel_or_action );
+use MusicBrainz::Server::Entity::Util::JSON qw( to_json_array );
 
 requires 'load';
 
@@ -44,8 +45,8 @@ sub aliases : Chained('load') PathPart('aliases')
     $m->alias_type->load(@$aliases);
 
     my %props = (
-        aliases => $aliases,
-        entity => $entity,
+        aliases => to_json_array($aliases),
+        entity => $entity->TO_JSON,
     );
 
     $c->stash(
@@ -70,8 +71,22 @@ sub add_alias : Chained('load') PathPart('add-alias') Edit
     my ($self, $c) = @_;
     my $type = $self->{entity_name};
     my $entity = $c->stash->{ $type };
+    my $form_type = 'add';
     my $alias_model = $c->model( $self->{model} )->alias;
-    $c->stash( template => 'entity/alias/add.tt' );
+    my $entity_type = $type eq 'rg' ? 'release_group' : $type;
+
+    my %props = (
+        type => $entity_type,
+        entity => $entity->TO_JSON,
+        formType => $form_type,
+    );
+
+    $c->stash(
+        component_path => 'entity/alias/AddOrEditAlias',
+        component_props => \%props,
+        current_view => 'Node',
+    );
+
     $self->edit_action($c,
         form => 'Alias',
         form_args => {
@@ -87,7 +102,13 @@ sub add_alias : Chained('load') PathPart('add-alias') Edit
             name => $entity->name,
             id => $entity->id
         },
-        on_creation => sub { $self->_redir_to_aliases($c) }
+        on_creation => sub { $self->_redir_to_aliases($c) },
+        pre_validation => sub {
+            my $form = shift;
+            $props{form} = $form->TO_JSON;
+            $props{aliasTypes} = $form->options_type_id;
+            $props{locales} = $form->options_locale;
+        }
     );
 }
 
@@ -95,8 +116,22 @@ sub delete_alias : Chained('alias') PathPart('delete') Edit
 {
     my ($self, $c) = @_;
     my $alias = $c->stash->{alias};
+    my $type = $self->{entity_name};
+    my $entity = $c->stash->{ $type };
     my $edit = $c->model('Edit')->find_creation_edit($model_to_edit_type{add}->{ $self->{model} }, $alias->id, id_field => 'alias_id');
-    $c->stash( template => 'entity/alias/delete.tt' );
+
+    my %props = (
+        alias => $alias->TO_JSON,
+        entity => $entity->TO_JSON,
+        type => $type,
+    );
+
+    $c->stash(
+        component_path => 'entity/alias/DeleteAlias',
+        component_props => \%props,
+        current_view => 'Node',
+    );
+
     cancel_or_action($c, $edit, $self->_aliases_url($c), sub {
         $self->edit_action($c,
             form => 'Confirm',
@@ -106,7 +141,11 @@ sub delete_alias : Chained('alias') PathPart('delete') Edit
                 alias  => $alias,
                 entity => $c->stash->{ $self->{entity_name} }
             },
-            on_creation => sub { $self->_redir_to_aliases($c) }
+            on_creation => sub { $self->_redir_to_aliases($c) },
+            pre_validation => sub {
+                my $form = shift;
+                $props{form} = $form->TO_JSON;
+            }
         );
     });
 }
@@ -117,8 +156,21 @@ sub edit_alias : Chained('alias') PathPart('edit') Edit
     my $alias = $c->stash->{alias};
     my $type = $self->{entity_name};
     my $entity = $c->stash->{ $type };
+    my $form_type = 'edit';
     my $alias_model = $c->model( $self->{model} )->alias;
-    $c->stash( template => 'entity/alias/edit.tt' );
+    my $entity_type = $type eq 'rg' ? 'release_group' : $type;
+    my %props = (
+        type => $entity_type,
+        entity => $entity->TO_JSON,
+        formType => $form_type
+    );
+
+    $c->stash(
+        component_path => 'entity/alias/AddOrEditAlias',
+        component_props => \%props,
+        current_view => 'Node',
+    );
+
     $self->edit_action($c,
         form => 'Alias',
         form_args => {
@@ -133,7 +185,13 @@ sub edit_alias : Chained('alias') PathPart('edit') Edit
             alias  => $alias,
             entity => $c->stash->{ $self->{entity_name} }
         },
-        on_creation => sub { $self->_redir_to_aliases($c) }
+        on_creation => sub { $self->_redir_to_aliases($c) },
+        pre_validation => sub {
+            my $form = shift;
+            $props{form} = $form->TO_JSON;
+            $props{aliasTypes} = $form->options_type_id;
+            $props{locales} = $form->options_locale;
+        }
     );
 }
 

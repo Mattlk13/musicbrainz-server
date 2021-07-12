@@ -110,14 +110,14 @@ sub search
                 MAX(rank) AS rank
             FROM
                 (
-                    SELECT name, ts_rank_cd(to_tsvector('mb_simple', name), query, 2) AS rank
+                    SELECT name, ts_rank_cd(mb_simple_tsvector(name), query, 2) AS rank
                     FROM
                         (SELECT name              FROM ${type}       UNION ALL
                          SELECT sort_name AS name FROM ${type}       UNION ALL
                          SELECT name              FROM ${type}_alias UNION ALL
                          SELECT sort_name AS name FROM ${type}_alias) names,
-                        plainto_tsquery('mb_simple', ?) AS query
-                    WHERE to_tsvector('mb_simple', name) @@ query OR name = ?
+                        plainto_tsquery('mb_simple', mb_lower(?)) AS query
+                    WHERE mb_simple_tsvector(name) @@ query
                     ORDER BY rank DESC
                     LIMIT ?
                 ) AS r
@@ -172,31 +172,34 @@ sub search
                 push @where_args, "%".$where->{artist}."%";
             }
         }
+        my $extra_groupby_columns = $extra_columns =~ s/[^ ,]+ AS //gr;
 
         $query = "
-            SELECT DISTINCT
+            SELECT
                 entity.id,
                 entity.gid,
                 entity.name,
                 entity.comment,
                 $extra_columns
-                r.rank
+                MAX(rank) AS rank
             FROM
                 (
-                    SELECT name, ts_rank_cd(to_tsvector('mb_simple', name), query, 2) as rank
+                    SELECT name, ts_rank_cd(mb_simple_tsvector(name), query, 2) AS rank
                     FROM
                         (SELECT name              FROM ${type}       UNION ALL
                          SELECT name              FROM ${type}_alias UNION ALL
                          SELECT sort_name AS name FROM ${type}_alias) names,
-                        plainto_tsquery('mb_simple', ?) AS query
-                    WHERE to_tsvector('mb_simple', name) @@ query OR name = ?
+                        plainto_tsquery('mb_simple', mb_lower(?)) AS query
+                    WHERE mb_simple_tsvector(name) @@ query
                     ORDER BY rank DESC
                     LIMIT ?
                 ) AS r
                 $join_sql
                 $where_sql
+            GROUP BY
+                $extra_groupby_columns entity.id, entity.gid, entity.name, entity.comment
             ORDER BY
-                r.rank DESC, entity.name
+                rank DESC, entity.name
                 ${extra_ordering}, entity.gid
             OFFSET
                 ?
@@ -245,13 +248,13 @@ sub search
                 MAX(rank) AS rank
             FROM
                 (
-                    SELECT name, ts_rank_cd(to_tsvector('mb_simple', name), query, 2) AS rank
+                    SELECT name, ts_rank_cd(mb_simple_tsvector(name), query, 2) AS rank
                     FROM
                         (SELECT name              FROM ${type}       UNION ALL
                          SELECT name              FROM ${type}_alias UNION ALL
                          SELECT sort_name AS name FROM ${type}_alias) names,
-                        plainto_tsquery('mb_simple', ?) AS query
-                    WHERE to_tsvector('mb_simple', name) @@ query OR name = ?
+                        plainto_tsquery('mb_simple', mb_lower(?)) AS query
+                    WHERE mb_simple_tsvector(name) @@ query
                     ORDER BY rank DESC
                     LIMIT ?
                 ) AS r
@@ -270,21 +273,51 @@ sub search
         $hard_search_limit = $offset * 2;
     }
 
+    elsif ($type eq 'genre') {
+
+        $query = "
+            SELECT
+                entity.id,
+                entity.gid,
+                entity.name,
+                entity.comment,
+                MAX(rank) AS rank
+            FROM
+                (
+                    SELECT name, ts_rank_cd(mb_simple_tsvector(name), query, 2) AS rank
+                    FROM genre,
+                        plainto_tsquery('mb_simple', mb_lower(?)) AS query
+                    WHERE mb_simple_tsvector(name) @@ query
+                    ORDER BY rank DESC
+                ) AS r
+                JOIN genre AS entity ON r.name = entity.name
+            GROUP BY
+                entity.id, entity.gid, entity.name, entity.comment
+            ORDER BY
+                rank DESC, entity.name, entity.gid
+            OFFSET
+                ?
+        ";
+
+        $use_hard_search_limit = 0;
+    }
+
     elsif ($type eq "tag") {
         $query = "
-            SELECT id, name, ts_rank_cd(to_tsvector('mb_simple', name), query, 2) AS rank
-            FROM tag, plainto_tsquery('mb_simple', ?) AS query
-            WHERE to_tsvector('mb_simple', name) @@ query OR name = ?
+            SELECT tag.id, tag.name, genre.id AS genre_id,
+                   ts_rank_cd(mb_simple_tsvector(tag.name), query, 2) AS rank
+            FROM tag LEFT JOIN genre USING (name), plainto_tsquery('mb_simple', mb_lower(?)) AS query
+            WHERE mb_simple_tsvector(tag.name) @@ query
             ORDER BY rank DESC, tag.name
             OFFSET ?
         ";
         $use_hard_search_limit = 0;
     }
     elsif ($type eq 'editor') {
-        $query = "SELECT id, name, ts_rank_cd(to_tsvector('mb_simple', name), query, 2) AS rank,
+        $query = "SELECT id, name, ts_rank_cd(mb_simple_tsvector(name), query, 2) AS rank,
                     email
-                  FROM editor, plainto_tsquery('mb_simple', ?) AS query
-                  WHERE to_tsvector('mb_simple', name) @@ query OR name = ?
+                  FROM editor, plainto_tsquery('mb_simple', mb_lower(?)) AS query
+                  WHERE mb_simple_tsvector(name) @@ query
                   ORDER BY rank DESC
                   OFFSET ?";
         $use_hard_search_limit = 0;
@@ -307,7 +340,7 @@ sub search
 
     Sql::run_in_transaction(sub {
         $self->sql->do('SET LOCAL gin_fuzzy_search_limit TO ?', $fuzzy_search_limit);
-        @rows = @{ $self->sql->select_list_of_hashes($query, $query_str, $query_str, @query_args) };
+        @rows = @{ $self->sql->select_list_of_hashes($query, $query_str, @query_args) };
     }, $self->sql);
 
     for my $row (@rows) {
@@ -506,6 +539,7 @@ sub schema_fixup
 
                 push @{$data->{mediums}}, $medium;
             }
+            $data->{mediums_loaded} = 1;
             delete $data->{"media"};
         }
 
@@ -520,10 +554,29 @@ sub schema_fixup
                 name => delete $data->{status}
             )
         }
-        if ($data->{packaging}) {
-            $data->{packaging} = MusicBrainz::Server::Entity::ReleasePackaging->new(
-                name => delete $data->{packaging}
-            )
+
+        my $packaging = delete $data->{packaging};
+        my $packaging_id = delete $data->{'packaging-id'};
+
+        if ($packaging) {
+            if (ref($packaging) eq 'HASH') {
+                # MB Solr search server v3.1
+                $data->{packaging} = MusicBrainz::Server::Entity::ReleasePackaging->new(
+                    name => $packaging->{name},
+                    defined $packaging->{id} ? (gid => $packaging->{id}) : ()
+                )
+            } elsif ($packaging_id) {
+                # MB Solr search server v3.2? (SOLR-121)
+                $data->{packaging} = MusicBrainz::Server::Entity::ReleasePackaging->new(
+                    name => $packaging,
+                    gid => $packaging_id
+                )
+            } else {
+                # MB Lucene search server
+                $data->{packaging} = MusicBrainz::Server::Entity::ReleasePackaging->new(
+                    name => $packaging
+                )
+            }
         }
     }
     if ($type eq 'release-group') {
@@ -609,6 +662,8 @@ sub schema_fixup
 
             push @relationships, MusicBrainz::Server::Entity::Relationship->new(
                 entity1 => $entity,
+                target => $entity,
+                target_type => $entity->entity_type,
                 link => MusicBrainz::Server::Entity::Link->new(
                     type => MusicBrainz::Server::Entity::LinkType->new(
                         entity1_type => $entity_type,
@@ -660,9 +715,11 @@ sub schema_fixup
                 map {
                     my @relationships = @{ $relationship_map{$_} };
                     {
+                        # TODO: Pass the actual credit when SEARCH-585 is fixed
+                        credit => '',
                         entity => $relationships[0]->entity1,
-                            roles  => [ map { $_->link->type->name } grep { $_->link->type->entity1_type eq 'artist' } @relationships ]
-                        }
+                        roles  => [ map { $_->link->type->name } grep { $_->link->type->entity1_type eq 'artist' } @relationships ]
+                    }
                 } grep {
                     my @relationships = @{ $relationship_map{$_} };
                     any { $_->link->type->entity1_type eq 'artist' } @relationships;
@@ -741,7 +798,7 @@ sub external_search
     $type =~ s/release_group/release-group/;
 
     my $search_url_string;
-    if (DBDefs->SEARCH_ENGINE eq 'LUCENE') {
+    if (DBDefs->SEARCH_ENGINE eq 'LUCENE' || DBDefs->SEARCH_SERVER eq DBDefs::Default->SEARCH_SERVER) {
         my $dismax = $adv ? 'false' : 'true';
         $search_url_string = "http://%s/ws/2/%s/?query=%s&offset=%s&max=%s&fmt=jsonnew&dismax=$dismax&web=1";
     } else {
@@ -851,6 +908,20 @@ sub external_search
             $self->c->model('Event')->load_areas(@entities);
         }
 
+        if ($type eq 'release')
+        {
+            my @entities = map { $_->entity } @results;
+            $self->c->model('Release')->load_ids(@entities);
+            $self->c->model('Release')->load_meta(@entities);
+        }
+
+        if ($type eq 'area')
+        {
+            my @entities = map { $_->entity } @results;
+            $self->c->model('Area')->load_ids(@entities);
+            $self->c->model('Area')->load_containment(@entities);
+        }
+
         my $pager = Data::Page->new;
         $pager->current_page($page);
         $pager->entries_per_page($limit);
@@ -868,22 +939,12 @@ no Moose;
 
 MusicBrainz::Server::Data::Search
 
-=head1 COPYRIGHT
+=head1 COPYRIGHT AND LICENSE
 
 Copyright (C) 2009 Lukas Lalinsky
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program; if not, write to the Free Software
-Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+This file is part of MusicBrainz, the open internet music database,
+and is licensed under the GPL version 2, or (at your option) any
+later version: http://www.gnu.org/licenses/gpl-2.0.txt
 
 =cut

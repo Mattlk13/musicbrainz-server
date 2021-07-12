@@ -1,5 +1,5 @@
 /*
- * @flow
+ * @flow strict-local
  * Copyright (C) 2018 MetaBrainz Foundation
  *
  * This file is part of MusicBrainz, the open internet music database,
@@ -10,7 +10,8 @@
 import * as React from 'react';
 
 import EntityLink from '../../static/scripts/common/components/EntityLink';
-import formatEntityTypeName from '../../static/scripts/common/utility/formatEntityTypeName';
+import formatEntityTypeName
+  from '../../static/scripts/common/utility/formatEntityTypeName';
 import loopParity from '../../utility/loopParity';
 import type {ResultsPropsT} from '../types';
 
@@ -46,7 +47,8 @@ const AnnotationResults = ({
   pager,
   query,
   results,
-}: ResultsPropsT<AnnotationT>) => (
+}: ResultsPropsT<AnnotationT>):
+React.Element<typeof ResultsLayout> => (
   <ResultsLayout form={form} lastUpdated={lastUpdated}>
     <PaginatedSearchResults
       buildResult={buildResult}

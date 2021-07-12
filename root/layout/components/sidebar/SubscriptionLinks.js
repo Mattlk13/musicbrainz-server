@@ -1,5 +1,5 @@
 /*
- * @flow
+ * @flow strict-local
  * Copyright (C) 2018 MetaBrainz Foundation
  *
  * This file is part of MusicBrainz, the open internet music database,
@@ -9,15 +9,18 @@
 
 import * as React from 'react';
 
-import {withCatalystContext} from '../../../context';
+import {CatalystContext} from '../../../context';
 import EntityLink from '../../../static/scripts/common/components/EntityLink';
+import {returnToCurrentPage} from '../../../utility/returnUri';
 
-type Props = {|
-  +$c: CatalystContextT,
+type Props = {
   +entity: CoreEntityT,
-|};
+};
 
-const SubscriptionLinks = ({$c, entity}: Props) => {
+const SubscriptionLinks = ({
+  entity,
+}: Props): React.Element<typeof React.Fragment> => {
+  const $c = React.useContext(CatalystContext);
   const entityType = entity.entityType;
   const id = encodeURIComponent(String(entity.id));
   const urlPrefix = `/account/subscriptions/${entityType}`;
@@ -28,15 +31,23 @@ const SubscriptionLinks = ({$c, entity}: Props) => {
         {l('Subscriptions')}
       </h2>
       <ul className="links">
-        {$c.stash.subscribed ? (
+        {$c.stash.subscribed /*:: === true */ ? (
           <li>
-            <a href={`${urlPrefix}/remove?id=${id}`}>
+            <a
+              href={
+                `${urlPrefix}/remove?id=${id}&${returnToCurrentPage($c)}`
+              }
+            >
               {l('Unsubscribe')}
             </a>
           </li>
         ) : (
           <li>
-            <a href={`${urlPrefix}/add?id=${id}`}>
+            <a
+              href={
+                `${urlPrefix}/add?id=${id}&${returnToCurrentPage($c)}`
+              }
+            >
               {l('Subscribe')}
             </a>
           </li>
@@ -53,4 +64,4 @@ const SubscriptionLinks = ({$c, entity}: Props) => {
   );
 };
 
-export default withCatalystContext(SubscriptionLinks);
+export default SubscriptionLinks;

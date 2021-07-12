@@ -1,5 +1,5 @@
 /*
- * @flow
+ * @flow strict
  * Copyright (C) 2018 MetaBrainz Foundation
  *
  * This file is part of MusicBrainz, the open internet music database,
@@ -17,8 +17,10 @@ const defaultContext = {
   action: {
     name: '',
   },
+  flash: {},
   relative_uri: '',
   req: {
+    body_params: {},
     headers: {},
     query_params: {},
     secure: false,
@@ -30,30 +32,32 @@ const defaultContext = {
     current_language: 'en',
     current_language_html: 'en',
   },
-  user_exists: false,
 };
 
-const CatalystContext =
-  React.createContext/*:: <typeof defaultContext> */(defaultContext);
+const defaultSanitizedContext = {
+  action: {
+    name: '',
+  },
+  relative_uri: '',
+  req: {
+    uri: '',
+  },
+  stash: {
+    current_language: 'en',
+  },
+  user: null,
+};
+
+const CatalystContext/*: React$Context<CatalystContextT> */ =
+  React.createContext/*:: <CatalystContextT> */(defaultContext);
 
 exports.CatalystContext = CatalystContext;
 
-/*::
-type ContextPropT = {
-  +$c: CatalystContextT | SanitizedCatalystContextT,
-};
-*/
+/*:: type SCC = React$Context<SanitizedCatalystContextT>; */
 
-function withCatalystContext/*:: <P: ContextPropT> */(
-  Component /*: ComponentType<P> */,
-) /*: ComponentType<$Diff<P, ContextPropT>> */ {
-  return (props) => React.createElement(
-    CatalystContext.Consumer,
-    null,
-    ($c /*: CatalystContextT */) => (
-      React.createElement(Component, {$c, ...props})
-    ),
+const SanitizedCatalystContext/*: SCC */ =
+  React.createContext/*:: <SanitizedCatalystContextT> */(
+    defaultSanitizedContext,
   );
-}
 
-exports.withCatalystContext = withCatalystContext;
+exports.SanitizedCatalystContext = SanitizedCatalystContext;

@@ -43,6 +43,19 @@ div.tabs {
                     cursor: default;
                 }
             }
+            &.disabled a {
+                &,
+                &:hover,
+                &:focus {
+                    color: @text-black;
+                    background-color: @very-light-grey;
+                    border-color: @very-light-grey;
+                    border-bottom-color: transparent;
+                    cursor: default;
+                    pointer-events: none;
+                }
+            }
+
 
         }
     }
@@ -94,4 +107,42 @@ p.subheader {
 
 .annotation-diff {
     margin: 1em 0;
+}
+
+.show-all, .show-less {
+    padding: 0.75em 0;
+    list-style: none;
+}
+
+div.release-events-container {
+    ul.release-events {
+        &.abbreviated {
+            min-width: 10em;
+
+            li.release-event {
+                display: table-row;
+
+                .release-country {
+                    box-sizing: border-box;
+                    display: table-cell;
+                    width: 4em;
+                    /*
+                     * Cancel 3px padding of the flag to keep country/date texts
+                     * aligned with other columns.
+                     */
+                    padding-top: 0;
+                }
+
+                .release-date {
+                    display: table-cell;
+                    margin-left: 4em;
+                }
+
+                .release-country + .release-date {
+                    margin-left: 0em;
+                }
+            }
+        }
+    }
+
 }

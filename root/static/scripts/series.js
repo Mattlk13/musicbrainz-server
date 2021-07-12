@@ -1,5 +1,4 @@
 import $ from 'jquery';
-import _ from 'lodash';
 import ko from 'knockout';
 
 import {SERIES_ORDERING_TYPE_AUTOMATIC} from './common/constants';
@@ -7,21 +6,24 @@ import MB from './common/MB';
 import initializeDuplicateChecker from './edit/check-duplicates';
 
 $(function () {
-  var $type = $("#id-edit-series\\.type_id");
-  var $orderingType = $("#id-edit-series\\.ordering_type_id");
+  var $type = $('#id-edit-series\\.type_id');
+  var $orderingType = $('#id-edit-series\\.ordering_type_id');
+  const $type_options = $('#id-edit-series\\.type_id > option');
 
-  // Type can be disabled, but is a required field, so use a hidden input.
-  var $hiddenType = $("<input>")
-    .attr({type: "hidden", name: $type[0].name})
-    .val($type.val())
-    .insertAfter($type.removeAttr("name"));
+  function updateAllowedTypes(seriesHasItems) {
+    $type_options.each(function () {
+      const type = MB.seriesTypesByID[this.value];
+      if (seriesHasItems &&
+          type.item_entity_type !== series.type().item_entity_type) {
+        this.setAttribute('disabled', 'disabled');
+      } else {
+        this.removeAttribute('disabled');
+      }
+    });
+  }
 
   var series = MB.entityCache[MB.sourceEntityGID];
   series.typeID($type.val());
-
-  series.typeID.subscribe(function (typeID) {
-    $hiddenType.val(typeID);
-  });
 
   series.orderingTypeID($orderingType.val());
 
@@ -48,33 +50,36 @@ $(function () {
     return series.getSeriesItems(MB.sourceRelationshipEditor).length > 0;
   });
 
+  updateAllowedTypes(seriesHasItems());
+
+  seriesHasItems.subscribe((hasItems) => updateAllowedTypes(hasItems));
+
   ko.applyBindingsToNode($type[0], {
     value: series.typeID,
     controlsBubble: series.typeBubble,
-    disable: seriesHasItems
   }, series);
 
   ko.applyBindingsToNode($orderingType[0], {
     value: series.orderingTypeID,
-    controlsBubble: series.orderingTypeBubble
+    controlsBubble: series.orderingTypeBubble,
   }, series);
 
-  ko.applyBindings(series, $("#series-type-bubble")[0]);
-  ko.applyBindings(series, $("#ordering-type-bubble")[0]);
+  ko.applyBindings(series, $('#series-type-bubble')[0]);
+  ko.applyBindings(series, $('#ordering-type-bubble')[0]);
 
-  MB.Control.initialize_guess_case("series", "id-edit-series");
+  MB.Control.initializeGuessCase('series', 'id-edit-series');
 
-  $orderingType.on("change", function () {
+  $orderingType.on('change', function () {
     series.orderingTypeID(+this.value);
 
     if (+this.value === SERIES_ORDERING_TYPE_AUTOMATIC) {
-      _.each(series.relationships(), function (r) {
-        var target = r.target(series);
+      for (const r of series.relationships()) {
+        const target = r.target(series);
 
         if (r.entityIsOrdered && r.entityIsOrdered(target)) {
-          r.linkOrder(r.original.linkOrder || 0);
+          r.linkOrder(r.original?.linkOrder || 0);
         }
-      });
+      }
     }
   });
 

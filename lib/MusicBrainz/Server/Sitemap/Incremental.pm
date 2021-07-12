@@ -109,19 +109,21 @@ sub get_changed_documents {
                 $last_modified = $c->sql->select_single_value('SELECT now()');
             }
 
-            my $old_hash = $c->sql->select_single_value(<<"EOSQL", $row_id, $url);
-SELECT encode(jsonld_sha1, 'hex') FROM sitemaps.${entity_type}_lastmod WHERE id = ? AND url = ?
-EOSQL
+            my $old_hash = $c->sql->select_single_value(<<~"EOSQL", $row_id, $url);
+                SELECT encode(jsonld_sha1, 'hex')
+                FROM sitemaps.${entity_type}_lastmod
+                WHERE id = ? AND url = ?
+                EOSQL
 
             if (defined $old_hash) {
                 if ($old_hash ne $new_hash) {
                     log("Found change at $url");
 
-                    $c->sql->do(<<"EOSQL", "\\x$new_hash", $last_modified, $replication_sequence, $row_id, $url);
-UPDATE sitemaps.${entity_type}_lastmod
-   SET jsonld_sha1 = ?, last_modified = ?, replication_sequence = ?
- WHERE id = ? AND url = ?
-EOSQL
+                    $c->sql->do(<<~"EOSQL", "\\x$new_hash", $last_modified, $replication_sequence, $row_id, $url);
+                        UPDATE sitemaps.${entity_type}_lastmod
+                        SET jsonld_sha1 = ?, last_modified = ?, replication_sequence = ?
+                        WHERE id = ? AND url = ?
+                        EOSQL
                     return 1;
                 }
                 log("No change at $url");
@@ -299,11 +301,12 @@ no Moose;
 
 1;
 
-=head1 COPYRIGHT
+=head1 COPYRIGHT AND LICENSE
 
-This file is part of MusicBrainz, the open internet music database.
 Copyright (C) 2015 MetaBrainz Foundation
-Licensed under the GPL version 2, or (at your option) any later version:
-http://www.gnu.org/licenses/gpl-2.0.txt
+
+This file is part of MusicBrainz, the open internet music database,
+and is licensed under the GPL version 2, or (at your option) any
+later version: http://www.gnu.org/licenses/gpl-2.0.txt
 
 =cut

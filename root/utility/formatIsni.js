@@ -1,5 +1,5 @@
 /*
- * @flow
+ * @flow strict
  * Copyright (C) 2018 MetaBrainz Foundation
  *
  * This file is part of MusicBrainz, the open internet music database,
@@ -9,6 +9,6 @@
 
 const quadruplets = /([0-9A-Z]{4})/g;
 
-export default function formatIsni(isni: string) {
+export default function formatIsni(isni: string): string {
   return isni.replace(quadruplets, '$1 ').trim();
 }

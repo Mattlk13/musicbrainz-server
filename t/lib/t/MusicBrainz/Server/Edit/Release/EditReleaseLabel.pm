@@ -156,7 +156,7 @@ test 'Parallel edits that dont conflict merge' => sub {
     is($rl->catalog_number, 'Woof!');
 };
 
-test 'Editing a non-existant release label fails' => sub {
+test 'Editing a non-existent release label fails' => sub {
     my $test = shift;
     my $c = $test->c;
 
@@ -260,7 +260,7 @@ test 'Can apply after labels are merged' => sub {
 
     # Check that the new label loads correctly.
     $c->model('Edit')->load_all($edit);
-    is($edit->display_data->{label}{new}->id, 3);
+    is($edit->display_data->{label}{new}{id}, 3);
 };
 
 test 'Can apply after release is merged' => sub {
@@ -303,10 +303,10 @@ test 'Can add a label where one is currently missing' => sub {
     my $c = $test->c;
 
     MusicBrainz::Server::Test->prepare_test_database($c, '+edit_release_label');
-    $c->sql->do(<<'EOSQL');
-INSERT INTO release_label (id, release, label, catalog_number)
-    VALUES (2, 1, NULL, 'ABC-456');
-EOSQL
+    $c->sql->do(<<~'EOSQL');
+        INSERT INTO release_label (id, release, label, catalog_number)
+            VALUES (2, 1, NULL, 'ABC-456');
+        EOSQL
 
     my $edit = create_edit(
         $c,
@@ -323,10 +323,10 @@ test "Edits that only change the catalog number show up in the label's edit hist
     my $c = $test->c;
 
     MusicBrainz::Server::Test->prepare_test_database($c, '+edit_release_label');
-    $c->sql->do(<<'EOSQL');
-INSERT INTO release_label (id, release, label, catalog_number)
-    VALUES (2, 1, 2, 'FOO');
-EOSQL
+    $c->sql->do(<<~'EOSQL');
+        INSERT INTO release_label (id, release, label, catalog_number)
+            VALUES (2, 1, 2, 'FOO');
+        EOSQL
 
     my $edit = create_edit(
         $c,
@@ -342,10 +342,10 @@ test "Edits that only change the catalog number still store and display the labe
     my $c = $test->c;
 
     MusicBrainz::Server::Test->prepare_test_database($c, '+edit_release_label');
-    $c->sql->do(<<'EOSQL');
-INSERT INTO release_label (id, release, label, catalog_number)
-    VALUES (2, 1, 2, 'FOO');
-EOSQL
+    $c->sql->do(<<~'EOSQL');
+        INSERT INTO release_label (id, release, label, catalog_number)
+            VALUES (2, 1, 2, 'FOO');
+        EOSQL
 
     my $edit = create_edit(
         $c,
@@ -374,10 +374,10 @@ test "Edits that only change the label still store and display the catalog numbe
     my $c = $test->c;
 
     MusicBrainz::Server::Test->prepare_test_database($c, '+edit_release_label');
-    $c->sql->do(<<'EOSQL');
-INSERT INTO release_label (id, release, label, catalog_number)
-    VALUES (2, 1, 2, 'FOO');
-EOSQL
+    $c->sql->do(<<~'EOSQL');
+        INSERT INTO release_label (id, release, label, catalog_number)
+            VALUES (2, 1, 2, 'FOO');
+        EOSQL
 
     my $edit = create_edit(
         $c,

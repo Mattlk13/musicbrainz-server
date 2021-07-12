@@ -1,5 +1,5 @@
 /*
- * @flow
+ * @flow strict-local
  * Copyright (C) 2018 MetaBrainz Foundation
  *
  * This file is part of MusicBrainz, the open internet music database,
@@ -8,24 +8,33 @@
  */
 
 import * as React from 'react';
-import uniqBy from 'lodash/uniqBy';
 
 import commaOnlyList from '../static/scripts/common/i18n/commaOnlyList';
 
-const ReleaseCatno = (label) => label.catalogNumber ? (
+const displayCatno = (catno: string): React.Element<'span'> => (
   <span className="catalog-number">
-    {label.catalogNumber}
+    {catno}
   </span>
-) : null;
-
-type ReleaseLabelsProps = {|
-  +labels?: $ReadOnlyArray<ReleaseLabelT>,
-|};
-
-const ReleaseCatnoList = ({labels}: ReleaseLabelsProps) => (
-  labels && labels.length ? (
-    commaOnlyList(uniqBy(labels, 'catalogNumber').map(ReleaseCatno))
-  ) : null
 );
+
+type ReleaseLabelsProps = {
+  +labels?: $ReadOnlyArray<ReleaseLabelT>,
+};
+
+const ReleaseCatnoList = ({
+  labels: releaseLabels,
+}: ReleaseLabelsProps): Expand2ReactOutput | null => {
+  if (!releaseLabels || !releaseLabels.length) {
+    return null;
+  }
+  const catnos = new Set<string>();
+  for (const releaseLabel of releaseLabels) {
+    const catno = releaseLabel.catalogNumber;
+    if (nonEmpty(catno)) {
+      catnos.add(catno);
+    }
+  }
+  return commaOnlyList(Array.from(catnos.values()).map(displayCatno));
+};
 
 export default ReleaseCatnoList;

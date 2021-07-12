@@ -1,5 +1,5 @@
 /*
- * @flow
+ * @flow strict-local
  * Copyright (C) 2018 MetaBrainz Foundation
  *
  * This file is part of MusicBrainz, the open internet music database,
@@ -9,49 +9,32 @@
 
 import * as React from 'react';
 
-import {withCatalystContext} from '../context';
-import Layout from '../layout';
-import formatUserDate from '../utility/formatUserDate';
-
 import LabelList from './components/LabelList';
-import FilterLink from './FilterLink';
+import ReportLayout from './components/ReportLayout';
 import type {ReportDataT, ReportLabelT} from './types';
 
 const LabelsDisambiguationSameName = ({
-  $c,
   canBeFiltered,
   filtered,
   generated,
   items,
   pager,
-}: ReportDataT<ReportLabelT>) => (
-  <Layout
-    fullWidth
+}: ReportDataT<ReportLabelT>): React.Element<typeof ReportLayout> => (
+  <ReportLayout
+    canBeFiltered={canBeFiltered}
+    description={l(
+      `This report lists labels that have their disambiguation set
+       to be the same as their name.
+       The disambiguation should be removed or, if it is needed, improved.`,
+    )}
+    entityType="label"
+    filtered={filtered}
+    generated={generated}
     title={l('Labels with disambiguation the same as the name')}
+    totalEntries={pager.total_entries}
   >
-    <h1>{l('Labels with disambiguation the same as the name')}</h1>
-
-    <ul>
-      <li>
-        {l(`This report lists labels that have their disambiguation
-            set to be the same as their name.
-            Disambiguation should not be filled in this case.`)}
-      </li>
-      <li>
-        {texp.l('Total labels found: {count}',
-                {count: pager.total_entries})}
-      </li>
-      <li>
-        {texp.l('Generated on {date}',
-                {date: formatUserDate($c.user, generated)})}
-      </li>
-
-      {canBeFiltered ? <FilterLink filtered={filtered} /> : null}
-    </ul>
-
     <LabelList items={items} pager={pager} />
-
-  </Layout>
+  </ReportLayout>
 );
 
-export default withCatalystContext(LabelsDisambiguationSameName);
+export default LabelsDisambiguationSameName;

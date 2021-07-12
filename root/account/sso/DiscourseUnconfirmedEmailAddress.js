@@ -1,5 +1,5 @@
 /*
- * @flow
+ * @flow strict-local
  * Copyright (C) 2018 MetaBrainz Foundation
  *
  * This file is part of MusicBrainz, the open internet music database,
@@ -7,16 +7,19 @@
  * later version: http://www.gnu.org/licenses/gpl-2.0.txt
  */
 
-import React from 'react';
+import * as React from 'react';
 
 import Layout from '../../layout';
 
-const DiscourseUnconfirmedEmailAddress = () => (
-  <Layout fullWidth title={l('Unconfirmed Email Address')}>
-    <h2>{l('Unconfirmed Email Address')}</h2>
+const DiscourseUnconfirmedEmailAddress = (): React.Element<typeof Layout> => (
+  <Layout fullWidth title={l('Unverified Email Address')}>
+    <h2>{l('Unverified Email Address')}</h2>
     <p>
-      {exp.l('You must verify your email address before you can log in to {discourse|MetaBrainz Community Discourse}.',
-        {discourse: 'https://community.metabrainz.org/'})}
+      {exp.l(
+        `You must verify your email address before you can
+         log in to {discourse|MetaBrainz Community Discourse}.`,
+        {discourse: 'https://community.metabrainz.org/'},
+      )}
     </p>
   </Layout>
 );

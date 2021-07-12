@@ -16,7 +16,6 @@ use MusicBrainz::Script::Utils qw( log );
 use MusicBrainz::Server::Constants qw(
     %ENTITIES
     entities_with
-    $MAX_INITIAL_MEDIUMS
 );
 use MusicBrainz::Server::Context;
 use MusicBrainz::Server::Sitemap::Constants qw( $MAX_SITEMAP_SIZE );
@@ -446,11 +445,12 @@ no Moose;
 
 1;
 
-=head1 COPYRIGHT
+=head1 COPYRIGHT AND LICENSE
 
-This file is part of MusicBrainz, the open internet music database.
 Copyright (C) 2014 MetaBrainz Foundation
-Licensed under the GPL version 2, or (at your option) any later version:
-http://www.gnu.org/licenses/gpl-2.0.txt
+
+This file is part of MusicBrainz, the open internet music database,
+and is licensed under the GPL version 2, or (at your option) any
+later version: http://www.gnu.org/licenses/gpl-2.0.txt
 
 =cut

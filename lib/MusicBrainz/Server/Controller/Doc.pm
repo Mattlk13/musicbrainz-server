@@ -6,6 +6,7 @@ BEGIN { extends 'MusicBrainz::Server::Controller'; }
 use DBDefs;
 use HTTP::Status qw( HTTP_MOVED_PERMANENTLY );
 use MusicBrainz::Server::Data::Utils qw( boolean_to_json );
+use MusicBrainz::Server::Entity::Util::JSON qw( to_json_object );
 use MusicBrainz::Server::Validation qw( is_guid );
 
 sub show : Path('')
@@ -34,7 +35,7 @@ sub show : Path('')
 
     my %props = (
         id      => $id,
-        page    => $page,
+        page    => to_json_object($page),
     );
 
     if ($page) {
@@ -53,41 +54,16 @@ sub show : Path('')
     }
 }
 
-sub relationship_type : Path('/relationship') Args(1) {
-    my ($self, $c, $link_type_gid) = @_;
-
-    if (!is_guid($link_type_gid)) {
-        $self->invalid_mbid($c, $link_type_gid);
-    }
-
-    my $relationship_type = $c->model('LinkType')->get_by_gid($link_type_gid)
-        or $c->detach('/error_404');
-
-    $c->model('LinkAttributeType')->load($relationship_type->all_attributes);
-    $c->model('LinkType')->load_documentation($relationship_type);
-    $c->stash( relationship_type => $relationship_type );
-}
-
 no Moose;
 1;
 
-=head1 COPYRIGHT
+=head1 COPYRIGHT AND LICENSE
 
 Copyright (C) 2009 Lukas Lalinsky
 Copyright (C) 2018 MetaBrainz Foundation
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program; if not, write to the Free Software
-Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+This file is part of MusicBrainz, the open internet music database,
+and is licensed under the GPL version 2, or (at your option) any
+later version: http://www.gnu.org/licenses/gpl-2.0.txt
 
 =cut

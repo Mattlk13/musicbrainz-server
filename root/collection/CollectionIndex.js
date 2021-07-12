@@ -1,5 +1,5 @@
 /*
- * @flow
+ * @flow strict-local
  * Copyright (C) 2019 MetaBrainz Foundation
  *
  * This file is part of MusicBrainz, the open internet music database,
@@ -7,9 +7,8 @@
  * later version: http://www.gnu.org/licenses/gpl-2.0.txt
  */
 
-import React from 'react';
+import * as React from 'react';
 
-import {withCatalystContext} from '../context';
 import AreaList from '../components/list/AreaList';
 import ArtistList from '../components/list/ArtistList';
 import EventList from '../components/list/EventList';
@@ -47,14 +46,16 @@ type Props =
   | PropsForEntity<InstrumentT>
   | PropsForEntity<LabelT>
   | PropsForEntity<PlaceT>
-  | PropsForEntity<RecordingT>
+  | PropsForEntity<RecordingWithArtistCreditT>
   | PropsForEntity<ReleaseGroupT>
   | PropsForEntity<ReleaseT>
   | PropsForEntity<SeriesT>
-  | PropsForEntity<WorkT>
-  ;
+  | PropsForEntity<WorkT>;
 
-const listPicker = (props: Props, canRemoveFromCollection: boolean) => {
+const listPicker = (
+  props: Props,
+  canRemoveFromCollection: boolean,
+) => {
   const sharedProps = {
     checkboxes: canRemoveFromCollection ? 'remove' : '',
     order: props.order,
@@ -73,6 +74,7 @@ const listPicker = (props: Props, canRemoveFromCollection: boolean) => {
       return (
         <ArtistList
           artists={props.entities}
+          showBeginEnd
           showRatings
           {...sharedProps}
         />
@@ -107,6 +109,7 @@ const listPicker = (props: Props, canRemoveFromCollection: boolean) => {
       return (
         <PlaceList
           places={props.entities}
+          showRatings
           {...sharedProps}
         />
       );
@@ -129,8 +132,6 @@ const listPicker = (props: Props, canRemoveFromCollection: boolean) => {
     case 'release_group':
       return (
         <ReleaseGroupList
-          // TODO: Remove groupByType as part of MBS-10155
-          groupByType
           releaseGroups={props.entities}
           showRatings
           {...sharedProps}
@@ -156,7 +157,8 @@ const listPicker = (props: Props, canRemoveFromCollection: boolean) => {
   }
 };
 
-const CollectionIndex = (props: Props) => {
+const CollectionIndex = (props: Props):
+React.Element<typeof CollectionLayout> => {
   const {
     $c,
     collection,
@@ -176,21 +178,20 @@ const CollectionIndex = (props: Props) => {
         {collection.description_html ? (
           <>
             <h2>{l('Description')}</h2>
-            {$c.user_exists ||
-              (collection.editor && !collection.editor.is_limited) ? (
-                expand2react(collection.description_html)
-              ) : (
-                <p className="deleted">
-                  {exp.l(`This content is hidden to prevent spam.
-                          To view it, please {url|log in}.`,
-                         {url: '/login'})}
-                </p>
-              )}
+            {($c.user || !collection.editor_is_limited) ? (
+              expand2react(collection.description_html)
+            ) : (
+              <p className="deleted">
+                {exp.l(`This content is hidden to prevent spam.
+                        To view it, please {url|log in}.`,
+                       {url: '/login'})}
+              </p>
+            )}
           </>
         ) : null}
       </div>
       <div className="">
-        {collection.collaborators && collection.collaborators.length ? (
+        {collection.collaborators.length ? (
           <>
             <h2>{l('Collaborators')}</h2>
             <UserInlineList editors={collection.collaborators} />
@@ -216,4 +217,4 @@ const CollectionIndex = (props: Props) => {
   );
 };
 
-export default withCatalystContext(CollectionIndex);
+export default CollectionIndex;

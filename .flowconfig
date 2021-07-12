@@ -1,18 +1,33 @@
 [ignore]
+<PROJECT_ROOT>/.cpanm/.*
+<PROJECT_ROOT>/.nyc_output/.*
+<PROJECT_ROOT>/coverage/.*
 <PROJECT_ROOT>/lib/.*
-<PROJECT_ROOT>/node_modules/jsx-control-statements/jsx-control-statements.flow.js
 <PROJECT_ROOT>/root/static/build/.*
+<PROJECT_ROOT>/perl_modules/.*
 <PROJECT_ROOT>/t/.*
 /Volumes/.*
 
 [include]
 
 [libs]
-./node_modules/jsx-control-statements/jsx-control-statements.latest.flow.js
-./root/types.js
+./root/types
 ./root/vars.js
 
 [lints]
 
 [options]
+autoimports=true
+exact_by_default=true
+format.bracket_spacing=false
+format.single_quotes=true
 module.name_mapper.extension='less' -> '<PROJECT_ROOT>/root/flowstub.js.flow'
+react.runtime=automatic
+
+[strict]
+nonstrict-import
+sketchy-null
+unclear-type
+unsafe-getters-setters
+untyped-import
+untyped-type-import

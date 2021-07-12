@@ -1,5 +1,5 @@
 /*
- * @flow
+ * @flow strict-local
  * Copyright (C) 2019 MetaBrainz Foundation
  *
  * This file is part of MusicBrainz, the open internet music database,
@@ -7,242 +7,193 @@
  * later version: http://www.gnu.org/licenses/gpl-2.0.txt
  */
 
-import React from 'react';
+import * as React from 'react';
 
-import {withCatalystContext} from '../../context';
-import loopParity from '../../utility/loopParity';
-import ReleaseCatnoList from '../ReleaseCatnoList';
-import ReleaseCountries from '../ReleaseCountries';
-import ReleaseDates from '../ReleaseDates';
-import ReleaseLabelList from '../ReleaseLabelList';
-import commaList from '../../static/scripts/common/i18n/commaList';
+import {CatalystContext} from '../../context';
+import Table from '../Table';
 import filterReleaseLabels
   from '../../static/scripts/common/utility/filterReleaseLabels';
 import formatBarcode from '../../static/scripts/common/utility/formatBarcode';
-import ArtistCreditLink
-  from '../../static/scripts/common/components/ArtistCreditLink';
-import EntityLink from '../../static/scripts/common/components/EntityLink';
-import TaggerIcon from '../../static/scripts/common/components/TaggerIcon';
-import RatingStars from '../RatingStars';
-import SortableTableHeader from '../SortableTableHeader';
+import {
+  defineArtistCreditColumn,
+  defineCheckboxColumn,
+  defineInstrumentUsageColumn,
+  defineNameColumn,
+  defineRatingsColumn,
+  defineReleaseCatnosColumn,
+  defineReleaseEventsColumn,
+  defineReleaseLabelsColumn,
+  defineReleaseLanguageColumn,
+  defineSeriesNumberColumn,
+  defineTextColumn,
+  taggerColumn,
+} from '../../utility/tableColumns';
 
-type Props = {|
-  ...InstrumentCreditsRoleT,
+type Props = {
+  ...InstrumentCreditsAndRelTypesRoleT,
   ...SeriesItemNumbersRoleT,
-  +$c: CatalystContextT,
   +checkboxes?: string,
   +filterLabel?: LabelT,
   +order?: string,
   +releases: $ReadOnlyArray<ReleaseT>,
-  +showInstrumentCredits?: boolean,
+  +showInstrumentCreditsAndRelTypes?: boolean,
+  +showLanguages?: boolean,
   +showRatings?: boolean,
+  +showStatus?: boolean,
+  +showType?: boolean,
   +sortable?: boolean,
-|};
+};
 
 const ReleaseList = ({
-  $c,
   checkboxes,
   filterLabel,
-  instrumentCredits,
+  instrumentCreditsAndRelTypes,
   order,
   releases,
   seriesItemNumbers,
-  showInstrumentCredits,
-  showRatings,
+  showInstrumentCreditsAndRelTypes = false,
+  showLanguages = false,
+  showRatings = false,
+  showStatus = false,
+  showType = false,
   sortable,
-}: Props) => (
-  <table className="tbl">
-    <thead>
-      <tr>
-        {$c.user_exists && checkboxes ? (
-          <th className="checkbox-cell">
-            <input type="checkbox" />
-          </th>
-        ) : null}
-        {seriesItemNumbers ? <th style={{width: '1em'}}>{l('#')}</th> : null}
-        <th>
-          {sortable
-            ? (
-              <SortableTableHeader
-                label={l('Release')}
-                name="title"
-                order={order}
-              />
-            )
-            : l('Release')}
-        </th>
-        <th>
-          {sortable
-            ? (
-              <SortableTableHeader
-                label={l('Artist')}
-                name="artist"
-                order={order}
-              />
-            )
-            : l('Artist')}
-        </th>
-        <th>
-          {sortable
-            ? (
-              <SortableTableHeader
-                label={l('Format')}
-                name="format"
-                order={order}
-              />
-            )
-            : l('Format')}
-        </th>
-        <th>
-          {sortable
-            ? (
-              <SortableTableHeader
-                label={l('Tracks')}
-                name="tracks"
-                order={order}
-              />
-            )
-            : l('Tracks')}
-        </th>
-        <th>
-          {sortable
-            ? (
-              <SortableTableHeader
-                label={l('Date')}
-                name="date"
-                order={order}
-              />
-            )
-            : l('Date')}
-        </th>
-        <th>
-          {sortable
-            ? (
-              <SortableTableHeader
-                label={l('Country')}
-                name="country"
-                order={order}
-              />
-            )
-            : l('Country')}
-        </th>
-        {filterLabel ? null : (
-          <th>
-            {sortable
-              ? (
-                <SortableTableHeader
-                  label={l('Label')}
-                  name="label"
-                  order={order}
-                />
-              )
-              : l('Label')}
-          </th>
-        )}
-        <th>
-          {sortable
-            ? (
-              <SortableTableHeader
-                label={l('Catalog#')}
-                name="catno"
-                order={order}
-              />
-            )
-            : l('Catalog#')}
-        </th>
-        <th>
-          {sortable
-            ? (
-              <SortableTableHeader
-                label={l('Barcode')}
-                name="barcode"
-                order={order}
-              />
-            )
-            : l('Barcode')}
-        </th>
-        {showRatings ? <th>{l('Rating')}</th> : null}
-        {showInstrumentCredits ? <th>{l('Instrument Credits')}</th> : null}
-        {$c.session && $c.session.tport ? <th>{l('Tagger')}</th> : null}
-      </tr>
-    </thead>
-    <tbody>
-      {releases.map((release, index) => (
-        <tr className={loopParity(index)} key={release.id}>
-          {$c.user_exists && checkboxes ? (
-            <td>
-              <input
-                name={checkboxes}
-                type="checkbox"
-                value={release.id}
-              />
-            </td>
-          ) : null}
-          {seriesItemNumbers ? (
-            <td style={{width: '1em'}}>
-              {seriesItemNumbers[release.id]}
-            </td>
-          ) : null}
-          <td>
-            <EntityLink entity={release} />
-          </td>
-          <td>
-            <ArtistCreditLink artistCredit={release.artistCredit} />
-          </td>
-          <td>
-            {release.combined_format_name || l('[missing media]')}
-          </td>
-          <td>
-            {release.combined_track_count || l('-')}
-          </td>
-          <td>
-            <ReleaseDates events={release.events} />
-          </td>
-          <td>
-            <ReleaseCountries events={release.events} />
-          </td>
-          {filterLabel ? (
-            <td>
-              {release.labels ? (
-                <ReleaseCatnoList
-                  labels={filterReleaseLabels(release.labels, filterLabel)}
-                />
-              ) : null}
-            </td>
-          ) : (
-            <>
-              <td>
-                <ReleaseLabelList labels={release.labels} />
-              </td>
-              <td>
-                <ReleaseCatnoList labels={release.labels} />
-              </td>
-            </>
-          )}
-          <td className="barcode-cell">{formatBarcode(release.barcode)}</td>
-          {showRatings ? (
-            <td>
-              {release.releaseGroup ? (
-                <RatingStars entity={release.releaseGroup} />
-              ) : null}
-            </td>
-          ) : null}
-          {showInstrumentCredits ? (
-            <td>
-              {instrumentCredits && instrumentCredits[release.gid]
-                ? commaList(instrumentCredits[release.gid])
-                : null}
-            </td>
-          ) : null}
-          {$c.session && $c.session.tport ? (
-            <td>
-              <TaggerIcon entity={release} />
-            </td>
-          ) : null}
-        </tr>
-      ))}
-    </tbody>
-  </table>
-);
+}: Props): React.Element<typeof Table> => {
+  const $c = React.useContext(CatalystContext);
 
-export default withCatalystContext(ReleaseList);
+  const columns = React.useMemo(
+    () => {
+      const checkboxColumn = $c.user && nonEmpty(checkboxes)
+        ? defineCheckboxColumn({name: checkboxes})
+        : null;
+      const seriesNumberColumn = seriesItemNumbers
+        ? defineSeriesNumberColumn({seriesItemNumbers: seriesItemNumbers})
+        : null;
+      const nameColumn = defineNameColumn<ReleaseT>({
+        descriptive: false, // since ACs are in the next column
+        order: order,
+        showCaaPresence: true,
+        sortable: sortable,
+        title: l('Release'),
+      });
+      const artistCreditColumn = defineArtistCreditColumn<ReleaseT>({
+        columnName: 'artist',
+        getArtistCredit: entity => entity.artistCredit,
+        order: order,
+        sortable: sortable,
+        title: l('Artist'),
+      });
+      const formatColumn = defineTextColumn<ReleaseT>({
+        columnName: 'format',
+        getText:
+          entity => nonEmpty(entity.combined_format_name)
+            ? entity.combined_format_name
+            : l('[missing media]'),
+        order: order,
+        sortable: sortable,
+        title: l('Format'),
+      });
+      const tracksColumn = defineTextColumn<ReleaseT>({
+        columnName: 'tracks',
+        getText:
+          entity => nonEmpty(entity.combined_track_count)
+            ? entity.combined_track_count
+            : lp('-', 'missing data'),
+        order: order,
+        sortable: sortable,
+        title: l('Tracks'),
+      });
+      const releaseEventsColumn = defineReleaseEventsColumn({
+        order: order,
+        sortable: sortable,
+      });
+      const labelsColumn = filterLabel
+        ? null
+        : defineReleaseLabelsColumn({
+          order: order,
+          sortable: sortable,
+        });
+      const catnosColumn = defineReleaseCatnosColumn({
+        getLabels: entity => filterLabel
+          ? filterReleaseLabels(entity.labels, filterLabel)
+          : entity.labels,
+        order: order,
+        sortable: sortable,
+      });
+      const barcodeColumn = defineTextColumn<ReleaseT>({
+        cellProps: {className: 'barcode-cell'},
+        columnName: 'barcode',
+        getText: entity => formatBarcode(entity.barcode),
+        order: order,
+        sortable: sortable,
+        title: l('Barcode'),
+      });
+      const releaseLanguageColumn = showLanguages
+        ? defineReleaseLanguageColumn<ReleaseT>({
+          getEntity: entity => entity,
+        })
+        : null;
+      const instrumentUsageColumn = showInstrumentCreditsAndRelTypes
+        ? defineInstrumentUsageColumn({
+          instrumentCreditsAndRelTypes: instrumentCreditsAndRelTypes,
+        })
+        : null;
+      const typeColumn = showType
+        ? defineTextColumn<ReleaseT>({
+          columnName: 'primary-type',
+          getText: entity => entity.releaseGroup?.l_type_name || '',
+          title: l('Type'),
+        })
+        : null;
+      const statusColumn = showStatus
+        ? defineTextColumn<ReleaseT>({
+          columnName: 'status',
+          getText: entity => entity.status
+            ? lp_attributes(entity.status.name, 'release_status')
+            : '',
+          title: l('Status'),
+        })
+        : null;
+      const ratingsColumn = defineRatingsColumn<ReleaseT>({
+        getEntity: entity => entity.releaseGroup ?? null,
+      });
+
+      return [
+        ...(checkboxColumn ? [checkboxColumn] : []),
+        ...(seriesNumberColumn ? [seriesNumberColumn] : []),
+        nameColumn,
+        artistCreditColumn,
+        formatColumn,
+        tracksColumn,
+        releaseEventsColumn,
+        ...(labelsColumn ? [labelsColumn] : []),
+        catnosColumn,
+        barcodeColumn,
+        ...(showLanguages ? [releaseLanguageColumn] : []),
+        ...(instrumentUsageColumn ? [instrumentUsageColumn] : []),
+        ...(typeColumn ? [typeColumn] : []),
+        ...(statusColumn ? [statusColumn] : []),
+        ...($c.session?.tport == null ? [] : [taggerColumn]),
+        ...(showRatings ? [ratingsColumn] : []),
+      ];
+    },
+    [
+      $c.session?.tport,
+      $c.user,
+      checkboxes,
+      filterLabel,
+      instrumentCreditsAndRelTypes,
+      order,
+      seriesItemNumbers,
+      showInstrumentCreditsAndRelTypes,
+      showLanguages,
+      showRatings,
+      showStatus,
+      showType,
+      sortable,
+    ],
+  );
+
+  return <Table columns={columns} data={releases} />;
+};
+
+export default ReleaseList;

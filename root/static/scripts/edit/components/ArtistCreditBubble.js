@@ -1,13 +1,12 @@
 /*
- * This file is part of MusicBrainz, the open internet music database.
  * Copyright (C) 2016 MetaBrainz Foundation
- * Licensed under the GPL version 2, or (at your option) any later version:
- * http://www.gnu.org/licenses/gpl-2.0.txt
+ *
+ * This file is part of MusicBrainz, the open internet music database,
+ * and is licensed under the GPL version 2, or (at your option) any
+ * later version: http://www.gnu.org/licenses/gpl-2.0.txt
  */
 
 import $ from 'jquery';
-import {assign} from 'lodash';
-import React from 'react';
 
 import ArtistCreditLink from '../../common/components/ArtistCreditLink';
 import DescriptiveLink from '../../common/components/DescriptiveLink';
@@ -56,8 +55,11 @@ const ArtistCreditBubble = ({
       <thead>
         <tr>
           <td colSpan="3" style={{paddingBottom: '1em'}}>
-            {exp.l('Use the following fields to enter collaborations. See the {ac|Artist Credit} documentation for more information.',
-                   {ac: '/doc/Artist_Credits'})}
+            {exp.l(
+              `Use the following fields to enter collaborations. See the
+               {ac|Artist Credit} documentation for more information.`,
+              {ac: '/doc/Artist_Credits'},
+            )}
           </td>
         </tr>
         {clean(reduceArtistCredit(artistCredit)) ? (
@@ -67,7 +69,14 @@ const ArtistCreditBubble = ({
               {entity.entityType === 'track'
                 ? (
                   <DescriptiveLink
-                    entity={assign(
+                    allowNew
+                    content={entity.name() === ''
+                      ? l('[missing track name]')
+                      : null}
+                    deletedCaption={entity.name() === ''
+                      ? l('You haven’t entered a track name yet.')
+                      : l('This track hasn’t been created yet.')}
+                    entity={Object.assign(
                       Object.create(entity), {artistCredit: artistCredit},
                     )}
                     showDeletedArtists={false}
@@ -105,7 +114,11 @@ const ArtistCreditBubble = ({
         ))}
         <tr>
           <td className="align-right" colSpan="4">
-            <button className="add-item with-label" onClick={addName} type="button">
+            <button
+              className="add-item with-label"
+              onClick={addName}
+              type="button"
+            >
               {l('Add Artist Credit')}
             </button>
           </td>
@@ -123,9 +136,28 @@ const ArtistCreditBubble = ({
       </div>
     ) : null}
     <div className="buttons">
-      <button onClick={copyArtistCredit} style={{float: 'left'}} type="button">{l('Copy Credits')}</button>
-      <button onClick={pasteArtistCredit} style={{float: 'left'}} type="button">{l('Paste Credits')}</button>
-      <button className="positive" onClick={done} style={{float: 'right'}} type="button">{l('Done')}</button>
+      <button
+        onClick={copyArtistCredit}
+        style={{float: 'left'}}
+        type="button"
+      >
+        {l('Copy Credits')}
+      </button>
+      <button
+        onClick={pasteArtistCredit}
+        style={{float: 'left'}}
+        type="button"
+      >
+        {l('Paste Credits')}
+      </button>
+      <button
+        className="positive"
+        onClick={done}
+        style={{float: 'right'}}
+        type="button"
+      >
+        {l('Done')}
+      </button>
       {extraButtons ? extraButtons : null}
     </div>
   </div>

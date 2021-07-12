@@ -1,5 +1,5 @@
 /*
- * @flow
+ * @flow strict-local
  * Copyright (C) 2019 MetaBrainz Foundation
  *
  * This file is part of MusicBrainz, the open internet music database,
@@ -7,20 +7,22 @@
  * later version: http://www.gnu.org/licenses/gpl-2.0.txt
  */
 
-import React from 'react';
+import * as React from 'react';
 
-import {withCatalystContext} from '../context';
 import FormSubmit from '../components/FormSubmit';
 import EntityLink from '../static/scripts/common/components/EntityLink';
 
 import CollectionLayout from './CollectionLayout';
 
-type Props = {|
+type Props = {
   +$c: CatalystContextT,
   +collection: CollectionT,
-|};
+};
 
-const DeleteCollection = ({$c, collection}: Props) => (
+const DeleteCollection = ({
+  $c,
+  collection,
+}: Props): React.Element<typeof CollectionLayout> => (
   <CollectionLayout
     entity={collection}
     fullWidth
@@ -39,4 +41,4 @@ const DeleteCollection = ({$c, collection}: Props) => (
   </CollectionLayout>
 );
 
-export default withCatalystContext(DeleteCollection);
+export default DeleteCollection;

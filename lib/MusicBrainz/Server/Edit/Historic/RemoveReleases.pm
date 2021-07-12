@@ -4,6 +4,7 @@ use warnings;
 
 use MusicBrainz::Server::Constants qw( $EDIT_HISTORIC_REMOVE_RELEASES );
 use MusicBrainz::Server::Data::Release;
+use MusicBrainz::Server::Entity::Util::JSON qw( to_json_object );
 use MusicBrainz::Server::Translation qw( N_l );
 
 use MusicBrainz::Server::Edit::Historic::Base;
@@ -12,7 +13,7 @@ sub edit_name     { N_l('Remove releases (historic)') }
 sub edit_kind     { 'remove' }
 sub historic_type { 24 }
 sub edit_type     { $EDIT_HISTORIC_REMOVE_RELEASES }
-sub edit_template { 'historic/remove_releases' }
+sub edit_template_react { 'historic/RemoveReleases' }
 
 sub _build_related_entities {
     my $self = shift;
@@ -36,10 +37,13 @@ sub build_display_data
     return {
         releases => [
             map {
-                $loaded->{Release}{$_->{id}} ||
-                    MusicBrainz::Server::Data::Release->new(
-                        id => $_->{id}, name => $_->{name}
-                    );
+                to_json_object(
+                    $loaded->{Release}{$_->{id}} ||
+                    MusicBrainz::Server::Entity::Release->new(
+                        id => $_->{id},
+                        name => $_->{name},
+                    )
+                )
             } @{ $self->data->{releases} }
         ]
     };

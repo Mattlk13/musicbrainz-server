@@ -37,11 +37,19 @@ use MusicBrainz::Server::Data::Utils qw(
     split_relationship_by_attributes
     sanitize
     trim
+    trim_comment
+    trim_multiline_text
     non_empty
 );
+use MusicBrainz::Server::Entity::Util::JSON qw( to_json_object );
 use MusicBrainz::Server::Renderer qw( render_component );
 use MusicBrainz::Server::Translation qw( comma_list comma_only_list l );
-use MusicBrainz::Server::Validation qw( is_guid is_valid_url is_valid_partial_date );
+use MusicBrainz::Server::Validation qw(
+    is_database_row_id
+    is_guid
+    is_valid_url
+    is_valid_partial_date
+);
 use MusicBrainz::Server::View::Base;
 use Readonly;
 use Scalar::Util qw( looks_like_number );
@@ -122,10 +130,11 @@ our $data_processors = {
         load_entity_prop($loader, $data, 'label', 'Label') if $data->{label};
     },
 
+    # MBS-11428: Keep it synced with MusicBrainz::Server::Form::Annotation
     $EDIT_RELEASE_ADD_ANNOTATION => sub {
         my ($c, $loader, $data) = @_;
 
-        process_release_label($c, $loader, $data);
+        process_annotation($c, $loader, $data);
         load_entity_prop($loader, $data, 'entity', 'Release');
     },
 
@@ -170,6 +179,7 @@ our $data_processors = {
         load_entity_prop($loader, $data, 'release', 'Release');
     },
 
+    # MBS-11428: Keep it synced with MusicBrainz::Server::Form::Recording
     $EDIT_RECORDING_EDIT => sub {
         my ($c, $loader, $data) = @_;
 
@@ -187,8 +197,10 @@ our $data_processors = {
         load_entity_prop($loader, $data, 'release', 'Release');
     },
 
+    # MBS-11428: Keep it synced with MusicBrainz::Server::Form::ReleaseGroup
     $EDIT_RELEASEGROUP_CREATE => \&process_entity,
 
+    # MBS-11428: Keep it synced with MusicBrainz::Server::Form::ReleaseGroup
     $EDIT_RELEASEGROUP_EDIT => sub {
         my ($c, $loader, $data) = @_;
 
@@ -198,6 +210,7 @@ our $data_processors = {
         load_entity_prop($loader, $data, 'to_edit', 'ReleaseGroup');
     },
 
+    # MBS-11428: Keep it synced with MusicBrainz::Server::Form::Work
     $EDIT_WORK_CREATE => \&process_entity,
 };
 
@@ -205,6 +218,17 @@ our $data_processors = {
 sub trim_string {
     my ($data, $name) = @_;
     $data->{$name} = trim($data->{$name}) if $data->{$name};
+}
+
+sub trim_multiline_string {
+    my ($data, $name) = @_;
+    $data->{$name} = trim_multiline_text($data->{$name}) if $data->{$name};
+}
+
+sub process_annotation {
+    my ($c, $loader, $data) = @_;
+
+    trim_multiline_string($data, 'text');
 }
 
 sub process_entity {
@@ -216,7 +240,7 @@ sub process_entity {
     }
 
     if ($data->{comment}) {
-        trim_string($data, 'comment');
+        $data->{comment} = trim_comment($data->{comment});
         # MBS-7963
         $data->{comment} = substr($data->{comment}, 0, 255);
     }
@@ -243,7 +267,7 @@ sub process_release_events {
 sub process_artist_credits {
     my ($c, $loader, @artist_credits) = @_;
 
-    my @artist_gids;
+    my @artist_ids;
 
     for my $ac (@artist_credits) {
         my @names = @{ $ac->{names} };
@@ -260,26 +284,34 @@ sub process_artist_credits {
             trim_string($name, 'name');
             trim_string($artist, 'name');
 
-            if (!$artist->{id} && is_guid($artist->{gid}))  {
-                push @artist_gids, $artist->{gid};
+            if (is_database_row_id($artist->{id}))  {
+                push @artist_ids, $artist->{id};
+            } elsif (is_guid($artist->{gid})) {
+                push @artist_ids, $artist->{gid};
             }
             $i++;
         }
     }
 
-    return unless @artist_gids;
-
-    my $artists = $c->model('Artist')->get_by_gids(@artist_gids);
+    my $artists = $c->model('Artist')->get_by_any_ids(@artist_ids);
 
     for my $ac (@artist_credits) {
         my @names = @{ $ac->{names} };
 
         for my $name (@names) {
             my $artist = $name->{artist};
-            my $gid = delete $artist->{gid};
+            my $given_id = $artist->{id};
+            my $given_gid = $artist->{gid};
+            my $entity =
+                (defined $given_id ? $artists->{$given_id} : undef) //
+                (defined $given_gid ? $artists->{$given_gid} : undef);
 
-            if ($gid and my $entity = $artists->{$gid}) {
+            if (defined $entity) {
                 $artist->{id} = $entity->id;
+                $artist->{gid} = $entity->gid;
+                $artist->{name} = $entity->name;
+                $name->{name} = $entity->name
+                    unless non_empty($name->{name});
             }
         }
     }
@@ -295,35 +327,35 @@ sub process_artist_credit {
 sub process_medium {
     my ($c, $loader, $data) = @_;
 
-    return unless defined $data->{tracklist};
-
     trim_string($data, 'name');
 
-    my @tracks = @{ $data->{tracklist} };
-    my @recording_gids = grep { $_ } map { $_->{recording_gid} } @tracks;
-    my $recordings = $c->model('Recording')->get_by_gids(@recording_gids);
+    if (defined $data->{tracklist}) {
+        my @tracks = @{ $data->{tracklist} };
+        my @recording_gids = grep { $_ } map { $_->{recording_gid} } @tracks;
+        my $recordings = $c->model('Recording')->get_by_gids(@recording_gids);
 
-    my $process_track = sub {
-        my $track = shift;
+        my $process_track = sub {
+            my $track = shift;
 
-        process_entity($c, $loader, $track);
-        trim_string($track, 'number');
+            process_entity($c, $loader, $track);
+            trim_string($track, 'number');
 
-        if (my $recording_gid = delete $track->{recording_gid}) {
-            $track->{recording} = $recordings->{$recording_gid};
-            $track->{recording_id} = $recordings->{$recording_gid}->id;
-        }
+            if (my $recording_gid = delete $track->{recording_gid}) {
+                $track->{recording} = $recordings->{$recording_gid};
+                $track->{recording_id} = $recordings->{$recording_gid}->id;
+            }
 
-        delete $track->{id} unless defined $track->{id};
+            delete $track->{id} unless defined $track->{id};
 
-        my $ac = $track->{artist_credit};
-        $track->{artist_credit} = ArtistCredit->from_array($ac->{names}) if $ac;
-        $track->{is_data_track} = boolean_from_json($track->{is_data_track});
+            my $ac = $track->{artist_credit};
+            $track->{artist_credit} = ArtistCredit->from_array($ac->{names}) if $ac;
+            $track->{is_data_track} = boolean_from_json($track->{is_data_track});
 
-        return Track->new(%$track);
-    };
+            return Track->new(%$track);
+        };
 
-    $data->{tracklist} = [ map { $process_track->($_) } @tracks ];
+        $data->{tracklist} = [ map { $process_track->($_) } @tracks ];
+    }
 }
 
 sub clean_partial_date {
@@ -347,6 +379,9 @@ sub process_relationship {
 
     $data->{entity0} = $data->{entities}->[0];
     $data->{entity1} = $data->{entities}->[1];
+
+    trim_string($data, 'entity0_credit');
+    trim_string($data, 'entity1_credit');
 
     my $begin_date = clean_partial_date(delete $data->{begin_date});
     my $end_date = clean_partial_date(delete $data->{end_date});
@@ -601,7 +636,7 @@ sub edit : Chained('/') PathPart('ws/js/edit') CaptureArgs(0) Edit {
     }]);
 
     unless ($c->user->has_confirmed_email_address) {
-        $c->forward('/ws/js/detach_with_error', ['a confirmed email address is required']);
+        $c->forward('/ws/js/detach_with_error', ['a verified email address is required']);
     }
     if ($c->user->is_editing_disabled) {
         $c->forward('/ws/js/detach_with_error', ['you are not allowed to enter edits']);
@@ -728,7 +763,7 @@ sub preview : Chained('edit') PathPart('preview') Edit {
             my $response = render_component(
                 $c,
                 "edit/details/$edit_template_react",
-                {edit => $edit, allowNew => \1},
+                {edit => to_json_object($edit), allowNew => \1},
             );
             my $body = $response->{body} // '';
             my $content_type = $response->{content_type} // '';
@@ -758,22 +793,12 @@ sub preview : Chained('edit') PathPart('preview') Edit {
 no Moose;
 1;
 
-=head1 COPYRIGHT
+=head1 COPYRIGHT AND LICENSE
 
 Copyright (C) 2014 MetaBrainz Foundation
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program; if not, write to the Free Software
-Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+This file is part of MusicBrainz, the open internet music database,
+and is licensed under the GPL version 2, or (at your option) any
+later version: http://www.gnu.org/licenses/gpl-2.0.txt
 
 =cut

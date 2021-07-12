@@ -6,6 +6,7 @@ use MusicBrainz::Server::Form::TagLookup;
 use MusicBrainz::Server::ControllerUtils::JSON qw( serialize_pager );
 use MusicBrainz::Server::Data::Search qw( escape_query );
 use MusicBrainz::Server::Data::Utils qw( type_to_model );
+use MusicBrainz::Server::Entity::Util::JSON qw( to_json_array );
 
 use constant LOOKUPS_PER_NAG => 5;
 
@@ -189,6 +190,8 @@ sub index : Path('')
     my ($self, $c) = @_;
 
     my $form = $c->form( tag_lookup => 'TagLookup', name => 'tag-lookup' );
+    $c->stash->{form} = $form;
+
     my $nag = $self->nag_check($c);
 
     my $mapped_params = {
@@ -202,7 +205,7 @@ sub index : Path('')
         current_view => 'Node',
         component_path => 'taglookup/Index',
         component_props => {
-            form => $form,
+            form => $form->TO_JSON,
             nag => $nag,
         },
     );
@@ -210,7 +213,7 @@ sub index : Path('')
     # All the fields are optional, but we shouldn't do anything unless at
     # least one of them has a value
     return unless grep { $_ } values %$mapped_params;
-    return unless $form->submitted_and_valid( $mapped_params );
+    return unless $c->form_submitted_and_valid($form, $mapped_params);
 
     $self->external($c, $form);
 
@@ -219,34 +222,23 @@ sub index : Path('')
         current_view => 'Node',
         component_path => "taglookup/${model}Results",
         component_props => {
-            form => $form,
+            form => $form->TO_JSON,
             nag => $nag,
             pager => serialize_pager($c->stash->{pager}),
             query => $c->stash->{query},
-            results => $c->stash->{results},
+            results => to_json_array($c->stash->{results}),
         },
     );
 }
 
 1;
 
-=head1 LICENSE
+=head1 COPYRIGHT AND LICENSE
 
 Copyright (C) 2010 MetaBrainz Foundation
 
-This software is provided "as is", without warranty of any kind, express or
-implied, including  but not limited  to the warranties of  merchantability,
-fitness for a particular purpose and noninfringement. In no event shall the
-authors or  copyright  holders be  liable for any claim,  damages or  other
-liability, whether  in an  action of  contract, tort  or otherwise, arising
-from,  out of  or in  connection with  the software or  the  use  or  other
-dealings in the software.
-
-GPL - The GNU General Public License    http://www.gnu.org/licenses/gpl.txt
-Permits anyone the right to use and modify the software without limitations
-as long as proper  credits are given  and the original  and modified source
-code are included. Requires  that the final product, software derivate from
-the original  source or any  software  utilizing a GPL  component, such  as
-this, is also licensed under the GPL license.
+This file is part of MusicBrainz, the open internet music database,
+and is licensed under the GPL version 2, or (at your option) any
+later version: http://www.gnu.org/licenses/gpl-2.0.txt
 
 =cut

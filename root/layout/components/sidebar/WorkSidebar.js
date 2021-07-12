@@ -1,5 +1,5 @@
 /*
- * @flow
+ * @flow strict-local
  * Copyright (C) 2018 MetaBrainz Foundation
  *
  * This file is part of MusicBrainz, the open internet music database,
@@ -7,15 +7,17 @@
  * later version: http://www.gnu.org/licenses/gpl-2.0.txt
  */
 
-import kebabCase from 'lodash/kebabCase';
 import * as React from 'react';
 
-import LinkSearchableLanguage from '../../../components/LinkSearchableLanguage';
-import {withCatalystContext} from '../../../context';
+import {CatalystContext} from '../../../context';
+import LinkSearchableLanguage
+  from '../../../components/LinkSearchableLanguage';
 import CodeLink from '../../../static/scripts/common/components/CodeLink';
 import commaOnlyList from '../../../static/scripts/common/i18n/commaOnlyList';
-import CommonsImage from '../../../static/scripts/common/components/CommonsImage';
+import CommonsImage from
+  '../../../static/scripts/common/components/CommonsImage';
 import linkedEntities from '../../../static/scripts/common/linkedEntities';
+import {kebabCase} from '../../../static/scripts/common/utility/strings';
 import ExternalLinks from '../ExternalLinks';
 
 import AnnotationLinks from './AnnotationLinks';
@@ -29,19 +31,19 @@ import SidebarRating from './SidebarRating';
 import SidebarTags from './SidebarTags';
 import SidebarType from './SidebarType';
 
-type Props = {|
-  +$c: CatalystContextT,
+type Props = {
   +work: WorkT,
-|};
+};
 
-const WorkSidebar = ({$c, work}: Props) => {
-  const gid = encodeURIComponent(work.gid);
+const WorkSidebar = ({work}: Props): React.Element<'div'> => {
+  const $c = React.useContext(CatalystContext);
   const {attributes, iswcs, languages, typeID} = work;
-  const showInfo =
+  const showInfo = Boolean(
     attributes.length ||
-    (iswcs && iswcs.length) ||
+    iswcs.length ||
     languages.length ||
-    typeID;
+    typeID,
+  );
 
   return (
     <div id="sidebar">
@@ -60,9 +62,12 @@ const WorkSidebar = ({$c, work}: Props) => {
             <SidebarType entity={work} typeType="work_type" />
 
             {languages.length ? (
-              <SidebarProperty className="lyrics-language" label={addColonText(l('Lyrics Languages'))}>
+              <SidebarProperty
+                className="lyrics-language"
+                label={addColonText(l('Lyrics Languages'))}
+              >
                 {commaOnlyList(
-                  languages.map((wl, index) => (
+                  languages.map((wl) => (
                     <LinkSearchableLanguage
                       entityType="work"
                       key={wl.language.id}
@@ -73,26 +78,35 @@ const WorkSidebar = ({$c, work}: Props) => {
               </SidebarProperty>
             ) : null}
 
-            {iswcs && iswcs.length ? (
-              iswcs.map((iswc, index) => (
-                <SidebarProperty className="iswc" key={iswc.iswc} label={l('ISWC:')}>
+            {iswcs.length ? (
+              iswcs.map((iswc) => (
+                <SidebarProperty
+                  className="iswc"
+                  key={iswc.iswc}
+                  label={l('ISWC:')}
+                >
                   <CodeLink code={iswc} />
                 </SidebarProperty>
               ))
             ) : null}
 
             {attributes.length ? (
-              attributes.map((attr, index) => {
+              attributes.map((attr) => {
                 const type = linkedEntities.work_attribute_type[attr.typeID];
                 return (
                   <SidebarProperty
-                    className={'work-attribute work-attribute-' + kebabCase(type.name)}
+                    className={'work-attribute work-attribute-' +
+                      kebabCase(type.name)}
                     key={attr.id}
-                    label={addColonText(lp_attributes(type.name, 'work_attribute_type'))}
+                    label={addColonText(
+                      lp_attributes(type.name, 'work_attribute_type'),
+                    )}
                   >
-                    {attr.value_id
-                      ? lp_attributes(attr.value, 'work_attribute_type_allowed_value')
-                      : attr.value}
+                    {attr.value_id == null
+                      ? attr.value
+                      : lp_attributes(
+                        attr.value, 'work_attribute_type_allowed_value',
+                      )}
                   </SidebarProperty>
                 );
               })
@@ -103,12 +117,7 @@ const WorkSidebar = ({$c, work}: Props) => {
 
       <SidebarRating entity={work} />
 
-      <SidebarTags
-        aggregatedTags={$c.stash.top_tags}
-        entity={work}
-        more={!!$c.stash.more_tags}
-        userTags={$c.stash.user_tags}
-      />
+      <SidebarTags entity={work} />
 
       <ExternalLinks empty entity={work} />
 
@@ -129,4 +138,4 @@ const WorkSidebar = ({$c, work}: Props) => {
   );
 };
 
-export default withCatalystContext(WorkSidebar);
+export default WorkSidebar;

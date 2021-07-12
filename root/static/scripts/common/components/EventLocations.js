@@ -1,5 +1,5 @@
 /*
- * @flow
+ * @flow strict-local
  * Copyright (C) 2019 MetaBrainz Foundation
  *
  * This file is part of MusicBrainz, the open internet music database,
@@ -11,16 +11,20 @@ import * as React from 'react';
 
 import DescriptiveLink from './DescriptiveLink';
 
-const EventLocations = ({event}: {event: EventT}) => (
+type Props = {
+  +event: EventT,
+};
+
+const EventLocations = ({event}: Props): React.Element<'ul'> => (
   <ul>
     {event.places.map(place => (
       <li key={place.entity.id}>
-        <DescriptiveLink entity={place.entity} />
+        <DescriptiveLink content={place.credit} entity={place.entity} />
       </li>
     ))}
     {event.areas.map(area => (
       <li key={area.entity.id}>
-        <DescriptiveLink entity={area.entity} />
+        <DescriptiveLink content={area.credit} entity={area.entity} />
       </li>
     ))}
   </ul>

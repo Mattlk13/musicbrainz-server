@@ -6,8 +6,9 @@ use List::MoreUtils qw( uniq );
 use MusicBrainz::Server::Constants qw(
     $EDIT_HISTORIC_EDIT_RELEASE_ATTRS
 );
-use MusicBrainz::Server::Edit::Historic::Utils qw( upgrade_type_and_status );
+use MusicBrainz::Server::Edit::Historic::Utils qw( get_historic_type upgrade_type_and_status );
 use MusicBrainz::Server::Edit::Types qw( Nullable );
+use MusicBrainz::Server::Entity::Util::JSON qw( to_json_object );
 use MusicBrainz::Server::Translation qw( N_l );
 
 use aliased 'MusicBrainz::Server::Entity::Release';
@@ -16,7 +17,7 @@ sub edit_name     { N_l('Edit release') }
 sub edit_kind     { 'edit' }
 sub edit_type     { $EDIT_HISTORIC_EDIT_RELEASE_ATTRS }
 sub historic_type { 26 }
-sub edit_template { 'historic/edit_release_attributes' }
+sub edit_template_react { 'historic/EditReleaseAttributes' }
 
 sub _changes     { return @{ shift->data->{changes} } }
 sub _release_ids
@@ -37,7 +38,9 @@ sub foreign_keys
 {
     my $self = shift;
     return {
-        Release          => [ $self->_release_ids ],
+        Release => [
+            map { $_ => ['ArtistCredit'] } $self->_release_ids
+        ],
         ReleaseStatus    => [
             $self->data->{new_status_id},
             map { $_->{old_status_id} } $self->_changes
@@ -56,17 +59,17 @@ sub build_display_data
         changes => [ map {
             releases => [ do {
                 if (my @ids = @{ $_->{release_ids} }) {
-                    map { $loaded->{Release}->{$_} } @ids
+                    map { to_json_object($loaded->{Release}{$_}) } @ids
                 }
                 else {
-                    Release->new(name => $_->{release_name}),
+                    to_json_object(Release->new(name => $_->{release_name})),
                 }
             } ],
-            status => $_->{old_status_id} && $loaded->{ReleaseStatus}{ $_->{old_status_id} },
-            type   => $_->{old_type_id}   && $loaded->{ReleaseGroupType}{ $_->{old_type_id} },
+            status => $_->{old_status_id} && to_json_object($loaded->{ReleaseStatus}{ $_->{old_status_id} }),
+            type   => get_historic_type($_->{old_type_id}, $loaded),
         }, $self->_changes ],
-        new_status => $self->data->{new_status_id} && $loaded->{ReleaseStatus}{ $self->data->{new_status_id} },
-        new_type   => $self->data->{new_type_id}   && $loaded->{ReleaseGroupType}{ $self->data->{new_type_id} },
+        status => $self->data->{new_status_id} && to_json_object($loaded->{ReleaseStatus}{ $self->data->{new_status_id} }),
+        type   => get_historic_type($self->data->{new_type_id}, $loaded),
     };
 }
 

@@ -21,7 +21,7 @@ sub send_to_renderer {
 
     require bytes;
 
-    state $body_json = JSON->new->utf8->allow_unknown->allow_blessed->convert_blessed;
+    state $body_json = JSON->new->utf8->allow_unknown(0)->allow_blessed(0);
     my $encoded_body = encode_with_linked_entities($body_json, $message);
 
     my $socket = $c->stash->{renderer_socket};
@@ -60,11 +60,12 @@ sub render_component {
 
 1;
 
-=head1 COPYRIGHT
+=head1 COPYRIGHT AND LICENSE
 
-This file is part of MusicBrainz, the open internet music database.
 Copyright (C) 2015 MetaBrainz Foundation
-Licensed under the GPL version 2, or (at your option) any later version:
-http://www.gnu.org/licenses/gpl-2.0.txt
+
+This file is part of MusicBrainz, the open internet music database,
+and is licensed under the GPL version 2, or (at your option) any
+later version: http://www.gnu.org/licenses/gpl-2.0.txt
 
 =cut

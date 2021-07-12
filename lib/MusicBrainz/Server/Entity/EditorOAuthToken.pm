@@ -8,6 +8,7 @@ use MusicBrainz::Server::Types qw( DateTime );
 use MusicBrainz::Server::Translation qw( N_l );
 use MusicBrainz::Server::Data::Utils qw( boolean_to_json datetime_to_iso8601 );
 use MusicBrainz::Server::Entity::Types;
+use MusicBrainz::Server::Entity::Util::JSON qw( to_json_object );
 
 extends 'MusicBrainz::Server::Entity';
 
@@ -32,6 +33,16 @@ has 'application_id' => (
 );
 
 has 'authorization_code' => (
+    isa => 'Maybe[Str]',
+    is => 'rw',
+);
+
+has 'code_challenge' => (
+    isa => 'Maybe[Str]',
+    is => 'rw',
+);
+
+has 'code_challenge_method' => (
     isa => 'Maybe[Str]',
     is => 'rw',
 );
@@ -108,8 +119,8 @@ around TO_JSON => sub {
 
     return {
         %{ $self->$orig },
-        application => $self->application,
-        editor      => $self->editor,
+        application => to_json_object($self->application),
+        editor      => defined $self->editor ? $self->editor->TO_JSON : undef,
         granted     => datetime_to_iso8601($self->granted),
         is_offline  => boolean_to_json($self->is_offline),
         permissions => $self->permissions,
@@ -149,22 +160,12 @@ When it's set, the application can ask to update the access_token and
 reset its expiration time. When refresh_token is not set, the access token is
 can't be reused after it's expired.
 
-=head1 COPYRIGHT
+=head1 COPYRIGHT AND LICENSE
 
 Copyright (C) 2012 Lukas Lalinsky
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program; if not, write to the Free Software
-Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+This file is part of MusicBrainz, the open internet music database,
+and is licensed under the GPL version 2, or (at your option) any
+later version: http://www.gnu.org/licenses/gpl-2.0.txt
 
 =cut

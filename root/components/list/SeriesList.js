@@ -1,5 +1,5 @@
 /*
- * @flow
+ * @flow strict-local
  * Copyright (C) 2019 MetaBrainz Foundation
  *
  * This file is part of MusicBrainz, the open internet music database,
@@ -7,96 +7,63 @@
  * later version: http://www.gnu.org/licenses/gpl-2.0.txt
  */
 
-import React from 'react';
+import * as React from 'react';
 
-import {withCatalystContext} from '../../context';
-import loopParity from '../../utility/loopParity';
-import DescriptiveLink
-  from '../../static/scripts/common/components/DescriptiveLink';
-import linkedEntities from '../../static/scripts/common/linkedEntities';
-import SortableTableHeader from '../SortableTableHeader';
+import {CatalystContext} from '../../context';
+import Table from '../Table';
+import {
+  defineCheckboxColumn,
+  defineNameColumn,
+  defineTypeColumn,
+  removeFromMergeColumn,
+  seriesOrderingTypeColumn,
+} from '../../utility/tableColumns';
 
-type Props = {|
-  +$c: CatalystContextT,
+type Props = {
   +checkboxes?: string,
+  +mergeForm?: MergeFormT,
   +order?: string,
   +series: $ReadOnlyArray<SeriesT>,
   +sortable?: boolean,
-|};
+};
 
 const SeriesList = ({
-  $c,
   checkboxes,
+  mergeForm,
   order,
   series,
   sortable,
-}: Props) => (
-  <table className="tbl">
-    <thead>
-      <tr>
-        {$c.user_exists && checkboxes ? (
-          <th className="checkbox-cell">
-            <input type="checkbox" />
-          </th>
-        ) : null}
-        <th>
-          {sortable
-            ? (
-              <SortableTableHeader
-                label={lp('Series', 'singular')}
-                name="name"
-                order={order}
-              />
-            )
-            : lp('Series', 'singular')}
-        </th>
-        <th>
-          {sortable
-            ? (
-              <SortableTableHeader
-                label={l('Type')}
-                name="type"
-                order={order}
-              />
-            )
-            : l('Type')}
-        </th>
-        <th>{l('Ordering Type')}</th>
-      </tr>
-    </thead>
-    <tbody>
-      {series.map((thisSeries, index) => {
-        const orderingType =
-          linkedEntities.series_ordering_type[thisSeries.orderingTypeID];
-        return (
-          <tr className={loopParity(index)} key={thisSeries.id}>
-            {$c.user_exists && checkboxes ? (
-              <td>
-                <input
-                  name={checkboxes}
-                  type="checkbox"
-                  value={thisSeries.id}
-                />
-              </td>
-            ) : null}
-            <td>
-              <DescriptiveLink entity={thisSeries} />
-            </td>
-            <td>
-              {thisSeries.typeName
-                ? lp_attributes(thisSeries.typeName, 'series_type')
-                : null}
-            </td>
-            <td>
-              {orderingType
-                ? lp_attributes(orderingType.name, 'series_ordering_type')
-                : null}
-            </td>
-          </tr>
-        );
-      })}
-    </tbody>
-  </table>
-);
+}: Props): React.Element<typeof Table> => {
+  const $c = React.useContext(CatalystContext);
 
-export default withCatalystContext(SeriesList);
+  const columns = React.useMemo(
+    () => {
+      const checkboxColumn = $c.user && (nonEmpty(checkboxes) || mergeForm)
+        ? defineCheckboxColumn({mergeForm: mergeForm, name: checkboxes})
+        : null;
+      const nameColumn = defineNameColumn<SeriesT>({
+        order: order,
+        sortable: sortable,
+        title: lp('Series', 'singular'),
+      });
+      const typeColumn = defineTypeColumn({
+        order: order,
+        sortable: sortable,
+        typeContext: 'series_type',
+      });
+
+      return [
+        ...(checkboxColumn ? [checkboxColumn] : []),
+        nameColumn,
+        typeColumn,
+        seriesOrderingTypeColumn,
+        ...(mergeForm && series.length > 2 ? [removeFromMergeColumn] : []),
+      ];
+    },
+    [$c.user, checkboxes, mergeForm, order, series, sortable],
+  );
+
+  return <Table columns={columns} data={series} />;
+};
+
+export default SeriesList;

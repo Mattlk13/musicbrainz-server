@@ -1,5 +1,5 @@
 /*
- * @flow
+ * @flow strict-local
  * Copyright (C) 2018 MetaBrainz Foundation
  *
  * This file is part of MusicBrainz, the open internet music database,
@@ -7,11 +7,13 @@
  * later version: http://www.gnu.org/licenses/gpl-2.0.txt
  */
 
-import React from 'react';
+import * as React from 'react';
 
-import {withCatalystContext} from '../../../context';
-import CommonsImage from '../../../static/scripts/common/components/CommonsImage';
-import entityHref from '../../../static/scripts/common/utility/entityHref';
+import {CatalystContext} from '../../../context';
+import CommonsImage
+  from '../../../static/scripts/common/components/CommonsImage';
+import {isLocationEditor}
+  from '../../../static/scripts/common/utility/privileges';
 import * as age from '../../../utility/age';
 import ExternalLinks from '../ExternalLinks';
 
@@ -28,12 +30,12 @@ import {SidebarProperty, SidebarProperties} from './SidebarProperties';
 import SidebarTags from './SidebarTags';
 import SidebarType from './SidebarType';
 
-type Props = {|
-  +$c: CatalystContextT,
+type Props = {
   +area: AreaT,
-|};
+};
 
-const AreaSidebar = ({$c, area}: Props) => {
+const AreaSidebar = ({area}: Props): React.Element<'div'> => {
+  const $c = React.useContext(CatalystContext);
   const areaAge = age.age(area);
 
   return (
@@ -50,9 +52,17 @@ const AreaSidebar = ({$c, area}: Props) => {
       <SidebarProperties>
         <SidebarType entity={area} typeType="area_type" />
 
-        <SidebarBeginDate age={areaAge} entity={area} label={l('Begin date:')} />
+        <SidebarBeginDate
+          age={areaAge}
+          entity={area}
+          label={l('Begin date:')}
+        />
 
-        <SidebarEndDate age={areaAge} entity={area} label={l('End date:')} />
+        <SidebarEndDate
+          age={areaAge}
+          entity={area}
+          label={l('End date:')}
+        />
 
         {area.iso_3166_1_codes.map(code => (
           <SidebarProperty
@@ -85,17 +95,12 @@ const AreaSidebar = ({$c, area}: Props) => {
         ))}
       </SidebarProperties>
 
-      <SidebarTags
-        aggregatedTags={$c.stash.top_tags}
-        entity={area}
-        more={!!$c.stash.more_tags}
-        userTags={$c.stash.user_tags}
-      />
+      <SidebarTags entity={area} />
 
       <ExternalLinks empty entity={area} />
 
       <EditLinks entity={area}>
-        {$c.user && $c.user.is_location_editor ? (
+        {isLocationEditor($c.user) ? (
           <>
             <AnnotationLinks entity={area} />
 
@@ -117,4 +122,4 @@ const AreaSidebar = ({$c, area}: Props) => {
   );
 };
 
-export default withCatalystContext(AreaSidebar);
+export default AreaSidebar;

@@ -1,5 +1,5 @@
 /*
- * @flow
+ * @flow strict-local
  * Copyright (C) 2017 MetaBrainz Foundation
  *
  * This file is part of MusicBrainz, the open internet music database,
@@ -7,22 +7,26 @@
  * later version: http://www.gnu.org/licenses/gpl-2.0.txt
  */
 
-import React from 'react';
+import * as React from 'react';
 
 import RatingStars from '../../../components/RatingStars';
 import EntityLink from '../../../static/scripts/common/components/EntityLink';
 
-type Props = {|
+type Props = {
   +entity: RatableT,
   +heading?: string,
-|};
+};
 
-const SidebarRating = ({entity, heading}: Props) => (
+const SidebarRating = ({
+  entity,
+  heading,
+}: Props): React.Element<typeof React.Fragment> => (
   <>
-    <h2 className="rating">{heading || l('Rating')}</h2>
+    <h2 className="rating">{nonEmpty(heading) ? heading : l('Rating')}</h2>
     <p>
       <RatingStars entity={entity} />
-      {entity.rating_count > 0 ? (
+      {/* $FlowIgnore[sketchy-null-number] */}
+      {entity.rating_count ? (
         <>
           {' ('}
           <EntityLink

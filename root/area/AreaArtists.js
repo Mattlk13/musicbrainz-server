@@ -1,5 +1,5 @@
 /*
- * @flow
+ * @flow strict-local
  * Copyright (C) 2019 MetaBrainz Foundation
  *
  * This file is part of MusicBrainz, the open internet music database,
@@ -7,32 +7,35 @@
  * later version: http://www.gnu.org/licenses/gpl-2.0.txt
  */
 
-import React from 'react';
+import * as React from 'react';
 
-import {withCatalystContext} from '../context';
 import ArtistList from '../components/list/ArtistList';
 import PaginatedResults from '../components/PaginatedResults';
+import {returnToCurrentPage} from '../utility/returnUri';
 
 import AreaLayout from './AreaLayout';
 
-type Props = {|
+type Props = {
   +$c: CatalystContextT,
   +area: AreaT,
-  +artists: $ReadOnlyArray<ArtistT>,
+  +artists: ?$ReadOnlyArray<ArtistT>,
   +pager: PagerT,
-|};
+};
 
 const AreaArtists = ({
   $c,
   area,
   artists,
   pager,
-}: Props) => (
+}: Props): React.Element<typeof AreaLayout> => (
   <AreaLayout entity={area} page="artists" title={l('Artists')}>
     <h2>{l('Artists')}</h2>
 
-    {artists && artists.length > 0 ? (
-      <form action="/artist/merge_queue" method="post">
+    {artists?.length ? (
+      <form
+        action={'/artist/merge_queue?' + returnToCurrentPage($c)}
+        method="post"
+      >
         <PaginatedResults pager={pager}>
           <ArtistList
             artists={artists}
@@ -41,7 +44,7 @@ const AreaArtists = ({
             showRatings
           />
         </PaginatedResults>
-        {$c.user_exists ? (
+        {$c.user ? (
           <div className="row">
             <span className="buttons">
               <button type="submit">
@@ -59,4 +62,4 @@ const AreaArtists = ({
   </AreaLayout>
 );
 
-export default withCatalystContext(AreaArtists);
+export default AreaArtists;

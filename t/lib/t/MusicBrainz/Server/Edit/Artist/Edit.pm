@@ -77,17 +77,17 @@ is($edit->display_data->{name}->{new}, 'New Name');
 is($edit->display_data->{sort_name}->{old}, 'Artist Name');
 is($edit->display_data->{sort_name}->{new}, 'New Sort');
 is($edit->display_data->{type}->{old}, undef);
-is($edit->display_data->{type}->{new}->name, 'Person');
+is($edit->display_data->{type}->{new}->{name}, 'Person');
 is($edit->display_data->{gender}->{old}, undef);
 is($edit->display_data->{gender}->{new}->{name}, 'Male');
 is($edit->display_data->{area}->{old}, undef);
 is($edit->display_data->{area}->{new}->{name}, 'United Kingdom');
 is($edit->display_data->{comment}->{old}, 'UK group');
 is($edit->display_data->{comment}->{new}, 'New comment');
-is($edit->display_data->{begin_date}->{old}->format, '');
-is($edit->display_data->{begin_date}->{new}->format, '1990-05-10');
-is($edit->display_data->{end_date}->{old}->format, '');
-is($edit->display_data->{end_date}->{new}->format, '2000-03-20');
+is($edit->display_data->{begin_date}->{old}->{year}, undef);
+is($edit->display_data->{begin_date}->{new}->{year}, 1990);
+is($edit->display_data->{end_date}->{old}->{year}, undef);
+is($edit->display_data->{end_date}->{new}->{year}, 2000);
 cmp_set($edit->display_data->{ipi_codes}->{old}, []);
 cmp_set($edit->display_data->{ipi_codes}->{new}, [ '00145958831', '00151894163' ]);
 cmp_set($edit->display_data->{isni_codes}->{old}, []);
@@ -348,10 +348,10 @@ test 'Fails edits trying to change the gender of a group (MBS-8722)' => sub {
     my $test = shift;
     my $c = $test->c;
 
-    $c->sql->do(<<'EOSQL');
-INSERT INTO artist (id, gid, name, sort_name, type)
-VALUES (2, 'cdf5588d-cca8-4e0c-bae1-d53bc73b012a', 'group', 'group', 1);
-EOSQL
+    $c->sql->do(<<~'EOSQL');
+        INSERT INTO artist (id, gid, name, sort_name, type)
+            VALUES (2, 'cdf5588d-cca8-4e0c-bae1-d53bc73b012a', 'group', 'group', 1);
+        EOSQL
 
     my $edit = $c->model('Edit')->create(
         edit_type => $EDIT_ARTIST_EDIT,
@@ -375,10 +375,10 @@ test 'Fails edits trying to set an artist with a gender as a group' => sub {
     my $test = shift;
     my $c = $test->c;
 
-    $c->sql->do(<<'EOSQL');
-INSERT INTO artist (id, gid, name, sort_name)
-VALUES (2, 'cdf5588d-cca8-4e0c-bae1-d53bc73b012a', 'person', 'person');
-EOSQL
+    $c->sql->do(<<~'EOSQL');
+        INSERT INTO artist (id, gid, name, sort_name)
+            VALUES (2, 'cdf5588d-cca8-4e0c-bae1-d53bc73b012a', 'person', 'person');
+        EOSQL
 
     my $edit = $c->model('Edit')->create(
         edit_type => $EDIT_ARTIST_EDIT,
@@ -402,10 +402,10 @@ test 'Type can be set to group when gender is removed (MBS-8801)' => sub {
     my $test = shift;
     my $c = $test->c;
 
-    $c->sql->do(<<'EOSQL');
-INSERT INTO artist (id, gid, name, sort_name, gender)
-VALUES (2, 'cdf5588d-cca8-4e0c-bae1-d53bc73b012a', 'Foo Baz', 'Foo Baz', 2);
-EOSQL
+    $c->sql->do(<<~'EOSQL');
+        INSERT INTO artist (id, gid, name, sort_name, gender)
+            VALUES (2, 'cdf5588d-cca8-4e0c-bae1-d53bc73b012a', 'Foo Baz', 'Foo Baz', 2);
+        EOSQL
 
     my $edit = $c->model('Edit')->create(
         edit_type => $EDIT_ARTIST_EDIT,
