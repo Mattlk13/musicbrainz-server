@@ -35,7 +35,7 @@ msgstr ""
 "Project-Id-Version: MusicBrainz\n"
 "Report-Msgid-Bugs-To: \n"
 "POT-Creation-Date: 2026-04-10 13:13-0500\n"
-"PO-Revision-Date: 2026-04-09 00:11+0000\n"
+"PO-Revision-Date: 2026-04-14 18:11+0000\n"
 "Last-Translator: \"salo.rock\" "
 "<salo.rock@users.noreply.translations.metabrainz.org>\n"
 "Language-Team: Italian <https://translations.metabrainz.org/projects/"
@@ -9347,26 +9347,20 @@ msgid "Recent notes left on your edits"
 msgstr "Note recenti lasciate sulle tue modifiche"
 
 #: ../root/edit/NotesReceived.js:51
-#, fuzzy
-#| msgctxt "noun"
-#| msgid "Edit notes"
 msgid "ModBot notes"
-msgstr "Note di modifica"
+msgstr "Note di ModBot"
 
 #: ../root/edit/NotesReceived.js:57
-#, fuzzy
-#| msgctxt "folksonomy"
-#| msgid "Show all tags."
 msgid "Show all notes"
-msgstr "Mostra tutti i tag."
+msgstr "Mostra tutte le note"
 
 #: ../root/edit/NotesReceived.js:58
 msgid "Show only notes by ModBot"
-msgstr ""
+msgstr "Mostra solo le note di ModBot"
 
 #: ../root/edit/NotesReceived.js:60
 msgid "Show only notes by someone else"
-msgstr ""
+msgstr "Mostra solo le note di qualcun altro"
 
 #: ../root/edit/NotesReceived.js:86
 msgid "Nobody has left notes on any of your edits in the past three months."
