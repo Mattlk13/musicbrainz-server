@@ -17,8 +17,9 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: MusicBrainz\n"
-"PO-Revision-Date: 2026-03-31 15:22+0000\n"
-"Last-Translator: dddrnzv <solodkovskiy+21w4amgy@gmail.com>\n"
+"PO-Revision-Date: 2026-04-11 22:11+0000\n"
+"Last-Translator: wileyfoxyx "
+"<wileyfoxyx@users.noreply.translations.metabrainz.org>\n"
 "Language-Team: Russian <https://translations.metabrainz.org/projects/"
 "musicbrainz/instrument-descriptions/ru/>\n"
 "Language: ru\n"
@@ -5873,7 +5874,7 @@ msgstr ""
 #. name:nabal
 #: DB:instrument/description:684
 msgid "Used in traditional music, it's long and straight."
-msgstr ""
+msgstr "Длинный и прямой инструмент. Используется в традиционной музыке."
 
 #. name:turntable
 #: DB:instrument/description:181

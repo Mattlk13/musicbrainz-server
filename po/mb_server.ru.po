@@ -47,7 +47,7 @@ msgstr ""
 "Project-Id-Version: MusicBrainz\n"
 "Report-Msgid-Bugs-To: \n"
 "POT-Creation-Date: 2026-04-10 13:13-0500\n"
-"PO-Revision-Date: 2026-04-06 18:11+0000\n"
+"PO-Revision-Date: 2026-04-11 22:11+0000\n"
 "Last-Translator: wileyfoxyx "
 "<wileyfoxyx@users.noreply.translations.metabrainz.org>\n"
 "Language-Team: Russian <https://translations.metabrainz.org/projects/"
@@ -9332,26 +9332,20 @@ msgid "Recent notes left on your edits"
 msgstr "Последние комментарии к вашим правкам"
 
 #: ../root/edit/NotesReceived.js:51
-#, fuzzy
-#| msgctxt "noun"
-#| msgid "Edit notes"
 msgid "ModBot notes"
-msgstr "Комментарии к правке"
+msgstr "Комментарии от ModBot"
 
 #: ../root/edit/NotesReceived.js:57
-#, fuzzy
-#| msgctxt "folksonomy"
-#| msgid "Show all tags."
 msgid "Show all notes"
-msgstr "Показать все теги."
+msgstr "Показать все комментарии"
 
 #: ../root/edit/NotesReceived.js:58
 msgid "Show only notes by ModBot"
-msgstr ""
+msgstr "Показывать только комментарии от ModBot"
 
 #: ../root/edit/NotesReceived.js:60
 msgid "Show only notes by someone else"
-msgstr ""
+msgstr "Показывать только комментарии от других пользователей"
 
 #: ../root/edit/NotesReceived.js:86
 msgid "Nobody has left notes on any of your edits in the past three months."
@@ -16935,12 +16929,9 @@ msgid "This relationship has ended."
 msgstr "Это отношение прекратилось."
 
 #: ../root/static/scripts/external-links-editor/components/ExternalLinkRelationshipDialog.js:237
-#, fuzzy
-#| msgctxt "edit type"
-#| msgid "Edit relationship"
 msgctxt "interactive"
 msgid "Edit relationship"
-msgstr "Правка отношения"
+msgstr "Править отношения"
 
 #: ../root/static/scripts/external-links-editor/components/TypeDescription.js:21
 #: ../root/static/scripts/relationship-editor/components/DialogLinkType.js:311
