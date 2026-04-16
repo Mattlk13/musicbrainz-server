@@ -45,13 +45,21 @@ import type {
 import {
   hasErrorsOnNewOrChangedLinks,
 } from '../../external-links-editor/validation.js';
-import {
-  NonHydratedRelationshipEditorWrapper as RelationshipEditorWrapper,
-} from '../../relationship-editor/components/RelationshipEditorWrapper.js';
+import RelationshipEditor, {
+  loadOrCreateInitialState as loadOrCreateInitialRelationshipEditorState,
+  reducer as relationshipEditorReducer,
+} from '../../relationship-editor/components/RelationshipEditor.js';
+import type {
+  RelationshipEditorStateT,
+} from '../../relationship-editor/types.js';
+import type {
+  RelationshipEditorActionT,
+} from '../../relationship-editor/types/actions.js';
 
 /* eslint-disable ft-flow/sort-keys */
 type ActionT =
   | {+type: 'update-external-links-editor', +action: LinksEditorActionT}
+  | {+type: 'update-relationship-editor', +action: RelationshipEditorActionT}
   | {+type: 'update-name', +action: NameActionT};
 /* eslint-enable ft-flow/sort-keys */
 
@@ -60,6 +68,7 @@ type StateT = {
   +form: GenreFormT,
   +guessCaseOptions: GuessCaseOptionsStateT,
   +isGuessCaseOptionsOpen: boolean,
+  +relationshipEditor: RelationshipEditorStateT,
 };
 
 function createInitialState({
@@ -74,6 +83,10 @@ function createInitialState({
     form,
     guessCaseOptions: createGuessCaseOptionsState(),
     isGuessCaseOptionsOpen: false,
+    relationshipEditor: loadOrCreateInitialRelationshipEditorState({
+      formName: form.name,
+      seededRelationships: $c.stash.seeded_relationships,
+    }),
   };
 }
 
@@ -92,11 +105,28 @@ function reducer(state: StateT, action: ActionT): StateT {
         .set('form', 'field', 'name', nameState.field)
         .set('guessCaseOptions', nameState.guessCaseOptions)
         .set('isGuessCaseOptionsOpen', nameState.isGuessCaseOptionsOpen);
+
+      if (action.type === 'set-name') {
+        newStateCtx.set(
+          'relationshipEditor',
+          relationshipEditorReducer(state.relationshipEditor, {
+            changes: {name: action.name},
+            entityType: state.relationshipEditor.entity.entityType,
+            type: 'update-entity',
+          }),
+        );
+      }
     }
     {type: 'update-external-links-editor', const action} => {
       newStateCtx.set(
         'externalLinksEditor',
         externalLinksEditorReducer(state.externalLinksEditor, action),
+      );
+    }
+    {type: 'update-relationship-editor', const action} => {
+      newStateCtx.set(
+        'relationshipEditor',
+        relationshipEditorReducer(state.relationshipEditor, action),
       );
     }
   }
@@ -116,6 +146,12 @@ component GenreEditForm(form as initialForm: GenreFormT) {
 
   const nameDispatch = React.useCallback((action: NameActionT) => {
     dispatch({action, type: 'update-name'});
+  }, [dispatch]);
+
+  const relationshipEditorDispatch = React.useCallback((
+    action: RelationshipEditorActionT,
+  ) => {
+    dispatch({action, type: 'update-relationship-editor'});
   }, [dispatch]);
 
   const missingRequired = isBlank(state.form.field.name.value);
@@ -162,9 +198,10 @@ component GenreEditForm(form as initialForm: GenreFormT) {
             uncontrolled
           />
         </fieldset>
-        <RelationshipEditorWrapper
+        <RelationshipEditor
+          dispatch={relationshipEditorDispatch}
           formName={state.form.name}
-          seededRelationships={$c.stash.seeded_relationships}
+          state={state.relationshipEditor}
         />
         <ExternalLinksEditorFieldset
           dispatch={dispatch}
