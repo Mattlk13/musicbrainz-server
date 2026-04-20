@@ -190,7 +190,6 @@ function prepareExternalLinksHtmlFormSubmission(
 }
 
 component _ExternalLinksEditor(
-  /*:: ref: React.RefSetter<void>, */
   dispatch: (LinksEditorActionT) => void,
   state: LinksEditorStateT,
 ) {
@@ -287,10 +286,7 @@ component _ExternalLinksEditor(
 }
 
 const ExternalLinksEditor:
-  component(
-    ref: React.RefSetter<void>,
-    ...React.PropsOf<_ExternalLinksEditor>
-  ) =
+  component(...React.PropsOf<_ExternalLinksEditor>) =
     withLoadedTypeInfo<React.PropsOf<_ExternalLinksEditor>, void>(
       _ExternalLinksEditor,
       new Set(['link_attribute_type', 'link_type']),
