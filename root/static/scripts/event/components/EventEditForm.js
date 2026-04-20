@@ -36,6 +36,9 @@ import {
   type StateT as GuessCaseOptionsStateT,
   createInitialState as createGuessCaseOptionsState,
 } from '../../edit/components/GuessCaseOptions.js';
+import {
+  withLoadedTypeInfoForRelationshipEditor,
+} from '../../edit/components/withLoadedTypeInfo.js';
 import isValidSetlist from '../../edit/utility/isValidSetlist.js';
 import {
   applyAllPendingErrors,
@@ -373,7 +376,11 @@ component EventEditForm(
   );
 }
 
-export default (hydrate<React.PropsOf<EventEditForm>>(
-  'div.event-edit-form',
-  EventEditForm,
-): component(...React.PropsOf<EventEditForm>));
+export default (
+  hydrate<React.PropsOf<EventEditForm>>(
+    'div.event-edit-form',
+    withLoadedTypeInfoForRelationshipEditor<React.PropsOf<EventEditForm>>(
+      EventEditForm,
+    ),
+  ) as component(...React.PropsOf<EventEditForm>)
+);

@@ -28,6 +28,9 @@ import {
   type StateT as GuessCaseOptionsStateT,
   createInitialState as createGuessCaseOptionsState,
 } from '../../edit/components/GuessCaseOptions.js';
+import {
+  withLoadedTypeInfoForRelationshipEditor,
+} from '../../edit/components/withLoadedTypeInfo.js';
 import ExternalLinksEditorFieldset
   // eslint-disable-next-line @stylistic/max-len
   from '../../external-links-editor/components/ExternalLinksEditorFieldset.js';
@@ -174,7 +177,11 @@ component GenreEditForm(form as initialForm: GenreFormT) {
   );
 }
 
-export default (hydrate<React.PropsOf<GenreEditForm>>(
-  'div.genre-edit-form',
-  GenreEditForm,
-): component(...React.PropsOf<GenreEditForm>));
+export default (
+  hydrate<React.PropsOf<GenreEditForm>>(
+    'div.genre-edit-form',
+    withLoadedTypeInfoForRelationshipEditor<React.PropsOf<GenreEditForm>>(
+      GenreEditForm,
+    ),
+  ) as component(...React.PropsOf<GenreEditForm>)
+);
