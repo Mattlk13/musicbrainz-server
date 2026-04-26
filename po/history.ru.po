@@ -18,8 +18,9 @@ msgid ""
 msgstr ""
 "Project-Id-Version: MusicBrainz\n"
 "Report-Msgid-Bugs-To: \n"
-"PO-Revision-Date: 2026-04-25 07:11+0000\n"
-"Last-Translator: cerberuzzz <cerberuzzz@mail.ru>\n"
+"PO-Revision-Date: 2026-04-26 20:11+0000\n"
+"Last-Translator: wileyfoxyx "
+"<wileyfoxyx@users.noreply.translations.metabrainz.org>\n"
 "Language-Team: Russian <https://translations.metabrainz.org/projects/"
 "musicbrainz/history/ru/>\n"
 "Language: ru\n"
@@ -1057,7 +1058,8 @@ msgstr ""
 
 #: DB:statistics.statistic_event/title:2014-10-17
 msgid "Style process updated again, reosarevok \"promoted\" to Style BDFL"
-msgstr "Процесс оформления снова обновлен, reosarevok «повысили» до Style BDFL"
+msgstr ""
+"Процесс оформления снова обновлен, reosarevok «повысили» до BDFL по стилю"
 
 #: DB:statistics.statistic_event/description:2007-04-01
 msgid "Support for Labels and data quality are released."
