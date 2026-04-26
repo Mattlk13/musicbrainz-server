@@ -39,7 +39,7 @@ msgstr ""
 "Project-Id-Version: MusicBrainz\n"
 "Report-Msgid-Bugs-To: \n"
 "POT-Creation-Date: 2026-04-21 13:13-0500\n"
-"PO-Revision-Date: 2026-03-12 20:11+0000\n"
+"PO-Revision-Date: 2026-04-26 11:11+0000\n"
 "Last-Translator: mfmeulenbelt "
 "<mfmeulenbelt@users.noreply.translations.metabrainz.org>\n"
 "Language-Team: Dutch <https://translations.metabrainz.org/projects/"
@@ -49,7 +49,7 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=n != 1;\n"
-"X-Generator: Weblate 5.16.2\n"
+"X-Generator: Weblate 5.17\n"
 
 #: ../root/components/common-macros.tt:11
 msgid " ({text})"
@@ -414,7 +414,7 @@ msgstr "Gebied"
 
 #: ../root/edit/search_macros.tt:480
 msgid "Area type"
-msgstr "Vlaktekst"
+msgstr "Soort gebied"
 
 #: ../root/cdstub/cdstub.tt:7 ../root/cdtoc/list.tt:8
 #: ../root/cdtoc/lookup.tt:42 ../root/cdtoc/lookup.tt:77
@@ -946,7 +946,7 @@ msgstr "Bewerkingsnotitie"
 
 #: ../root/edit/search_macros.tt:480
 msgid "Edit note authors"
-msgstr "Auteurs van bewerkingsnotities"
+msgstr "Auteur van de bewerkingsnotitie"
 
 #: ../root/edit/search_macros.tt:480
 msgid "Edit note content"
@@ -978,7 +978,7 @@ msgstr "Redacteur"
 
 #: ../root/edit/search_macros.tt:480
 msgid "Editor flag"
-msgstr "Type redacteur"
+msgstr "Soort redacteur"
 
 #: ../root/release/edit/tracklist.tt:45
 msgid "Enable vinyl track numbers"
@@ -3702,7 +3702,7 @@ msgstr "Details van de compositie"
 #: ../root/edit/search_macros.tt:480 ../root/edit/details/EditWork.js:69
 #: ../root/static/scripts/release/components/WorkTypeSelect.js:51
 msgid "Work type"
-msgstr "Type compositie"
+msgstr "Soort compositie"
 
 #: ../root/release/edit/information.tt:176
 #: ../lib/MusicBrainz/Server/Plugin/FormRenderer.pm:251
@@ -4508,6 +4508,8 @@ msgid ""
 "An edit search query could not be constructed. Some of your parameters are "
 "probably invalid."
 msgstr ""
+"Er kon geen zoekopdracht voor bewerkingen worden gemaakt. Mogelijk zijn "
+"sommige parameters ongeldig."
 
 #: ../lib/MusicBrainz/Server/Controller/EditNote.pm:66
 #: ../lib/MusicBrainz/Server/Controller/EditNote.pm:78
@@ -8952,7 +8954,7 @@ msgstr "Andere artiesten"
 
 #: ../root/constants.js:22
 msgid "View and modify your private collections"
-msgstr "Je privécollecties bekijken en bewerken"
+msgstr "Je privécollecties te bekijken en bewerken"
 
 #: ../root/constants.js:23
 msgid "View your email address"
@@ -9254,26 +9256,20 @@ msgid "Recent notes left on your edits"
 msgstr "Recente notities bij mijn bewerkingen"
 
 #: ../root/edit/NotesReceived.js:51
-#, fuzzy
-#| msgctxt "noun"
-#| msgid "Edit notes"
 msgid "ModBot notes"
-msgstr "Bewerkingsnotities"
+msgstr "Notities van ModBot"
 
 #: ../root/edit/NotesReceived.js:57
-#, fuzzy
-#| msgctxt "folksonomy"
-#| msgid "Show all tags."
 msgid "Show all notes"
-msgstr "Alle tags tonen."
+msgstr "Alle notities tonen"
 
 #: ../root/edit/NotesReceived.js:58
 msgid "Show only notes by ModBot"
-msgstr ""
+msgstr "Alleen notities van ModBot tonen"
 
 #: ../root/edit/NotesReceived.js:60
 msgid "Show only notes by someone else"
-msgstr ""
+msgstr "Alleen notities van iemand anders tonen"
 
 #: ../root/edit/NotesReceived.js:86
 msgid "Nobody has left notes on any of your edits in the past three months."
@@ -12771,10 +12767,8 @@ msgid "No {type0}-{type1} relationship types found."
 msgstr "Geen {type0}-{type1}-relatietypes gevonden."
 
 #: ../root/relationship/linktype/RelationshipTypesList.js:41
-#, fuzzy
-#| msgid "This area has no relationships to any works."
 msgid "This pair has no relationship types."
-msgstr "Dit gebied is niet gerelateerd aan composities."
+msgstr "Voor deze combinatie zijn er geen relatietypes."
 
 #: ../root/relationship/linktype/RelationshipTypesList.js:46
 msgid "{type0}-{type1}"
@@ -17216,9 +17210,6 @@ msgid "This relationship has ended."
 msgstr "Deze relatie is beëindigd."
 
 #: ../root/static/scripts/external-links-editor/components/ExternalLinkRelationshipDialog.js:237
-#, fuzzy
-#| msgctxt "edit type"
-#| msgid "Edit relationship"
 msgctxt "interactive"
 msgid "Edit relationship"
 msgstr "Relatie bewerken"
@@ -17250,6 +17241,9 @@ msgid ""
 "Links to archive.today and associated domains are not allowed. This site has "
 "been found to manipulate the archived websites and perform DDoS attacks."
 msgstr ""
+"Links naar archive.today en gerelateerde domeinen zijn niet toegestaan. Deze "
+"website heeft gearchiveerde websites gemanipuleerd en is gebruikt voor DDoS-"
+"aanvallen."
 
 #: ../root/static/scripts/external-links-editor/validation.js:157
 msgid ""
