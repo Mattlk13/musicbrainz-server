@@ -411,6 +411,20 @@ sub begin : Private
     # NOTE: The following checks are not applied to /ws/js/edit. If you change
     # anything here, make sure it is reflected there, too (if applicable).
 
+    if (DBDefs->REQUIRE_LOGIN_FOR_VIEWING && !$c->user_exists) {
+        my $action = $c->action;
+        my $namespace = $action->namespace;
+        my $private_path = $action->private_path;
+        unless (
+            $namespace eq 'oauth2' ||
+            $private_path eq '/index' ||
+            $private_path eq '/user/login' ||
+            $private_path eq '/account/register'
+        ) {
+            $attributes->{RequireAuth} = 1;
+        }
+    }
+
     # Edit implies RequireAuth
     if (!exists $attributes->{RequireAuth} && exists $attributes->{Edit}) {
         $attributes->{RequireAuth} = 1;

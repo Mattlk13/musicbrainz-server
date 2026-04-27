@@ -8,7 +8,6 @@
  */
 
 import {captureException} from '@sentry/browser';
-import deepFreeze from 'deep-freeze-strict';
 import * as React from 'react';
 import {flushSync} from 'react-dom';
 import * as tree from 'weight-balanced-tree';
@@ -39,9 +38,12 @@ import linkedEntities, {
 import MB from '../../common/MB.js';
 import areDatesEqual from '../../common/utility/areDatesEqual.js';
 import {
-  getSourceEntityDataForRelationshipEditor,
+  getCatalystContext,
+  getSourceEntityData,
 } from '../../common/utility/catalyst.js';
 import clean from '../../common/utility/clean.js';
+import deepFreezeInDevelopment
+  from '../../common/utility/deepFreezeInDevelopment.js';
 import isDatabaseRowId from '../../common/utility/isDatabaseRowId.js';
 import isDateEmpty from '../../common/utility/isDateEmpty.js';
 import natatime from '../../common/utility/natatime.js';
@@ -192,8 +194,9 @@ export function createInitialState(
 ): ReleaseRelationshipEditorStateT {
   const release: ReleaseWithMediumsAndReleaseGroupT =
     source ??
-    // $FlowFixMe[unclear-type]
-    (getSourceEntityDataForRelationshipEditor(): any);
+    // $FlowExpectedError[incompatible-type]
+    (getSourceEntityData(getCatalystContext(), 'release')
+      as ReleaseWithMediumsAndReleaseGroupT);
 
   const newState: {...ReleaseRelationshipEditorStateT} = {
     ...createInitialLazyReleaseState(),
@@ -1418,9 +1421,7 @@ export const reducer: ((
     }
   }
 
-  if (__DEV__) {
-    deepFreeze(newState);
-  }
+  deepFreezeInDevelopment(newState);
 
   return newState;
 });
@@ -1687,14 +1688,7 @@ component _ReleaseGroupRelationshipSection(
 const ReleaseGroupRelationshipSection =
   React.memo(_ReleaseGroupRelationshipSection);
 
-component _ReleaseRelationshipEditor(
-  /*
-   * Hack required due to withLoadedTypeInfo's use of `forwardRef`.
-   * Remove once we upgrade to React v19.
-   */
-  // eslint-disable-next-line no-unused-vars
-  ref: React.RefSetter<mixed>
-) {
+component _ReleaseRelationshipEditor() {
   const [state, dispatch] = React.useReducer(
     reducer,
     null,

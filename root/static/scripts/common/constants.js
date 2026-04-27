@@ -127,7 +127,6 @@ export const FAVICON_CLASSES: {
   'facebook.com': 'facebook',
   'finna.fi': 'finna',
   'finnmusic.net': 'finnmusic',
-  'flattr.com': 'flattr',
   'fono.fi': 'fonofi',
   'generasia.com/wiki': 'generasia',
   'genie.co.kr': 'genie',
@@ -422,8 +421,8 @@ export const ENTITIES_WITH_RELATIONSHIP_CREDITS = {
 };
 
 export const QUALITY_NAMES: Map<QualityT, () => string> = new Map([
-  [0, N_l('Low')],
   [-1, N_l('Normal')],
+  [0, N_l('Low')],
   [1, N_l('Normal')],
   [2, N_l('High')],
 ]);

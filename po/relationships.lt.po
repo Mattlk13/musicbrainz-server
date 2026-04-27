@@ -440,6 +440,14 @@ msgstr ""
 msgid "Indicates a page with an official schedule for an event series."
 msgstr "Nurodo puslapį su oficialiu renginių serijos tvarkaraščiu."
 
+#. name:schedule
+#: DB:link_type/description:1302
+#, fuzzy
+#| msgid "Indicates a page with an official schedule for an event series."
+msgid ""
+"Indicates a page with an official schedule for an event, such as a festival."
+msgstr "Nurodo puslapį su oficialiu renginių serijos tvarkaraščiu."
+
 #. name:parent
 #: DB:link_type/description:109
 msgid "Indicates a parent-child relationship."
@@ -2079,6 +2087,48 @@ msgstr ""
 "takeliui suvesti į vientisą muzikos kūrinį, tinkamą išleisti. Apie "
 "remiksavimą žiūrėk <a href=\"/relationship/"
 "7950be4d-13a3-48e7-906b-5af562e39544\" target=\"_blank\">remiksuotojas</a>."
+
+#. name:design
+#: DB:link_type/description:1304
+#, fuzzy
+#| msgid "This indicates an artist who did design for the event."
+msgid "This indicates a company who did design for the event."
+msgstr "Tai nurodo atlikėją, kuris kūrė renginio dizainą."
+
+#. name:illustration
+#: DB:link_type/description:1305
+#, fuzzy
+#| msgid "This indicates an artist who did illustration for the event."
+msgid "This indicates a company who did illustration for the event."
+msgstr "Tai nurodo atlikėją, kuris kūrė renginio iliustraciją."
+
+#. name:graphic design
+#: DB:link_type/description:1306
+#, fuzzy
+#| msgid ""
+#| "This indicates an artist who did the graphic design for the event, "
+#| "arranging pieces of content into a coherent and aesthetically-pleasing "
+#| "design."
+msgid ""
+"This indicates a company who did the graphic design / layout for the event, "
+"arranging pieces of content into a coherent and aesthetically-pleasing "
+"design."
+msgstr ""
+"Tai nurodo atlikėją, kuris kūrė renginio grafinį dizainą, sudėliodamas "
+"turinio dalis į vientisą ir estetiškai patrauklų dizainą."
+
+#. name:artwork
+#: DB:link_type/description:1303
+#, fuzzy
+#| msgid ""
+#| "This indicates an artist who provided artwork for the event when no more "
+#| "specific information is available."
+msgid ""
+"This indicates a company who provided artwork for the event when no more "
+"specific information is available."
+msgstr ""
+"Tai nurodo atlikėją, kuris pateikė meno kūrinį renginiui, kai nėra jokios "
+"tikslesnės informacijos."
 
 #. name:member of band
 #: DB:link_type/description:103
@@ -4349,6 +4399,13 @@ msgid ""
 "site containing videos curated by it."
 msgstr ""
 
+#. name:fanpage
+#: DB:link_type/description:1301
+#, fuzzy
+#| msgid "This allows linking a series to the label who publishes it."
+msgid "This links an event to a fan-created website."
+msgstr "Tai leidžia susieti seriją su leidykla, kuri ją publikuoja."
+
 #. name:patronage
 #: DB:link_type/description:898
 msgid ""
@@ -5768,8 +5825,8 @@ msgstr "masteringo inžinieriaus pozicija vietoje"
 msgid "artists-in-residence"
 msgstr ""
 
-#: DB:link_type/name:1231 DB:link_type/name:1241 DB:link_type/name:1170
-#: DB:link_type/name:993
+#: DB:link_type/name:1231 DB:link_type/name:1303 DB:link_type/name:1241
+#: DB:link_type/name:1170 DB:link_type/name:993
 msgid "artwork"
 msgstr ""
 
@@ -6408,8 +6465,8 @@ msgstr ""
 msgid "derived from"
 msgstr ""
 
-#: DB:link_type/name:1233 DB:link_type/name:928 DB:link_type/name:1242
-#: DB:link_type/name:1171
+#: DB:link_type/name:1233 DB:link_type/name:928 DB:link_type/name:1304
+#: DB:link_type/name:1242 DB:link_type/name:1171
 msgid "design"
 msgstr ""
 
@@ -6689,19 +6746,22 @@ msgstr "premjera atliko"
 #. name:fanpage
 #: DB:link_type/link_phrase:1188 DB:link_type/reverse_link_phrase:214
 #: DB:link_type/reverse_link_phrase:172 DB:link_type/reverse_link_phrase:1189
-#: DB:link_type/reverse_link_phrase:1190 DB:link_type/reverse_link_phrase:1191
+#: DB:link_type/reverse_link_phrase:1301 DB:link_type/reverse_link_phrase:1190
+#: DB:link_type/reverse_link_phrase:1191
 msgid "fan page for"
 msgstr ""
 
 #. name:fanpage
 #: DB:link_type/link_phrase:214 DB:link_type/link_phrase:172
-#: DB:link_type/link_phrase:1189 DB:link_type/link_phrase:1190
-#: DB:link_type/link_phrase:1191 DB:link_type/reverse_link_phrase:1188
+#: DB:link_type/link_phrase:1189 DB:link_type/link_phrase:1301
+#: DB:link_type/link_phrase:1190 DB:link_type/link_phrase:1191
+#: DB:link_type/reverse_link_phrase:1188
 msgid "fan pages"
 msgstr ""
 
 #: DB:link_type/name:214 DB:link_type/name:172 DB:link_type/name:1189
-#: DB:link_type/name:1190 DB:link_type/name:1188 DB:link_type/name:1191
+#: DB:link_type/name:1301 DB:link_type/name:1190 DB:link_type/name:1188
+#: DB:link_type/name:1191
 msgid "fanpage"
 msgstr ""
 
@@ -6839,8 +6899,8 @@ msgstr "stiklo meistravimas padarė"
 msgid "glass mastering location for"
 msgstr "stiklo meistravimo vieta"
 
-#: DB:link_type/name:1172 DB:link_type/name:1234 DB:link_type/name:125
-#: DB:link_type/name:27
+#: DB:link_type/name:1172 DB:link_type/name:1234 DB:link_type/name:1306
+#: DB:link_type/name:125 DB:link_type/name:27
 msgid "graphic design"
 msgstr "grafinis dizainas"
 
@@ -7082,8 +7142,8 @@ msgstr ""
 
 #. name:fanpage
 #: DB:link_type/long_link_phrase:214 DB:link_type/long_link_phrase:172
-#: DB:link_type/long_link_phrase:1189 DB:link_type/long_link_phrase:1190
-#: DB:link_type/long_link_phrase:1191
+#: DB:link_type/long_link_phrase:1189 DB:link_type/long_link_phrase:1301
+#: DB:link_type/long_link_phrase:1190 DB:link_type/long_link_phrase:1191
 msgid "has a fan page at"
 msgstr ""
 
@@ -7131,7 +7191,7 @@ msgid "has a review page at"
 msgstr ""
 
 #. name:schedule
-#: DB:link_type/long_link_phrase:1083
+#: DB:link_type/long_link_phrase:1083 DB:link_type/long_link_phrase:1302
 msgid "has a schedule at"
 msgstr ""
 
@@ -7465,7 +7525,7 @@ msgid "hybrid of"
 msgstr ""
 
 #: DB:link_type/name:1232 DB:link_type/name:927 DB:link_type/name:1173
-#: DB:link_type/name:1244
+#: DB:link_type/name:1305 DB:link_type/name:1244
 msgid "illustration"
 msgstr ""
 
@@ -9607,12 +9667,13 @@ msgid "samples material"
 msgstr ""
 
 #. name:schedule
-#: DB:link_type/name:1083 DB:link_type/link_phrase:1083
+#: DB:link_type/name:1083 DB:link_type/name:1302 DB:link_type/link_phrase:1083
+#: DB:link_type/link_phrase:1302
 msgid "schedule"
 msgstr "tvarkaraštis"
 
 #. name:schedule
-#: DB:link_type/reverse_link_phrase:1083
+#: DB:link_type/reverse_link_phrase:1083 DB:link_type/reverse_link_phrase:1302
 msgid "schedule for"
 msgstr ""
 
@@ -10839,9 +10900,10 @@ msgid "{additional} art direction"
 msgstr "{additional:papildomas} meno vadovavimas"
 
 #. name:artwork
-#: DB:link_type/link_phrase:1231 DB:link_type/link_phrase:1241
-#: DB:link_type/link_phrase:1170 DB:link_type/link_phrase:993
-#: DB:link_type/reverse_link_phrase:1231 DB:link_type/reverse_link_phrase:1241
+#: DB:link_type/link_phrase:1231 DB:link_type/link_phrase:1303
+#: DB:link_type/link_phrase:1241 DB:link_type/link_phrase:1170
+#: DB:link_type/link_phrase:993 DB:link_type/reverse_link_phrase:1231
+#: DB:link_type/reverse_link_phrase:1303 DB:link_type/reverse_link_phrase:1241
 #: DB:link_type/reverse_link_phrase:1170 DB:link_type/reverse_link_phrase:993
 msgid "{additional} artwork"
 msgstr ""
@@ -10894,17 +10956,19 @@ msgstr ""
 
 #. name:graphic design
 #: DB:link_type/link_phrase:1172 DB:link_type/link_phrase:1234
-#: DB:link_type/link_phrase:125 DB:link_type/link_phrase:27
-#: DB:link_type/reverse_link_phrase:1172 DB:link_type/reverse_link_phrase:1234
+#: DB:link_type/link_phrase:1306 DB:link_type/link_phrase:125
+#: DB:link_type/link_phrase:27 DB:link_type/reverse_link_phrase:1172
+#: DB:link_type/reverse_link_phrase:1234 DB:link_type/reverse_link_phrase:1306
 #: DB:link_type/reverse_link_phrase:125 DB:link_type/reverse_link_phrase:27
 msgid "{additional} graphic design"
 msgstr ""
 
 #. name:illustration
 #: DB:link_type/link_phrase:1232 DB:link_type/link_phrase:927
-#: DB:link_type/link_phrase:1173 DB:link_type/link_phrase:1244
-#: DB:link_type/reverse_link_phrase:1232 DB:link_type/reverse_link_phrase:927
-#: DB:link_type/reverse_link_phrase:1173 DB:link_type/reverse_link_phrase:1244
+#: DB:link_type/link_phrase:1173 DB:link_type/link_phrase:1305
+#: DB:link_type/link_phrase:1244 DB:link_type/reverse_link_phrase:1232
+#: DB:link_type/reverse_link_phrase:927 DB:link_type/reverse_link_phrase:1173
+#: DB:link_type/reverse_link_phrase:1305 DB:link_type/reverse_link_phrase:1244
 msgid "{additional} illustration"
 msgstr ""
 
@@ -11085,8 +11149,9 @@ msgstr ""
 
 #. name:design
 #: DB:link_type/link_phrase:1233 DB:link_type/link_phrase:928
-#: DB:link_type/link_phrase:1242 DB:link_type/reverse_link_phrase:1233
-#: DB:link_type/reverse_link_phrase:928 DB:link_type/reverse_link_phrase:1242
+#: DB:link_type/link_phrase:1304 DB:link_type/link_phrase:1242
+#: DB:link_type/reverse_link_phrase:1233 DB:link_type/reverse_link_phrase:928
+#: DB:link_type/reverse_link_phrase:1304 DB:link_type/reverse_link_phrase:1242
 msgid "{additional} {assistant} design"
 msgstr ""
 
@@ -11538,6 +11603,37 @@ msgstr ""
 #: DB:link_type/long_link_phrase:1168
 msgid "{entity1} presented {entity0}"
 msgstr ""
+
+#. name:artwork
+#: DB:link_type/long_link_phrase:1303
+#, fuzzy
+#| msgid ""
+#| "The libretto for {entity1} was {additional:additionally} written in "
+#| "{entity0}"
+msgid "{entity1} provided {additional} artwork on {entity0}"
+msgstr ""
+"Libretas {entity1} buvo {additional:papildomai} parašytas vietoje {entity0}"
+
+#. name:graphic design
+#: DB:link_type/long_link_phrase:1306
+#, fuzzy
+#| msgid "provided {additional} {assistant} design on"
+msgid "{entity1} provided {additional} graphic design on {entity0}"
+msgstr "pateikė {additional:papildomą} {assistant:pagalbinį} dizainą"
+
+#. name:illustration
+#: DB:link_type/long_link_phrase:1305
+#, fuzzy
+#| msgid "provided {additional} animation on"
+msgid "{entity1} provided {additional} illustration on {entity0}"
+msgstr "pateikė {additional:papildomą} animaciją apie"
+
+#. name:design
+#: DB:link_type/long_link_phrase:1304
+#, fuzzy
+#| msgid "provided {additional} {assistant} design on"
+msgid "{entity1} provided {additional} {assistant} design on {entity0}"
+msgstr "pateikė {additional:papildomą} {assistant:pagalbinį} dizainą"
 
 #. name:arranged for
 #: DB:link_type/long_link_phrase:949 DB:link_type/long_link_phrase:948

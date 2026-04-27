@@ -15,13 +15,13 @@
 # salo.rock, 2012
 # salo.rock, 2022-2023
 # "salo.rock" <salo.rock+musicbrainz@gmail.com>, 2023.
-# "salo.rock" <salo.rock@users.noreply.translations.metabrainz.org>, 2023, 2024, 2025.
+# "salo.rock" <salo.rock@users.noreply.translations.metabrainz.org>, 2023, 2024, 2025, 2026.
 # yvanzo <yvanzo@users.noreply.translations.metabrainz.org>, 2024.
 # GABG <musicbrainz@gabg.email>, 2024, 2025.
 msgid ""
 msgstr ""
 "Project-Id-Version: MusicBrainz\n"
-"PO-Revision-Date: 2025-12-25 19:11+0000\n"
+"PO-Revision-Date: 2026-04-07 00:11+0000\n"
 "Last-Translator: \"salo.rock\" "
 "<salo.rock@users.noreply.translations.metabrainz.org>\n"
 "Language-Team: Italian <https://translations.metabrainz.org/projects/"
@@ -32,7 +32,7 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=3; plural=(n == 1) ? 0 : ((n != 0 && n % 1000000 == "
 "0) ? 1 : 2);\n"
-"X-Generator: Weblate 5.15.1\n"
+"X-Generator: Weblate 5.16.2\n"
 
 #. name:artist diploma
 #: DB:link_attribute_type/description:1355
@@ -451,6 +451,14 @@ msgstr ""
 #: DB:link_type/description:1083
 msgid "Indicates a page with an official schedule for an event series."
 msgstr "Indica una pagina con l'orario ufficiale di una serie di eventi."
+
+#. name:schedule
+#: DB:link_type/description:1302
+msgid ""
+"Indicates a page with an official schedule for an event, such as a festival."
+msgstr ""
+"Indica una pagina con l'orario ufficiale di un evento, come per esempio un "
+"festival."
 
 #. name:parent
 #: DB:link_type/description:109
@@ -2120,6 +2128,49 @@ msgstr ""
 "Indica la società responsabile per l'utilizzo di una console di missaggio "
 "per mixare una traccia registrata in un unico brano musicale adatto alla "
 "pubblicazione, quando è accreditata una società anziché un tecnico specifico."
+
+#. name:design
+#: DB:link_type/description:1304
+#, fuzzy
+#| msgid "This indicates an artist who did design for the event."
+msgid "This indicates a company who did design for the event."
+msgstr "Indica un artista che ha curato il design dell'evento."
+
+#. name:illustration
+#: DB:link_type/description:1305
+#, fuzzy
+#| msgid "This indicates an artist who did illustration for the event."
+msgid "This indicates a company who did illustration for the event."
+msgstr "Indica un artista che ha curato le illustrazioni dell'evento."
+
+#. name:graphic design
+#: DB:link_type/description:1306
+#, fuzzy
+#| msgid ""
+#| "This indicates an artist who did the graphic design / layout for the "
+#| "event, arranging pieces of content into a coherent and aesthetically-"
+#| "pleasing design."
+msgid ""
+"This indicates a company who did the graphic design / layout for the event, "
+"arranging pieces of content into a coherent and aesthetically-pleasing "
+"design."
+msgstr ""
+"Indica un artista che ha curato il progetto grafico o il layout per "
+"l'evento, organizzandone i componenti in un design coerente e piacevole "
+"esteticamente."
+
+#. name:artwork
+#: DB:link_type/description:1303
+#, fuzzy
+#| msgid ""
+#| "This indicates an artist who provided artwork for the event when no more "
+#| "specific information is available."
+msgid ""
+"This indicates a company who provided artwork for the event when no more "
+"specific information is available."
+msgstr ""
+"Indica un artista che ha fornito materiale grafico per l'evento quando non "
+"sono disponibili informazioni più specifiche."
 
 #. name:member of band
 #: DB:link_type/description:103
@@ -4651,6 +4702,11 @@ msgstr ""
 "Collega un evento a un canale, playlist o pagina utente su un sito di "
 "condivisione video che contiene video selezionati da esso."
 
+#. name:fanpage
+#: DB:link_type/description:1301
+msgid "This links an event to a fan-created website."
+msgstr "Collega un evento a un sito web creato da fan."
+
 #. name:patronage
 #: DB:link_type/description:898
 msgid ""
@@ -6386,8 +6442,8 @@ msgstr "posizione di addetto artisti e repertorio (A&R) presso"
 msgid "artists-in-residence"
 msgstr "artisti in residenza"
 
-#: DB:link_type/name:1231 DB:link_type/name:1241 DB:link_type/name:1170
-#: DB:link_type/name:993
+#: DB:link_type/name:1231 DB:link_type/name:1303 DB:link_type/name:1241
+#: DB:link_type/name:1170 DB:link_type/name:993
 msgid "artwork"
 msgstr "materiale grafico"
 
@@ -7013,8 +7069,8 @@ msgstr "derivazioni"
 msgid "derived from"
 msgstr "derivato da"
 
-#: DB:link_type/name:1233 DB:link_type/name:928 DB:link_type/name:1242
-#: DB:link_type/name:1171
+#: DB:link_type/name:1233 DB:link_type/name:928 DB:link_type/name:1304
+#: DB:link_type/name:1242 DB:link_type/name:1171
 msgid "design"
 msgstr "design"
 
@@ -7286,19 +7342,22 @@ msgstr "esportata da"
 #. name:fanpage
 #: DB:link_type/link_phrase:1188 DB:link_type/reverse_link_phrase:214
 #: DB:link_type/reverse_link_phrase:172 DB:link_type/reverse_link_phrase:1189
-#: DB:link_type/reverse_link_phrase:1190 DB:link_type/reverse_link_phrase:1191
+#: DB:link_type/reverse_link_phrase:1301 DB:link_type/reverse_link_phrase:1190
+#: DB:link_type/reverse_link_phrase:1191
 msgid "fan page for"
 msgstr "pagina di fan di"
 
 #. name:fanpage
 #: DB:link_type/link_phrase:214 DB:link_type/link_phrase:172
-#: DB:link_type/link_phrase:1189 DB:link_type/link_phrase:1190
-#: DB:link_type/link_phrase:1191 DB:link_type/reverse_link_phrase:1188
+#: DB:link_type/link_phrase:1189 DB:link_type/link_phrase:1301
+#: DB:link_type/link_phrase:1190 DB:link_type/link_phrase:1191
+#: DB:link_type/reverse_link_phrase:1188
 msgid "fan pages"
 msgstr "pagine di fan"
 
 #: DB:link_type/name:214 DB:link_type/name:172 DB:link_type/name:1189
-#: DB:link_type/name:1190 DB:link_type/name:1188 DB:link_type/name:1191
+#: DB:link_type/name:1301 DB:link_type/name:1190 DB:link_type/name:1188
+#: DB:link_type/name:1191
 msgid "fanpage"
 msgstr "pagina di fan"
 
@@ -7436,8 +7495,8 @@ msgstr "master in vetro creato da"
 msgid "glass mastering location for"
 msgstr "luogo di creazione del master in vetro per"
 
-#: DB:link_type/name:1172 DB:link_type/name:1234 DB:link_type/name:125
-#: DB:link_type/name:27
+#: DB:link_type/name:1172 DB:link_type/name:1234 DB:link_type/name:1306
+#: DB:link_type/name:125 DB:link_type/name:27
 msgid "graphic design"
 msgstr "progetto grafico"
 
@@ -7675,8 +7734,8 @@ msgstr "ha una pagina di discografia su"
 
 #. name:fanpage
 #: DB:link_type/long_link_phrase:214 DB:link_type/long_link_phrase:172
-#: DB:link_type/long_link_phrase:1189 DB:link_type/long_link_phrase:1190
-#: DB:link_type/long_link_phrase:1191
+#: DB:link_type/long_link_phrase:1189 DB:link_type/long_link_phrase:1301
+#: DB:link_type/long_link_phrase:1190 DB:link_type/long_link_phrase:1191
 msgid "has a fan page at"
 msgstr "ha una pagina di fan su"
 
@@ -7724,7 +7783,7 @@ msgid "has a review page at"
 msgstr "ha una pagina di recensione su"
 
 #. name:schedule
-#: DB:link_type/long_link_phrase:1083
+#: DB:link_type/long_link_phrase:1083 DB:link_type/long_link_phrase:1302
 msgid "has a schedule at"
 msgstr "ha un orario su"
 
@@ -8049,7 +8108,7 @@ msgid "hybrid of"
 msgstr "ibrido di"
 
 #: DB:link_type/name:1232 DB:link_type/name:927 DB:link_type/name:1173
-#: DB:link_type/name:1244
+#: DB:link_type/name:1305 DB:link_type/name:1244
 msgid "illustration"
 msgstr "illustrazioni"
 
@@ -10166,12 +10225,13 @@ msgid "samples material"
 msgstr "campiona il materiale"
 
 #. name:schedule
-#: DB:link_type/name:1083 DB:link_type/link_phrase:1083
+#: DB:link_type/name:1083 DB:link_type/name:1302 DB:link_type/link_phrase:1083
+#: DB:link_type/link_phrase:1302
 msgid "schedule"
 msgstr "orario"
 
 #. name:schedule
-#: DB:link_type/reverse_link_phrase:1083
+#: DB:link_type/reverse_link_phrase:1083 DB:link_type/reverse_link_phrase:1302
 msgid "schedule for"
 msgstr "orario di"
 
@@ -11410,9 +11470,10 @@ msgid "{additional} art direction"
 msgstr "direzione artistica {additional:aggiuntiva}"
 
 #. name:artwork
-#: DB:link_type/link_phrase:1231 DB:link_type/link_phrase:1241
-#: DB:link_type/link_phrase:1170 DB:link_type/link_phrase:993
-#: DB:link_type/reverse_link_phrase:1231 DB:link_type/reverse_link_phrase:1241
+#: DB:link_type/link_phrase:1231 DB:link_type/link_phrase:1303
+#: DB:link_type/link_phrase:1241 DB:link_type/link_phrase:1170
+#: DB:link_type/link_phrase:993 DB:link_type/reverse_link_phrase:1231
+#: DB:link_type/reverse_link_phrase:1303 DB:link_type/reverse_link_phrase:1241
 #: DB:link_type/reverse_link_phrase:1170 DB:link_type/reverse_link_phrase:993
 msgid "{additional} artwork"
 msgstr "materiale grafico {additional:aggiuntivo}"
@@ -11463,17 +11524,19 @@ msgstr "luogo {additional:aggiuntivo} di lavorazione per"
 
 #. name:graphic design
 #: DB:link_type/link_phrase:1172 DB:link_type/link_phrase:1234
-#: DB:link_type/link_phrase:125 DB:link_type/link_phrase:27
-#: DB:link_type/reverse_link_phrase:1172 DB:link_type/reverse_link_phrase:1234
+#: DB:link_type/link_phrase:1306 DB:link_type/link_phrase:125
+#: DB:link_type/link_phrase:27 DB:link_type/reverse_link_phrase:1172
+#: DB:link_type/reverse_link_phrase:1234 DB:link_type/reverse_link_phrase:1306
 #: DB:link_type/reverse_link_phrase:125 DB:link_type/reverse_link_phrase:27
 msgid "{additional} graphic design"
 msgstr "progetto grafico {additional:aggiuntivo}"
 
 #. name:illustration
 #: DB:link_type/link_phrase:1232 DB:link_type/link_phrase:927
-#: DB:link_type/link_phrase:1173 DB:link_type/link_phrase:1244
-#: DB:link_type/reverse_link_phrase:1232 DB:link_type/reverse_link_phrase:927
-#: DB:link_type/reverse_link_phrase:1173 DB:link_type/reverse_link_phrase:1244
+#: DB:link_type/link_phrase:1173 DB:link_type/link_phrase:1305
+#: DB:link_type/link_phrase:1244 DB:link_type/reverse_link_phrase:1232
+#: DB:link_type/reverse_link_phrase:927 DB:link_type/reverse_link_phrase:1173
+#: DB:link_type/reverse_link_phrase:1305 DB:link_type/reverse_link_phrase:1244
 msgid "{additional} illustration"
 msgstr "illustrazioni {additional:aggiuntive}"
 
@@ -11651,8 +11714,9 @@ msgstr "{assistant:assistente} direttore d'orchestra {additional:aggiunto}"
 
 #. name:design
 #: DB:link_type/link_phrase:1233 DB:link_type/link_phrase:928
-#: DB:link_type/link_phrase:1242 DB:link_type/reverse_link_phrase:1233
-#: DB:link_type/reverse_link_phrase:928 DB:link_type/reverse_link_phrase:1242
+#: DB:link_type/link_phrase:1304 DB:link_type/link_phrase:1242
+#: DB:link_type/reverse_link_phrase:1233 DB:link_type/reverse_link_phrase:928
+#: DB:link_type/reverse_link_phrase:1304 DB:link_type/reverse_link_phrase:1242
 msgid "{additional} {assistant} design"
 msgstr "{assistant:assistenza al} design {additional:aggiuntiva}"
 
@@ -12125,6 +12189,35 @@ msgstr "{entity1} è/è stato il locale per concerti principale di {entity0}"
 #: DB:link_type/long_link_phrase:1168
 msgid "{entity1} presented {entity0}"
 msgstr "{entity1} ha presentato {entity0}"
+
+#. name:artwork
+#: DB:link_type/long_link_phrase:1303
+#, fuzzy
+#| msgid "provided {additional} artwork on"
+msgid "{entity1} provided {additional} artwork on {entity0}"
+msgstr "ha fornito materiale grafico {additional:aggiuntivo} per"
+
+#. name:graphic design
+#: DB:link_type/long_link_phrase:1306
+#, fuzzy
+#| msgid "provided {additional} graphic design on"
+msgid "{entity1} provided {additional} graphic design on {entity0}"
+msgstr "ha curato il progetto grafico {additional:aggiuntivo} di"
+
+#. name:illustration
+#: DB:link_type/long_link_phrase:1305
+#, fuzzy
+#| msgid "provided {additional} illustration on"
+msgid "{entity1} provided {additional} illustration on {entity0}"
+msgstr "ha curato le illustrazioni {additional:aggiuntive} di"
+
+#. name:design
+#: DB:link_type/long_link_phrase:1304
+#, fuzzy
+#| msgid "provided {additional} {assistant} design on"
+msgid "{entity1} provided {additional} {assistant} design on {entity0}"
+msgstr ""
+"ha curato {assistant:da assistente} il design {additional:aggiuntivo} di"
 
 #. name:arranged for
 #: DB:link_type/long_link_phrase:949 DB:link_type/long_link_phrase:948

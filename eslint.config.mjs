@@ -9,6 +9,7 @@
 import fbFlow from 'eslint-plugin-fb-flow';
 import ftFlow from 'eslint-plugin-ft-flow';
 import importPlugin from 'eslint-plugin-import';
+import perfectionistPlugin from 'eslint-plugin-perfectionist';
 import reactPlugin from 'eslint-plugin-react';
 import reactHooks from 'eslint-plugin-react-hooks';
 import simpleImportSort from 'eslint-plugin-simple-import-sort';
@@ -116,6 +117,7 @@ export default [
       'react': reactPlugin,
       'ft-flow': ftFlow,
       'fb-flow': fbFlow,
+      'perfectionist': perfectionistPlugin,
       'react-hooks': reactHooks,
       'simple-import-sort': simpleImportSort,
     },
@@ -533,7 +535,6 @@ export default [
       '@stylistic/jsx-props-no-multi-spaces': 'off', // in eslint-js
       '@stylistic/jsx-quotes': ['warn', 'prefer-double'],
       '@stylistic/jsx-self-closing-comp': 'error',
-      '@stylistic/jsx-sort-props': 'warn',
       '@stylistic/jsx-tag-spacing': ['error', {beforeClosing: 'never'}],
       '@stylistic/jsx-wrap-multilines': ['error', {
         declaration: 'parens-new-line',
@@ -551,6 +552,7 @@ export default [
       '@stylistic/line-comment-position': 'off',
       '@stylistic/lines-around-comment': 'off',
       '@stylistic/lines-between-class-members': ['warn', 'always'],
+      '@stylistic/exp-jsx-props-style': 'off', // still experimental
       '@stylistic/exp-list-style': 'off', // still experimental
       '@stylistic/max-len': ['warn', {
         code: 78,
@@ -821,6 +823,30 @@ export default [
       'fb-flow/flow-enums-default-if-possible': 'warn',
       'fb-flow/no-flow-enums-object-mapping': 'off',
 
+      // eslint-plugin-perfectionist
+      'perfectionist/sort-array-includes': ['warn', {type: 'natural'}],
+      'perfectionist/sort-classes': 'off', // We should aim not to use classes
+      'perfectionist/sort-decorators': 'off', // We should aim not to use classes
+      'perfectionist/sort-enums': 'off', // This is for TS
+      'perfectionist/sort-export-attributes': 'warn',
+      'perfectionist/sort-exports': 'off', // We use simple-import-sort for this
+      'perfectionist/sort-heritage-clauses': 'off', // We should aim not to use classes
+      'perfectionist/sort-import-attributes': 'warn',
+      'perfectionist/sort-imports': 'off', // We use simple-import-sort for this
+      'perfectionist/sort-interfaces': 'off', // This is for TS
+      'perfectionist/sort-intersection-types': 'off', // This is for TS
+      'perfectionist/sort-jsx-props': 'warn',
+      'perfectionist/sort-maps': ['warn', {type: 'natural'}],
+      'perfectionist/sort-modules': 'off',
+      'perfectionist/sort-named-exports': 'off', // We use simple-import-sort for this
+      'perfectionist/sort-named-imports': 'off', // We use simple-import-sort for this
+      'perfectionist/sort-object-types': 'off', // This is for TS
+      'perfectionist/sort-objects': 'off', // We use sort-keys for this
+      'perfectionist/sort-sets': ['warn', {type: 'natural'}],
+      'perfectionist/sort-switch-case': 'off',
+      'perfectionist/sort-union-types': 'off', // This is for TS
+      'perfectionist/sort-variable-declarations': 'off',
+
       // eslint-plugin-react-hooks
       'react-hooks/exhaustive-deps': 'error',
       'react-hooks/rules-of-hooks': 'off', // Flow takes care of this
@@ -959,18 +985,9 @@ export default [
   {
     files: [
       'root/static/scripts/common/components/TagEditor.js',
-      'root/static/scripts/edit/externalLinks.js',
     ],
     rules: {
       'react/no-access-state-in-setstate': 'off',
-    },
-  },
-  {
-    files: [
-      'root/static/scripts/edit/externalLinks.js',
-    ],
-    rules: {
-      'react/no-multi-comp': 'off',
     },
   },
   {
@@ -986,13 +1003,9 @@ export default [
       'root/static/scripts/common/components/CDTocReleaseListRow.js',
       'root/static/scripts/common/components/TagEditor.js',
       'root/static/scripts/edit/check-duplicates.js',
-      'root/static/scripts/edit/components/ExternalLinkAttributeDialog.js',
       'root/static/scripts/edit/components/FormRowNameWithGuessCase.js',
       'root/static/scripts/edit/components/FormRowSelectList.js',
       'root/static/scripts/edit/components/ReleaseMergeStrategy.js',
-      'root/static/scripts/edit/components/URLInputPopover.js',
-      'root/static/scripts/edit/components/UrlRelationshipCreditFieldset.js',
-      'root/static/scripts/edit/externalLinks.js',
       'root/static/scripts/event/components/EventEditForm.js',
       'root/static/scripts/relationship-editor/components/DialogPreview.js',
     ],
@@ -1008,7 +1021,6 @@ export default [
       'root/static/scripts/common/i18n/expand2.js',
       'root/static/scripts/common/utility/cloneDeep.mjs',
       'root/static/scripts/edit/components/withLoadedTypeInfo.js',
-      'root/static/scripts/edit/externalLinks.js',
       'root/static/scripts/relationship-editor/components/DialogEntityCredit.js',
       'root/static/scripts/relationship-editor/components/DialogTargetType.js',
       'root/static/scripts/relationship-editor/components/RelationshipEditor.js',
@@ -1042,12 +1054,12 @@ export default [
       'root/static/scripts/common/utility/createFastObjectCloneFunction.js',
       'root/static/scripts/edit/components/ArtistCreditEditor.js',
       'root/static/scripts/edit/components/ArtistCreditEditor/utilities.js',
-      'root/static/scripts/edit/components/ExternalLinkAttributeDialog.js',
       'root/static/scripts/edit/components/Multiselect.js',
       'root/static/scripts/edit/components/withLoadedTypeInfo.js',
       'root/static/scripts/edit/utility/compactEntityJson.js',
       'root/static/scripts/edit/utility/reducerWithErrorHandling.js',
       'root/static/scripts/edit/utility/subfieldErrors.js',
+      'root/static/scripts/external-links-editor/components/ExternalLinkRelationshipDialog.js',
       'root/static/scripts/guess-case/MB/GuessCase/Main.js',
       'root/static/scripts/relationship-editor/components/DialogAttribute/MultiselectAttribute.js',
       'root/static/scripts/relationship-editor/components/DialogEntityCredit.js',

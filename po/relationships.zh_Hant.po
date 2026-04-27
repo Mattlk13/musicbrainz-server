@@ -8,8 +8,8 @@ msgstr ""
 "PO-Revision-Date: 2026-01-28 17:11+0000\n"
 "Last-Translator: BestSteve <ibmibmibm.tw@gmail.com>\n"
 "Language-Team: Chinese (Traditional Han script) <https://"
-"translations.metabrainz.org/projects/musicbrainz/relationship-types/zh_Hant/>"
-"\n"
+"translations.metabrainz.org/projects/musicbrainz/relationship-types/zh_Hant/"
+">\n"
 "Language: zh_Hant\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
@@ -406,6 +406,14 @@ msgstr "指示查看所討論的版本(組)的頁面，無論是文字、音訊�
 msgid "Indicates a page with an official schedule for an event series."
 msgstr "指載有活動系列官方日程的網頁面。"
 
+#. name:schedule
+#: DB:link_type/description:1302
+#, fuzzy
+#| msgid "Indicates a page with an official schedule for an event series."
+msgid ""
+"Indicates a page with an official schedule for an event, such as a festival."
+msgstr "指載有活動系列官方日程的網頁面。"
+
 #. name:parent
 #: DB:link_type/description:109
 msgid "Indicates a parent-child relationship."
@@ -691,7 +699,8 @@ msgstr "指該作品的作詞者。"
 msgid ""
 "Indicates the mastering company for this release, when a company is credited "
 "instead of a specific engineer."
-msgstr "指該發行品的母帶後期處理公司，當未標示特定母帶工程師，而用公司名義署名時。"
+msgstr ""
+"指該發行品的母帶後期處理公司，當未標示特定母帶工程師，而用公司名義署名時。"
 
 #. name:mastering
 #: DB:link_type/description:42
@@ -1874,6 +1883,45 @@ msgstr ""
 "這說明工程師負責使用調音台將錄製的音軌混音為適合納入專輯的單曲音樂。關於重混"
 "音，參見<a href=\"/relationship/7950be4d-13a3-48e7-906b-5af562e39544\" "
 "target=\"_blank\">重混音者</a>。"
+
+#. name:design
+#: DB:link_type/description:1304
+#, fuzzy
+#| msgid "This indicates an artist who did design for the event."
+msgid "This indicates a company who did design for the event."
+msgstr "這表明是一位創作者為該活動進行了設計工作。"
+
+#. name:illustration
+#: DB:link_type/description:1305
+#, fuzzy
+#| msgid "This indicates an artist who did illustration for the event."
+msgid "This indicates a company who did illustration for the event."
+msgstr "這表明是一位創作者為活動進行了插圖繪製工作。"
+
+#. name:graphic design
+#: DB:link_type/description:1306
+#, fuzzy
+#| msgid ""
+#| "This indicates an artist who did the graphic design / layout for the "
+#| "event, arranging pieces of content into a coherent and aesthetically-"
+#| "pleasing design."
+msgid ""
+"This indicates a company who did the graphic design / layout for the event, "
+"arranging pieces of content into a coherent and aesthetically-pleasing "
+"design."
+msgstr ""
+"指負責活動的圖形設計/布局的創作者，他們將內容元素排列成一個連貫且美觀的設計。"
+
+#. name:artwork
+#: DB:link_type/description:1303
+#, fuzzy
+#| msgid ""
+#| "This indicates an artist who provided artwork for the event when no more "
+#| "specific information is available."
+msgid ""
+"This indicates a company who provided artwork for the event when no more "
+"specific information is available."
+msgstr "指為活動提供藝術作品的創作者，當沒有更具體的資訊時。"
 
 #. name:member of band
 #: DB:link_type/description:103
@@ -4147,6 +4195,13 @@ msgstr ""
 "這個關聯將一個活動與影片分享網站上包含其策劃影片的頻道、播放清單或使用者頁面"
 "連結起來。"
 
+#. name:fanpage
+#: DB:link_type/description:1301
+#, fuzzy
+#| msgid "This links a series to a fan-created website."
+msgid "This links an event to a fan-created website."
+msgstr "這會將系列連結到粉絲建立的網站。"
+
 #. name:patronage
 #: DB:link_type/description:898
 msgid ""
@@ -5686,8 +5741,8 @@ msgstr "以工程師職位任職於"
 msgid "artists-in-residence"
 msgstr "駐校作曲家們"
 
-#: DB:link_type/name:1231 DB:link_type/name:1241 DB:link_type/name:1170
-#: DB:link_type/name:993
+#: DB:link_type/name:1231 DB:link_type/name:1303 DB:link_type/name:1241
+#: DB:link_type/name:1170 DB:link_type/name:993
 msgid "artwork"
 msgstr "藝術作品"
 
@@ -6316,8 +6371,8 @@ msgstr "衍生形式"
 msgid "derived from"
 msgstr "源自"
 
-#: DB:link_type/name:1233 DB:link_type/name:928 DB:link_type/name:1242
-#: DB:link_type/name:1171
+#: DB:link_type/name:1233 DB:link_type/name:928 DB:link_type/name:1304
+#: DB:link_type/name:1242 DB:link_type/name:1171
 msgid "design"
 msgstr "設計"
 
@@ -6591,19 +6646,22 @@ msgstr "印刷，由"
 #. name:fanpage
 #: DB:link_type/link_phrase:1188 DB:link_type/reverse_link_phrase:214
 #: DB:link_type/reverse_link_phrase:172 DB:link_type/reverse_link_phrase:1189
-#: DB:link_type/reverse_link_phrase:1190 DB:link_type/reverse_link_phrase:1191
+#: DB:link_type/reverse_link_phrase:1301 DB:link_type/reverse_link_phrase:1190
+#: DB:link_type/reverse_link_phrase:1191
 msgid "fan page for"
 msgstr "粉絲頁面，關於"
 
 #. name:fanpage
 #: DB:link_type/link_phrase:214 DB:link_type/link_phrase:172
-#: DB:link_type/link_phrase:1189 DB:link_type/link_phrase:1190
-#: DB:link_type/link_phrase:1191 DB:link_type/reverse_link_phrase:1188
+#: DB:link_type/link_phrase:1189 DB:link_type/link_phrase:1301
+#: DB:link_type/link_phrase:1190 DB:link_type/link_phrase:1191
+#: DB:link_type/reverse_link_phrase:1188
 msgid "fan pages"
 msgstr "粉絲頁面"
 
 #: DB:link_type/name:214 DB:link_type/name:172 DB:link_type/name:1189
-#: DB:link_type/name:1190 DB:link_type/name:1188 DB:link_type/name:1191
+#: DB:link_type/name:1301 DB:link_type/name:1190 DB:link_type/name:1188
+#: DB:link_type/name:1191
 msgid "fanpage"
 msgstr "粉絲頁"
 
@@ -6741,8 +6799,8 @@ msgstr "玻璃母盤處理，處理者為"
 msgid "glass mastering location for"
 msgstr "玻璃母帶製作地點"
 
-#: DB:link_type/name:1172 DB:link_type/name:1234 DB:link_type/name:125
-#: DB:link_type/name:27
+#: DB:link_type/name:1172 DB:link_type/name:1234 DB:link_type/name:1306
+#: DB:link_type/name:125 DB:link_type/name:27
 msgid "graphic design"
 msgstr "平面設計"
 
@@ -6980,8 +7038,8 @@ msgstr "在以下位置有唱片頁面"
 
 #. name:fanpage
 #: DB:link_type/long_link_phrase:214 DB:link_type/long_link_phrase:172
-#: DB:link_type/long_link_phrase:1189 DB:link_type/long_link_phrase:1190
-#: DB:link_type/long_link_phrase:1191
+#: DB:link_type/long_link_phrase:1189 DB:link_type/long_link_phrase:1301
+#: DB:link_type/long_link_phrase:1190 DB:link_type/long_link_phrase:1191
 msgid "has a fan page at"
 msgstr "在粉絲頁上"
 
@@ -7029,7 +7087,7 @@ msgid "has a review page at"
 msgstr "有評論頁面於"
 
 #. name:schedule
-#: DB:link_type/long_link_phrase:1083
+#: DB:link_type/long_link_phrase:1083 DB:link_type/long_link_phrase:1302
 msgid "has a schedule at"
 msgstr "有日程安排於"
 
@@ -7359,7 +7417,7 @@ msgid "hybrid of"
 msgstr "混合的"
 
 #: DB:link_type/name:1232 DB:link_type/name:927 DB:link_type/name:1173
-#: DB:link_type/name:1244
+#: DB:link_type/name:1305 DB:link_type/name:1244
 msgid "illustration"
 msgstr "插圖"
 
@@ -9472,12 +9530,13 @@ msgid "samples material"
 msgstr "取樣材料"
 
 #. name:schedule
-#: DB:link_type/name:1083 DB:link_type/link_phrase:1083
+#: DB:link_type/name:1083 DB:link_type/name:1302 DB:link_type/link_phrase:1083
+#: DB:link_type/link_phrase:1302
 msgid "schedule"
 msgstr "日程"
 
 #. name:schedule
-#: DB:link_type/reverse_link_phrase:1083
+#: DB:link_type/reverse_link_phrase:1083 DB:link_type/reverse_link_phrase:1302
 msgid "schedule for"
 msgstr "日程為"
 
@@ -10709,9 +10768,10 @@ msgid "{additional} art direction"
 msgstr "{additional} 藝術指導"
 
 #. name:artwork
-#: DB:link_type/link_phrase:1231 DB:link_type/link_phrase:1241
-#: DB:link_type/link_phrase:1170 DB:link_type/link_phrase:993
-#: DB:link_type/reverse_link_phrase:1231 DB:link_type/reverse_link_phrase:1241
+#: DB:link_type/link_phrase:1231 DB:link_type/link_phrase:1303
+#: DB:link_type/link_phrase:1241 DB:link_type/link_phrase:1170
+#: DB:link_type/link_phrase:993 DB:link_type/reverse_link_phrase:1231
+#: DB:link_type/reverse_link_phrase:1303 DB:link_type/reverse_link_phrase:1241
 #: DB:link_type/reverse_link_phrase:1170 DB:link_type/reverse_link_phrase:993
 msgid "{additional} artwork"
 msgstr "{additional} 藝術作品"
@@ -10762,17 +10822,19 @@ msgstr "{additional} 錄音工程地點"
 
 #. name:graphic design
 #: DB:link_type/link_phrase:1172 DB:link_type/link_phrase:1234
-#: DB:link_type/link_phrase:125 DB:link_type/link_phrase:27
-#: DB:link_type/reverse_link_phrase:1172 DB:link_type/reverse_link_phrase:1234
+#: DB:link_type/link_phrase:1306 DB:link_type/link_phrase:125
+#: DB:link_type/link_phrase:27 DB:link_type/reverse_link_phrase:1172
+#: DB:link_type/reverse_link_phrase:1234 DB:link_type/reverse_link_phrase:1306
 #: DB:link_type/reverse_link_phrase:125 DB:link_type/reverse_link_phrase:27
 msgid "{additional} graphic design"
 msgstr "{additional} 平面設計"
 
 #. name:illustration
 #: DB:link_type/link_phrase:1232 DB:link_type/link_phrase:927
-#: DB:link_type/link_phrase:1173 DB:link_type/link_phrase:1244
-#: DB:link_type/reverse_link_phrase:1232 DB:link_type/reverse_link_phrase:927
-#: DB:link_type/reverse_link_phrase:1173 DB:link_type/reverse_link_phrase:1244
+#: DB:link_type/link_phrase:1173 DB:link_type/link_phrase:1305
+#: DB:link_type/link_phrase:1244 DB:link_type/reverse_link_phrase:1232
+#: DB:link_type/reverse_link_phrase:927 DB:link_type/reverse_link_phrase:1173
+#: DB:link_type/reverse_link_phrase:1305 DB:link_type/reverse_link_phrase:1244
 msgid "{additional} illustration"
 msgstr "{additional} 插圖"
 
@@ -10951,8 +11013,9 @@ msgstr "{additional} {assistant} 指揮"
 
 #. name:design
 #: DB:link_type/link_phrase:1233 DB:link_type/link_phrase:928
-#: DB:link_type/link_phrase:1242 DB:link_type/reverse_link_phrase:1233
-#: DB:link_type/reverse_link_phrase:928 DB:link_type/reverse_link_phrase:1242
+#: DB:link_type/link_phrase:1304 DB:link_type/link_phrase:1242
+#: DB:link_type/reverse_link_phrase:1233 DB:link_type/reverse_link_phrase:928
+#: DB:link_type/reverse_link_phrase:1304 DB:link_type/reverse_link_phrase:1242
 msgid "{additional} {assistant} design"
 msgstr "{additional} {assistant} 設計"
 
@@ -11391,6 +11454,34 @@ msgstr "{entity1} 是/曾是 {entity0} 的主要演出場地"
 #: DB:link_type/long_link_phrase:1168
 msgid "{entity1} presented {entity0}"
 msgstr "{entity1} 呈現了 {entity0}"
+
+#. name:artwork
+#: DB:link_type/long_link_phrase:1303
+#, fuzzy
+#| msgid "provided {additional} artwork on"
+msgid "{entity1} provided {additional} artwork on {entity0}"
+msgstr "提供 {additional} 藝術設計於"
+
+#. name:graphic design
+#: DB:link_type/long_link_phrase:1306
+#, fuzzy
+#| msgid "provided {additional} graphic design on"
+msgid "{entity1} provided {additional} graphic design on {entity0}"
+msgstr "提供 {additional} 平面設計於"
+
+#. name:illustration
+#: DB:link_type/long_link_phrase:1305
+#, fuzzy
+#| msgid "provided {additional} illustration on"
+msgid "{entity1} provided {additional} illustration on {entity0}"
+msgstr "提供 {additional} 插圖於"
+
+#. name:design
+#: DB:link_type/long_link_phrase:1304
+#, fuzzy
+#| msgid "provided {additional} {assistant} design on"
+msgid "{entity1} provided {additional} {assistant} design on {entity0}"
+msgstr "提供 {additional} {assistant} 助理設計於"
 
 #. name:arranged for
 #: DB:link_type/long_link_phrase:949 DB:link_type/long_link_phrase:948

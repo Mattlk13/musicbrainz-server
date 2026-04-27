@@ -10,12 +10,8 @@
 import $ from 'jquery';
 import {parse as tldtsParse} from 'tldts';
 
-import {arraysEqual} from '../common/utility/arrays.js';
-
-type EntityTypes = string | $ReadOnlyArray<string>;
-
 type EntityTypesMap = {
-  +[entityType: RelatableEntityTypeT]: EntityTypes,
+  +[entityType: RelatableEntityTypeT]: RelationshipTypeT,
 };
 
 type EntityTypeMap = {
@@ -662,9 +658,9 @@ export const CLEANUPS: CleanupEntries = {
     },
   },
   'amazon': {
-    hostname: ['amazon.*', 'amzn.com', 'amzn.to'],
+    hostname: ['amazon.*', 'amazon.com.be', 'amzn.com', 'amzn.to'],
     match: [
-      /^(https?:\/\/)?(((?!music)[^/])+\.)?(amazon\.(ae|at|com\.au|com\.br|ca|cn|com|de|eg|es|fr|in|it|jp|co\.jp|com\.mx|nl|pl|sa|se|sg|com\.tr|co\.uk)|amzn\.com)/i,
+      /^(https?:\/\/)?(((?!music)[^/])+\.)?(amazon\.(ae|at|com\.au|com\.be|com\.br|ca|cn|com|de|eg|es|fr|in|it|jp|co\.jp|com\.mx|nl|pl|sa|se|sg|com\.tr|co\.uk)|amzn\.com)/i,
       /^(https?:\/\/)?([^/]+\.)?amzn\.to/i,
     ],
     restrict: [LINK_TYPES.amazon],
@@ -729,7 +725,7 @@ export const CLEANUPS: CleanupEntries = {
 
       // If you change this, please update the BadAmazonURLs report.
       return {
-        result: /^https:\/\/www\.amazon\.(ae|at|com\.au|com\.br|ca|cn|com|de|eg|es|fr|in|it|jp|co\.jp|com\.mx|nl|pl|sa|se|sg|com\.tr|co\.uk)\//.test(url),
+        result: /^https:\/\/www\.amazon\.(ae|at|com\.au|com\.be|com\.br|ca|cn|com|de|eg|es|fr|in|it|jp|co\.jp|com\.mx|nl|pl|sa|se|sg|com\.tr|co\.uk)\//.test(url),
         target: ERROR_TARGETS.URL,
       };
     },
@@ -765,7 +761,7 @@ export const CLEANUPS: CleanupEntries = {
     },
     validate(url, id) {
       // If you change this, please update the BadAmazonURLs report.
-      const m = /^https:\/\/music\.amazon\.(?:ae|at|com\.au|com\.br|ca|cn|com|de|eg|es|fr|in|it|jp|co\.jp|com\.mx|nl|pl|sa|se|sg|com\.tr|co\.uk)\/(albums|artists|tracks)/.exec(url);
+      const m = /^https:\/\/music\.amazon\.(?:ae|at|com\.au|com\.be|com\.br|ca|cn|com|de|eg|es|fr|in|it|jp|co\.jp|com\.mx|nl|pl|sa|se|sg|com\.tr|co\.uk)\/(albums|artists|tracks)/.exec(url);
       if (m) {
         const prefix = m[1];
         switch (id) {
@@ -2928,15 +2924,6 @@ export const CLEANUPS: CleanupEntries = {
         };
       }
       return {result: true, target: ERROR_TARGETS.URL};
-    },
-  },
-  'flattr': {
-    hostname: 'flattr.com',
-    match: [/^(https?:\/\/)?(www\.)?flattr\.com\/profile\/[^/?#]/i],
-    restrict: [LINK_TYPES.patronage],
-    clean(url) {
-      url = url.replace(/^(?:https?:\/\/)?(?:www\.)?flattr\.com\/profile\/([^/?#]+).*$/, 'https://flattr.com/profile/$1');
-      return url;
     },
   },
   'foursquare': {
@@ -5178,7 +5165,8 @@ export const CLEANUPS: CleanupEntries = {
   },
   'ototoy': {
     hostname: 'ototoy.jp',
-    match: [/^(https?:\/\/)?([^/]+\.)?ototoy\.jp/i],
+    // Skip /feature links (can be interviews, reviews or other)
+    match: [/^(https?:\/\/)?([^/]+\.)?ototoy\.jp\/(?!feature)/i],
     restrict: [LINK_TYPES.downloadpurchase],
     clean(url) {
       return url.replace(/^(?:https?:\/\/)?(?:www\.)?ototoy\.jp\/(labels|_\/default\/[ap])\/(\d+).*$/, 'https://ototoy.jp/$1/$2');
@@ -8042,10 +8030,13 @@ export class Checker {
 
   cleanup: ?CleanupEntry;
 
+  +possibleTypes: $ReadOnlyArray<RelationshipTypeT>;
+
   constructor(url: string, entityType: RelatableEntityTypeT) {
     this.url = url;
     this.entityType = entityType;
     this.cleanup = findCleanupEntry(url);
+    this.possibleTypes = this.filterApplicableTypes();
   }
 
   /*
@@ -8054,13 +8045,13 @@ export class Checker {
    * Guess a relationship type or a type combination,
    * return false if it can't be determined.
    */
-  guessType(): RelationshipTypeT | false {
+  guessType(): RelationshipTypeT | null {
     const cleanup = this.cleanup;
     const sourceType = this.entityType;
     const types = this.filterApplicableTypes();
     // If not applicable to current entity
     if (types.length === 0) {
-      return false;
+      return null;
     }
     // If there is a `select` function, use its return value directly
     if (cleanup && cleanup.select) {
@@ -8073,21 +8064,7 @@ export class Checker {
     if (types.length === 1) {
       return types[0];
     }
-    return false;
-  }
-
-  /*
-   * Relationship type restriction.
-   *
-   * Returns possible relationship types of given URL with given entity.
-   */
-  getPossibleTypes(): Array<RelationshipTypeT> | false {
-    const types = this.filterApplicableTypes();
-    // If not applicable to current entity
-    if (types.length === 0) {
-      return false;
-    }
-    return types;
+    return null;
   }
 
   /*
@@ -8140,16 +8117,17 @@ export class Checker {
    */
   checkRelationships(
     selectedTypes: $ReadOnlyArray<string>,
-    allowedTypes: $ReadOnlyArray<RelationshipTypeT> | false,
+    allowedTypes: $ReadOnlyArray<RelationshipTypeT> | null,
   ): ValidationResult {
-    if (!allowedTypes) {
+    if (allowedTypes == null || allowedTypes.length === 0) {
       return {result: true};
     }
     // Only a single type is selected
     if (selectedTypes.length === 1) {
       const type = selectedTypes[0];
       const result = allowedTypes.some(
-        allowedType => allowedType === type,
+        allowedType => typeof allowedType === 'string' &&
+          allowedType === type,
       );
       if (!result) {
         return {
@@ -8162,11 +8140,9 @@ export class Checker {
     }
     // Multiple types are selected
     const result = allowedTypes.some(
-      (allowedType) => typeof allowedType === 'object' &&
-        arraysEqual(
-          [...selectedTypes].sort(),
-          [...allowedType].sort(),
-        ),
+      (allowedType) => Array.isArray(allowedType) &&
+        selectedTypes.length === allowedType.length &&
+        (new Set(selectedTypes)).isSubsetOf(new Set(allowedType)),
     );
     if (!result) {
       return {
@@ -8178,6 +8154,11 @@ export class Checker {
     return {result: true};
   }
 
+  /*
+   * Relationship type restriction.
+   *
+   * Returns possible relationship types of given URL with given entity.
+   */
   filterApplicableTypes(
     sourceType: RelatableEntityTypeT = this.entityType,
   ): Array<RelationshipTypeT> {
@@ -8188,7 +8169,7 @@ export class Checker {
       if (type[sourceType]) {
         result.push(type[sourceType]);
       }
-      return result.sort();
+      return result;
     }, []);
   }
 }

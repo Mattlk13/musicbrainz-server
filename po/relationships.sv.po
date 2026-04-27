@@ -388,6 +388,14 @@ msgstr ""
 msgid "Indicates a page with an official schedule for an event series."
 msgstr ""
 
+#. name:schedule
+#: DB:link_type/description:1302
+#, fuzzy
+#| msgid "Indicates the official homepage for a label."
+msgid ""
+"Indicates a page with an official schedule for an event, such as a festival."
+msgstr "Indikerar den officiella hemsidan för ett skivbolag."
+
 #. name:parent
 #: DB:link_type/description:109
 msgid "Indicates a parent-child relationship."
@@ -1764,6 +1772,35 @@ msgid ""
 "This describes the company responsible for using a mixing console to mix a "
 "recorded track into a single piece of music suitable for release, when a "
 "company is credited instead of a specific engineer."
+msgstr ""
+
+#. name:design
+#: DB:link_type/description:1304
+#, fuzzy
+#| msgid "This links an artist to a fan-created website."
+msgid "This indicates a company who did design for the event."
+msgstr "Detta länkar en artist till en fansida."
+
+#. name:illustration
+#: DB:link_type/description:1305
+#, fuzzy
+#| msgid "This links an artist to a fan-created website."
+msgid "This indicates a company who did illustration for the event."
+msgstr "Detta länkar en artist till en fansida."
+
+#. name:graphic design
+#: DB:link_type/description:1306
+msgid ""
+"This indicates a company who did the graphic design / layout for the event, "
+"arranging pieces of content into a coherent and aesthetically-pleasing "
+"design."
+msgstr ""
+
+#. name:artwork
+#: DB:link_type/description:1303
+msgid ""
+"This indicates a company who provided artwork for the event when no more "
+"specific information is available."
 msgstr ""
 
 #. name:member of band
@@ -3876,6 +3913,13 @@ msgid ""
 "site containing videos curated by it."
 msgstr ""
 
+#. name:fanpage
+#: DB:link_type/description:1301
+#, fuzzy
+#| msgid "This links an artist to a fan-created website."
+msgid "This links an event to a fan-created website."
+msgstr "Detta länkar en artist till en fansida."
+
 #. name:patronage
 #: DB:link_type/description:898
 msgid ""
@@ -5232,8 +5276,8 @@ msgstr ""
 msgid "artists-in-residence"
 msgstr ""
 
-#: DB:link_type/name:1231 DB:link_type/name:1241 DB:link_type/name:1170
-#: DB:link_type/name:993
+#: DB:link_type/name:1231 DB:link_type/name:1303 DB:link_type/name:1241
+#: DB:link_type/name:1170 DB:link_type/name:993
 msgid "artwork"
 msgstr ""
 
@@ -5862,8 +5906,8 @@ msgstr ""
 msgid "derived from"
 msgstr ""
 
-#: DB:link_type/name:1233 DB:link_type/name:928 DB:link_type/name:1242
-#: DB:link_type/name:1171
+#: DB:link_type/name:1233 DB:link_type/name:928 DB:link_type/name:1304
+#: DB:link_type/name:1242 DB:link_type/name:1171
 msgid "design"
 msgstr ""
 
@@ -6137,19 +6181,22 @@ msgstr ""
 #. name:fanpage
 #: DB:link_type/link_phrase:1188 DB:link_type/reverse_link_phrase:214
 #: DB:link_type/reverse_link_phrase:172 DB:link_type/reverse_link_phrase:1189
-#: DB:link_type/reverse_link_phrase:1190 DB:link_type/reverse_link_phrase:1191
+#: DB:link_type/reverse_link_phrase:1301 DB:link_type/reverse_link_phrase:1190
+#: DB:link_type/reverse_link_phrase:1191
 msgid "fan page for"
 msgstr ""
 
 #. name:fanpage
 #: DB:link_type/link_phrase:214 DB:link_type/link_phrase:172
-#: DB:link_type/link_phrase:1189 DB:link_type/link_phrase:1190
-#: DB:link_type/link_phrase:1191 DB:link_type/reverse_link_phrase:1188
+#: DB:link_type/link_phrase:1189 DB:link_type/link_phrase:1301
+#: DB:link_type/link_phrase:1190 DB:link_type/link_phrase:1191
+#: DB:link_type/reverse_link_phrase:1188
 msgid "fan pages"
 msgstr ""
 
 #: DB:link_type/name:214 DB:link_type/name:172 DB:link_type/name:1189
-#: DB:link_type/name:1190 DB:link_type/name:1188 DB:link_type/name:1191
+#: DB:link_type/name:1301 DB:link_type/name:1190 DB:link_type/name:1188
+#: DB:link_type/name:1191
 msgid "fanpage"
 msgstr ""
 
@@ -6287,8 +6334,8 @@ msgstr ""
 msgid "glass mastering location for"
 msgstr ""
 
-#: DB:link_type/name:1172 DB:link_type/name:1234 DB:link_type/name:125
-#: DB:link_type/name:27
+#: DB:link_type/name:1172 DB:link_type/name:1234 DB:link_type/name:1306
+#: DB:link_type/name:125 DB:link_type/name:27
 msgid "graphic design"
 msgstr ""
 
@@ -6526,8 +6573,8 @@ msgstr ""
 
 #. name:fanpage
 #: DB:link_type/long_link_phrase:214 DB:link_type/long_link_phrase:172
-#: DB:link_type/long_link_phrase:1189 DB:link_type/long_link_phrase:1190
-#: DB:link_type/long_link_phrase:1191
+#: DB:link_type/long_link_phrase:1189 DB:link_type/long_link_phrase:1301
+#: DB:link_type/long_link_phrase:1190 DB:link_type/long_link_phrase:1191
 msgid "has a fan page at"
 msgstr ""
 
@@ -6575,7 +6622,7 @@ msgid "has a review page at"
 msgstr ""
 
 #. name:schedule
-#: DB:link_type/long_link_phrase:1083
+#: DB:link_type/long_link_phrase:1083 DB:link_type/long_link_phrase:1302
 msgid "has a schedule at"
 msgstr ""
 
@@ -6903,7 +6950,7 @@ msgid "hybrid of"
 msgstr ""
 
 #: DB:link_type/name:1232 DB:link_type/name:927 DB:link_type/name:1173
-#: DB:link_type/name:1244
+#: DB:link_type/name:1305 DB:link_type/name:1244
 msgid "illustration"
 msgstr ""
 
@@ -9023,12 +9070,13 @@ msgid "samples material"
 msgstr ""
 
 #. name:schedule
-#: DB:link_type/name:1083 DB:link_type/link_phrase:1083
+#: DB:link_type/name:1083 DB:link_type/name:1302 DB:link_type/link_phrase:1083
+#: DB:link_type/link_phrase:1302
 msgid "schedule"
 msgstr ""
 
 #. name:schedule
-#: DB:link_type/reverse_link_phrase:1083
+#: DB:link_type/reverse_link_phrase:1083 DB:link_type/reverse_link_phrase:1302
 msgid "schedule for"
 msgstr ""
 
@@ -10238,9 +10286,10 @@ msgid "{additional} art direction"
 msgstr ""
 
 #. name:artwork
-#: DB:link_type/link_phrase:1231 DB:link_type/link_phrase:1241
-#: DB:link_type/link_phrase:1170 DB:link_type/link_phrase:993
-#: DB:link_type/reverse_link_phrase:1231 DB:link_type/reverse_link_phrase:1241
+#: DB:link_type/link_phrase:1231 DB:link_type/link_phrase:1303
+#: DB:link_type/link_phrase:1241 DB:link_type/link_phrase:1170
+#: DB:link_type/link_phrase:993 DB:link_type/reverse_link_phrase:1231
+#: DB:link_type/reverse_link_phrase:1303 DB:link_type/reverse_link_phrase:1241
 #: DB:link_type/reverse_link_phrase:1170 DB:link_type/reverse_link_phrase:993
 msgid "{additional} artwork"
 msgstr ""
@@ -10291,17 +10340,19 @@ msgstr ""
 
 #. name:graphic design
 #: DB:link_type/link_phrase:1172 DB:link_type/link_phrase:1234
-#: DB:link_type/link_phrase:125 DB:link_type/link_phrase:27
-#: DB:link_type/reverse_link_phrase:1172 DB:link_type/reverse_link_phrase:1234
+#: DB:link_type/link_phrase:1306 DB:link_type/link_phrase:125
+#: DB:link_type/link_phrase:27 DB:link_type/reverse_link_phrase:1172
+#: DB:link_type/reverse_link_phrase:1234 DB:link_type/reverse_link_phrase:1306
 #: DB:link_type/reverse_link_phrase:125 DB:link_type/reverse_link_phrase:27
 msgid "{additional} graphic design"
 msgstr ""
 
 #. name:illustration
 #: DB:link_type/link_phrase:1232 DB:link_type/link_phrase:927
-#: DB:link_type/link_phrase:1173 DB:link_type/link_phrase:1244
-#: DB:link_type/reverse_link_phrase:1232 DB:link_type/reverse_link_phrase:927
-#: DB:link_type/reverse_link_phrase:1173 DB:link_type/reverse_link_phrase:1244
+#: DB:link_type/link_phrase:1173 DB:link_type/link_phrase:1305
+#: DB:link_type/link_phrase:1244 DB:link_type/reverse_link_phrase:1232
+#: DB:link_type/reverse_link_phrase:927 DB:link_type/reverse_link_phrase:1173
+#: DB:link_type/reverse_link_phrase:1305 DB:link_type/reverse_link_phrase:1244
 msgid "{additional} illustration"
 msgstr ""
 
@@ -10476,8 +10527,9 @@ msgstr ""
 
 #. name:design
 #: DB:link_type/link_phrase:1233 DB:link_type/link_phrase:928
-#: DB:link_type/link_phrase:1242 DB:link_type/reverse_link_phrase:1233
-#: DB:link_type/reverse_link_phrase:928 DB:link_type/reverse_link_phrase:1242
+#: DB:link_type/link_phrase:1304 DB:link_type/link_phrase:1242
+#: DB:link_type/reverse_link_phrase:1233 DB:link_type/reverse_link_phrase:928
+#: DB:link_type/reverse_link_phrase:1304 DB:link_type/reverse_link_phrase:1242
 msgid "{additional} {assistant} design"
 msgstr ""
 
@@ -10919,6 +10971,34 @@ msgstr ""
 #: DB:link_type/long_link_phrase:1168
 msgid "{entity1} presented {entity0}"
 msgstr ""
+
+#. name:artwork
+#: DB:link_type/long_link_phrase:1303
+#, fuzzy
+#| msgid "{entity1} was manufactured in {entity0}"
+msgid "{entity1} provided {additional} artwork on {entity0}"
+msgstr "{entity1} tillverkades i {entity0}"
+
+#. name:graphic design
+#: DB:link_type/long_link_phrase:1306
+#, fuzzy
+#| msgid "{entity1} was manufactured in {entity0}"
+msgid "{entity1} provided {additional} graphic design on {entity0}"
+msgstr "{entity1} tillverkades i {entity0}"
+
+#. name:illustration
+#: DB:link_type/long_link_phrase:1305
+#, fuzzy
+#| msgid "{entity1} was manufactured in {entity0}"
+msgid "{entity1} provided {additional} illustration on {entity0}"
+msgstr "{entity1} tillverkades i {entity0}"
+
+#. name:design
+#: DB:link_type/long_link_phrase:1304
+#, fuzzy
+#| msgid "{entity1} was manufactured in {entity0}"
+msgid "{entity1} provided {additional} {assistant} design on {entity0}"
+msgstr "{entity1} tillverkades i {entity0}"
 
 #. name:arranged for
 #: DB:link_type/long_link_phrase:949 DB:link_type/long_link_phrase:948
