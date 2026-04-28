@@ -274,7 +274,8 @@ m4_define(`MBS_ROOT', `/home/musicbrainz/musicbrainz-server')
 m4_define(
     `setup_mbs_root',
     `m4_dnl
-RUN useradd --create-home --shell /bin/bash musicbrainz
+RUN userdel --force --remove ubuntu && \
+    useradd --create-home --shell /bin/bash --uid 1000 musicbrainz
 
 WORKDIR MBS_ROOT
 RUN chown_mb(`MBS_ROOT')')
